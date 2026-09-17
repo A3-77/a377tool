@@ -94,6 +94,20 @@ Pages Functions，API Key 从环境变量 `CODE0_API_KEY` 读，**前端源码�
 
 ## 部署
 
+**已接 GitHub 自动部署**：推到 `main` 分支，Cloudflare Pages 自动构建上线，约 1 分钟。
+
+| 配置项 | 值 |
+| --- | --- |
+| Git 仓库 | `A3-77/a377tool`（私有） |
+| 生产分支 | `main` |
+| 根目录 | `web` |
+| 构建命令 | 空（纯静态，不需要构建） |
+| 输出目录 | `public` |
+
+推送其他分支会生成**预览环境**（独立 URL），不影响线上——想先试效果就推别的分支。
+
+手动部署（应急用，平时不需要）：
+
 ```bash
 cd web
 CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='<账户ID>' \
@@ -101,8 +115,10 @@ CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='<账户ID>' \
   --project-name=a377tool --branch=main --commit-dirty=true
 ```
 
-细节见 [`在线版部署说明.md`](在线版部署说明.md)。**注意别用 curl 直接调 Pages 上传 API**——
-那是两段式的，会返回 success 但访问 500。
+> ⚠️ 接了 Git 之后**别再手动部署** —— 两个来源都在部署会让线上版本和仓库对不上。
+> 真要手动，只在 Git 挂了的紧急情况下用，之后记得让两者重新对齐。
+>
+> 另外别用 curl 直接调 Pages 上传 API —— 那是两段式的，会返回 success 但访问 500。
 
 ---
 
