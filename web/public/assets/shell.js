@@ -61,6 +61,10 @@
         (n.k === active ? ' aria-current="page"' : "") + ">" + n.label + "</a>";
     }
     html += "</nav>";
+    html += '<button class="a377bar-theme a377bar-skin" type="button" data-skin-toggle aria-pressed="true" title="切换皮肤">' +
+              '<span class="a377bar-skin-dot" aria-hidden="true"></span>' +
+              '<b data-skin-label>NEW</b>' +
+            "</button>";
     html += '<button class="a377bar-theme" type="button" data-theme-toggle aria-pressed="false">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" ' +
               'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + MOON + SUN + "</svg>" +
@@ -68,6 +72,7 @@
 
     bar.innerHTML = html;
     body.insertBefore(bar, body.firstChild);
+    if (window.A377Skin && window.A377Skin.refresh) window.A377Skin.refresh();
 
     /* 实测高度写回 CSS 变量，字体放大/换行都不会错位 */
     var apply = function () {

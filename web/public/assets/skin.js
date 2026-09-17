@@ -51,6 +51,7 @@
 
   function boot() {
     ensureStyle();
+    if (document.body.dataset.shell) { paint(current()); return; }
     if (document.querySelector("[data-skin-toggle]")) return;
     var b = document.createElement("button");
     b.type = "button";
@@ -68,6 +69,7 @@
 
   window.A377Skin = {
     get: current,
+    refresh: paint,
     set: function (v) {
       v = v === "classic" ? "classic" : "one";
       try { localStorage.setItem(KEY, v); } catch (e) {}

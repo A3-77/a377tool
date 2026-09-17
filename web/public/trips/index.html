@@ -54,6 +54,14 @@
     --text:#e6ebf4; --dim:#8b97ab; --dim2:#5d6779;
     --a:#5b8fd6; --b:#b06f89;              /* 两个人的代表色，全站只有这两处用彩色 */
     --ok:#5fd39a; --gold:#d9b568;
+    --map-bg:#090c13; --map-grat:#151d2e; --map-river:#20364f;
+    --map-casing:#0f141e; --map-corridor:#33415e; --map-spur:#29334a;
+    --map-node-stroke:#090c13; --map-ring:#d9b568; --map-both:#5fd39a;
+    --map-label:#8d9bb4; --map-label-stroke:#090c13;
+    --map-label-t3:#d3dcee; --map-label-t1:#f0f4fc;
+    --map-bar-bg:rgba(12,16,24,.9); --map-bar-ink:#8b97ab; --map-bar-hover:#e6ebf4; --map-tip-bg:rgba(8,11,18,.97);
+    --map-dot-top:#5fd39a; --map-dot-2:#cfd9ec; --map-dot-3:#95a3bd; --map-dot-dim:#6d7893;
+    --map-leg-a:#5b8fd6; --map-leg-b:#b06f89;
     --r:14px;
   }
 
@@ -68,6 +76,14 @@
     --s4:#d6dce7;   /* 选中 */
     --text:#171c26; --dim:#5a6477; --dim2:#8b94a6;
     --a:#3a6fb8; --b:#9a5570;
+    --map-bg:#eef1f6; --map-grat:#d6dce7; --map-river:#b9c9dc;
+    --map-casing:#ffffff; --map-corridor:#8fa3c2; --map-spur:#b8c4d8;
+    --map-node-stroke:#ffffff; --map-ring:#9c7c2c; --map-both:#2b8f61;
+    --map-label:#5a6477; --map-label-stroke:#ffffff;
+    --map-label-t3:#374151; --map-label-t1:#171c26;
+    --map-bar-bg:rgba(255,255,255,.92); --map-bar-ink:#5a6477; --map-bar-hover:#171c26; --map-tip-bg:rgba(255,255,255,.97);
+    --map-dot-top:#2b8f61; --map-dot-2:#3a6fb8; --map-dot-3:#8b94a6; --map-dot-dim:#aeb8c8;
+    --map-leg-a:#3a6fb8; --map-leg-b:#9a5570;
     --ok:#2b8f61; --gold:#9c7c2c;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -339,47 +355,47 @@
   .empty{font-size:var(--fs-2);color:var(--dim2);padding:12px 0;line-height:1.9}
   /* ================= 地图 ================= */
   .mapwrap{position:sticky;top:66px;width:100%;aspect-ratio:1000/660;
-    max-height:calc(100vh - 84px);min-height:380px;border-radius:var(--r);overflow:hidden;background:#090c13}
+    max-height:calc(100vh - 84px);min-height:380px;border-radius:var(--r);overflow:hidden;background:var(--map-bg)}
   #amap{position:absolute;inset:0;display:none}
   #amap.on{display:block}
   #svgmap{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
   #svgmap.dragging{cursor:grabbing}
   .mapbar{position:absolute;left:10px;top:10px;display:flex;gap:5px;flex-wrap:wrap;z-index:5}
   .mapbar button{padding:4px 9px;border-radius:6px;font-size:var(--fs-1);color:var(--dim);
-    background:rgba(12,16,24,.9);transition:.13s}
-  .mapbar button:hover{color:var(--text);border-color:var(--s4)}
+    background:var(--map-bar-bg);color:var(--map-bar-ink);transition:.13s}
+  .mapbar button:hover{color:var(--map-bar-hover);border-color:var(--s4)}
   .mapbar button.off{opacity:.4}
   .mapbar button:disabled{opacity:.26;cursor:not-allowed}
   .legend{position:absolute;left:10px;bottom:10px;z-index:5;font-size:var(--fs-1);color:var(--dim2);
-    background:rgba(12,16,24,.9);border-radius:6px;padding:6px 10px;
+    background:var(--map-bar-bg);color:var(--map-label);border-radius:6px;padding:6px 10px;
     display:flex;gap:12px;flex-wrap:wrap}
   .legend span{display:flex;align-items:center;gap:5px;white-space:nowrap}
   .legend i{display:inline-block;width:14px;height:2px;border-radius:1px}
   .legend .pt{width:7px;height:7px;border-radius:50%}
   #mapwrap.amapmode .legend{bottom:36px}
   .tip{position:absolute;z-index:20;pointer-events:none;opacity:0;transition:opacity .12s;
-    background:rgba(8,11,18,.97);border-radius:6px;
+    background:var(--map-tip-bg);color:var(--map-label-t1);border-radius:6px;
     padding:8px 11px;font-size:var(--fs-2);white-space:nowrap}
   .tip.on{opacity:1}
   .tip .t1{font-weight:600;margin-bottom:2px}
   .tip .t2{color:var(--dim)}
 
-  .grat{stroke:#151d2e;stroke-width:.6;fill:none}
-  .river{fill:none;stroke:#20364f;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
-  .corridor-casing{fill:none;stroke:#0f141e;stroke-width:7.5;stroke-linecap:round;stroke-linejoin:round}
-  .corridor{fill:none;stroke:#33415e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
-  .spur{fill:none;stroke:#29334a;stroke-width:1.6;stroke-dasharray:2 4;stroke-linecap:round}
+  .grat{stroke:var(--map-grat);stroke-width:.6;fill:none}
+  .river{fill:none;stroke:var(--map-river);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+  .corridor-casing{fill:none;stroke:var(--map-casing);stroke-width:7.5;stroke-linecap:round;stroke-linejoin:round}
+  .corridor{fill:none;stroke:var(--map-corridor);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .spur{fill:none;stroke:var(--map-spur);stroke-width:1.6;stroke-dasharray:2 4;stroke-linecap:round}
   .leg{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:5 4}
-  .leg.a{stroke:var(--a)} .leg.b{stroke:var(--b)}
+  .leg.a{stroke:var(--map-leg-a)} .leg.b{stroke:var(--map-leg-b)}
   .node{cursor:pointer}
   .node .hit{fill:transparent}
-  .node .dot{stroke:#090c13;stroke-width:1.4}
-  .node .ring{fill:none;stroke:#d9b568;stroke-width:1.5}
-  .node .bothring{fill:none;stroke:#5fd39a;stroke-width:1.2;stroke-dasharray:2 3;opacity:.85}
-  .node .label{font-size:var(--fs-2);fill:#8d9bb4;paint-order:stroke;
-    stroke:#090c13;stroke-width:3.6px;stroke-linejoin:round;pointer-events:none}
-  .node.t3 .label{fill:#d3dcee}
-  .node.t1 .label{fill:#f0f4fc;font-weight:600}
+  .node .dot{stroke:var(--map-node-stroke);stroke-width:1.4}
+  .node .ring{fill:none;stroke:var(--map-ring);stroke-width:1.5}
+  .node .bothring{fill:none;stroke:var(--map-both);stroke-width:1.2;stroke-dasharray:2 3;opacity:.85}
+  .node .label{font-size:var(--fs-2);fill:var(--map-label);paint-order:stroke;
+    stroke:var(--map-label-stroke);stroke-width:3.6px;stroke-linejoin:round;pointer-events:none}
+  .node.t3 .label{fill:var(--map-label-t3)}
+  .node.t1 .label{fill:var(--map-label-t1);font-weight:600}
   .node.sel .label{fill:#fff;font-weight:600;font-size:var(--fs-2)}
   .corlabel{font-size:var(--fs-1);fill:#3f4c66;letter-spacing:1.5px;paint-order:stroke;
     stroke:#090c13;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
@@ -871,9 +887,9 @@
       <button id="btnLabels">城市名</button>
     </div>
     <div class="legend">
-      <span><i style="background:#33415e"></i>高铁通道</span>
-      <span><i class="pt" style="background:#5fd39a"></i>评分前三</span>
-      <span><i class="pt" style="border:1px dashed #5fd39a;background:transparent"></i>两人都想去</span>
+      <span><i style="background:var(--map-corridor)"></i>高铁通道</span>
+      <span><i class="pt" style="background:var(--map-both)"></i>评分前三</span>
+      <span><i class="pt" style="border:1px dashed var(--map-both);background:transparent"></i>两人都想去</span>
       <span style="color:#47536a">选中城市后显示两段行程</span>
     </div>
     <div class="tip" id="tip"></div>
@@ -1595,11 +1611,15 @@ function arc(from,to,bow){
   const L=Math.hypot(nx,ny)||1;
   return `M${from[0].toFixed(1)} ${from[1].toFixed(1)} Q${(mx+nx/L*bow).toFixed(1)} ${(my+ny/L*bow).toFixed(1)} ${to[0].toFixed(1)} ${to[1].toFixed(1)}`;
 }
+function mapColor(name, fallback){
+  try{ const v=getComputedStyle(document.documentElement).getPropertyValue(name).trim(); return v||fallback; }
+  catch(e){ return fallback; }
+}
 const dotColor=(i,n)=>{
-  if(i===0) return '#5fd39a';
-  if(i<3) return '#cfd9ec';
-  if(i<n*0.6) return '#95a3bd';
-  return '#6d7893';
+  if(i===0) return mapColor('--map-dot-top','#5fd39a');
+  if(i<3) return mapColor('--map-dot-2','#cfd9ec');
+  if(i<n*0.6) return mapColor('--map-dot-3','#95a3bd');
+  return mapColor('--map-dot-dim','#6d7893');
 };
 
 function drawStatic(){
@@ -1768,7 +1788,7 @@ function mountAMap(){
   if(!window.AMap) return;
   try{
     if(!store.amap){
-      store.amap=new AMap.Map('amap',{zoom:7,center:[116.4,30.7],mapStyle:'amap://styles/darkblue',viewMode:'2D'});
+      store.amap=new AMap.Map('amap',{zoom:7,center:[116.4,30.7],mapStyle:document.documentElement.dataset.theme==='light'?'amap://styles/light':'amap://styles/darkblue',viewMode:'2D'});
       store.amap.on('complete',()=>{ if(store.base==='amap') applyBounds(); });
       try{ store.amap.addControl(new AMap.Scale()); }catch(e){}
       try{ store.amap.addControl(new AMap.ToolBar({position:{right:'12px',bottom:'76px'}})); }catch(e){}
@@ -1787,7 +1807,7 @@ function renderAMap(){
     const html=`<div style="position:relative;width:${r*2}px;height:${r*2}px">
       <div style="position:absolute;inset:0;border-radius:50%;background:${col}"></div>
       ${label?`<div style="position:absolute;left:50%;top:${-(r+7)}px;transform:translateX(-50%);white-space:nowrap;
-        color:#c3cee2;font-size:var(--fs-1);text-shadow:0 0 5px #05080e,0 0 3px #05080e">${label}</div>`:''}</div>`;
+        color:${mapColor('--map-label-t3','#c3cee2')};font-size:var(--fs-1);text-shadow:0 0 5px #05080e,0 0 3px #05080e">${label}</div>`:''}</div>`;
     const m=new AMap.Marker({position:[lon,lat],content:html,offset:new AMap.Pixel(-r,-r),zIndex:10});
     if(id) m.on('click',()=>select(id));
     map.add(m); return m;
@@ -1797,18 +1817,18 @@ function renderAMap(){
     map.add(p);
   };
   shown.forEach((r,i)=>{
-    const col=i===0?'#5fd39a':i<3?'#cfd9ec':'#95a3bd';
+    const col=i===0?mapColor('--map-dot-top','#5fd39a'):i<3?mapColor('--map-dot-2','#cfd9ec'):mapColor('--map-dot-3','#95a3bd');
     const both=vote('a',r.city.id)===3&&vote('b',r.city.id)===3;
     mk(r.city.lon,r.city.lat,col,(both?'✓ ':'')+r.city.name,i===0?6:i<3?5:4,r.city.id);
   });
-  res.filter(r=>!shown.includes(r)).forEach(r=>mk(r.city.lon,r.city.lat,'#5b6580',null,3,r.city.id));
-  mk(NODE_A.lon,NODE_A.lat,'#4d84c7','紫金学院',7,null);
-  mk(NODE_B.lon,NODE_B.lat,'#a8607d','湖北理工',7,null);
-  line([HUB_A.lon,HUB_A.lat],[HUB_B.lon,HUB_B.lat],'#33415e',3,1);
+  res.filter(r=>!shown.includes(r)).forEach(r=>mk(r.city.lon,r.city.lat,mapColor('--map-dot-dim','#5b6580'),null,3,r.city.id));
+  mk(NODE_A.lon,NODE_A.lat,mapColor('--map-leg-a','#4d84c7'),'紫金学院',7,null);
+  mk(NODE_B.lon,NODE_B.lat,mapColor('--map-leg-b','#a8607d'),'湖北理工',7,null);
+  line([HUB_A.lon,HUB_A.lat],[HUB_B.lon,HUB_B.lat],mapColor('--map-corridor','#33415e'),3,1);
   const r0=res.find(x=>x.city.id===store.sel);
   if(r0){
-    line([HUB_A.lon,HUB_A.lat],[r0.city.lon,r0.city.lat],'#4d84c7',2.4,.95);
-    line([HUB_B.lon,HUB_B.lat],[r0.city.lon,r0.city.lat],'#a8607d',2.4,.95);
+    line([HUB_A.lon,HUB_A.lat],[r0.city.lon,r0.city.lat],mapColor('--map-leg-a','#4d84c7'),2.4,.95);
+    line([HUB_B.lon,HUB_B.lat],[r0.city.lon,r0.city.lat],mapColor('--map-leg-b','#a8607d'),2.4,.95);
   }
   applyBounds();
 }
@@ -1817,6 +1837,19 @@ function applyBounds(){
   try{ store.amap.setBounds(new AMap.Bounds([113.70,28.95],[119.40,32.75]),false); }
   catch(e){ store.amap.setZoomAndCenter(7,[116.4,30.7]); }
 }
+function applyMapTheme(){
+  var light = document.documentElement.dataset.theme === 'light';
+  if(store.amap && store.amap.setMapStyle){
+    try{ store.amap.setMapStyle(light ? 'amap://styles/light' : 'amap://styles/darkblue'); }catch(e){}
+  }
+  if(store.base === 'amap') renderAMap();
+  else { drawStatic(); drawMap(); }
+}
+try{
+  new MutationObserver(function(){ applyMapTheme(); })
+    .observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+}catch(e){}
+
 function setBase(b){
   store.base=b; DB.data.ui.base=b; DB.save();
   $$('#baseSeg button').forEach(x=>x.classList.toggle('on',x.dataset.base===b));
@@ -2814,7 +2847,7 @@ function newTripDialog(){
    部署到 Pages 后自动切到服务端 + D1。
    ========================================================================= */
 const CLOUD = {
-  ok: /^https?:$/.test(location.protocol),
+  ok: /^https?:$/.test(location.protocol) && !/[?&]local=1(?:&|$)/.test(location.search),
   user: null,
   revs: {},            // tripId -> 服务端 rev
   pushTimer: null,

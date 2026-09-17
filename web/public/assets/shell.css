@@ -79,6 +79,9 @@
   .a377bar-theme:hover{ background: var(--ui-sunken); color: var(--ui-ink); border-color: var(--ui-line-strong); }
 }
 .a377bar-theme:focus-visible{ outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+.a377bar-skin{ width:auto; min-width:30px; display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0 9px; font:700 10px/1 var(--ui-mono); letter-spacing:.06em; text-transform:uppercase; }
+.a377bar-skin b{ font-weight:700; }
+.a377bar-skin-dot{ width:7px; height:7px; display:inline-block; background:currentColor; }
 html[data-theme="light"] .a377bar-theme .i-sun{ display: none; }
 html[data-theme="dark"]  .a377bar-theme .i-moon{ display: none; }
 
