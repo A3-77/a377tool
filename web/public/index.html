@@ -297,9 +297,9 @@
     }
     header h1{font-size:23px;letter-spacing:-.02em}
     header .sub{font-size:13.5px}
-    .tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:5px;gap:4px}
+    .tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity;padding:5px;gap:4px}
     .tabs::-webkit-scrollbar{display:none}
-    .tabs button{flex:0 0 auto;font-size:13px;padding:0 15px;min-height:44px}
+    .tabs button{flex:0 0 auto;font-size:13px;padding:0 15px;min-height:44px;scroll-snap-align:start}
     .btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 18px}
     .btn.cta{min-height:48px;font-size:14.5px;width:100%}
     .actions{gap:12px}
@@ -760,11 +760,25 @@ function failCard(el, msg) {
 
 /* ==================== 标签切换 ==================== */
 const tabs = $("tabs");
+const shortcuts = [...document.querySelectorAll(".promo")];
+const footer = document.querySelector("footer");
+shortcuts.forEach((shortcut) => footer.before(shortcut));
 tabs.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-tab]");
   if (!btn) return;
   [...tabs.querySelectorAll("button")].forEach((b) => b.setAttribute("aria-selected", String(b === btn)));
   [...document.querySelectorAll(".panel")].forEach((p) => p.classList.toggle("active", p.id === "panel-" + btn.dataset.tab));
+});
+tabs.addEventListener("keydown", (e) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  const buttons = [...tabs.querySelectorAll("button[data-tab]")];
+  const current = buttons.findIndex((button) => button.getAttribute("aria-selected") === "true");
+  const next = e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1
+    : (current + (e.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+  e.preventDefault();
+  buttons[next].focus();
+  buttons[next].click();
+  buttons[next].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 });
 
 document.addEventListener("click", (e) => {

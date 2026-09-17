@@ -87,6 +87,7 @@
   button,input,select{font:inherit;color:inherit}
   button{cursor:pointer;border:none;background:none}
   .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  .hidden{display:none !important}
 
   /* ================= 顶栏 ================= */
   header{position:sticky;top:0;z-index:60;background:var(--bg);border-bottom:1px solid var(--s2)}
@@ -145,9 +146,9 @@
   .wchip .pip.b.on{background:var(--b);border-color:var(--b)}
 
   /* ================= 布局 ================= */
-  main{display:grid;grid-template-columns:392px minmax(0,1fr);
+  main{display:grid;grid-template-columns:minmax(360px,40%) minmax(0,1fr);
     gap:16px;padding:16px 18px 96px;align-items:start}
-  @media(max-width:1560px){ main{grid-template-columns:344px minmax(0,1fr)} }
+  @media(min-width:1561px){ main{grid-template-columns:minmax(420px,40%) minmax(0,1fr)} }
   main>*{min-width:0}
   /* ================= 行程大厅 ================= */
   .hub{min-height:100vh;padding:40px 20px 80px}
@@ -393,20 +394,20 @@
   .wicon{font-size:var(--fs-1);pointer-events:none}
 
   /* ================= 详情抽屉 ================= */
-  .scrim{position:fixed;inset:0;z-index:90;background:rgba(4,6,10,.62);
+  .scrim{position:fixed;inset:0;z-index:90;background:rgba(4,6,10,.28);
     opacity:0;pointer-events:none;transition:opacity .22s}
   .scrim.on{opacity:1;pointer-events:auto}
 
   .drawer{
-    position:fixed;left:50%;bottom:0;z-index:95;
-    width:min(640px,100%);max-height:84vh;
+    position:fixed;right:18px;bottom:18px;z-index:95;
+    width:min(520px,calc(100vw - 54px));height:min(760px,calc(100vh - 102px));
     display:flex;flex-direction:column;
-    background:var(--s1);border-radius:22px 22px 0 0;
-    box-shadow:0 -20px 56px -14px rgba(0,0,0,.8);
-    transform:translate(-50%,101%);
-    transition:transform .3s cubic-bezier(.2,.8,.2,1);
+    background:var(--s1);border:1px solid var(--s3);border-radius:20px;
+    box-shadow:0 24px 70px -24px rgba(0,0,0,.85);
+    transform:translateX(calc(100% + 36px));
+    transition:transform .34s cubic-bezier(.16,1,.3,1);
   }
-  .drawer.open{transform:translate(-50%,0)}
+  .drawer.open{transform:translateX(0)}
   .grab{width:40px;height:4px;border-radius:2px;background:var(--s4);margin:11px auto 2px;flex:0 0 auto}
   .dscroll{flex:1;min-height:0;overflow:auto;padding:8px 24px 24px;overscroll-behavior:contain;
     -webkit-overflow-scrolling:touch}
@@ -414,7 +415,7 @@
   .dscroll::-webkit-scrollbar-thumb{background:var(--s4);border-radius:3px}
 
   /* 底部固定决策条 */
-  .dbar{flex:0 0 auto;display:flex;gap:10px;padding:14px 24px 24px;
+  .dbar{flex:0 0 auto;display:flex;gap:10px;padding:14px 24px 20px;
     box-shadow:0 -14px 26px -14px rgba(0,0,0,.9)}
   .dbar button{border-radius:999px;padding:16px 0;font-size:var(--fs-3);font-weight:600;transition:.15s}
   .dbar .no{flex:1;background:var(--s2);color:var(--dim)}
@@ -423,6 +424,7 @@
   .dbar .yes{flex:2;background:#1b3a2c;color:#8fdcb8}
   .dbar .yes:hover{background:#22492f;color:#a9e0c6}
   .dbar .yes.on{background:var(--ok);color:#08120d}
+  .dbar button:disabled{opacity:.46;cursor:not-allowed}
 
   /* 抽屉内容 */
   .dtop{padding:10px 0 18px}
@@ -452,7 +454,8 @@
   .side.a .kv b,.side.a .big{text-align:left}
   .board .shared{display:flex;align-items:baseline;gap:10px;margin-top:16px;padding-top:14px;
     border-top:1px solid var(--s3);font-size:var(--fs-2);color:var(--dim2)}
-  .board .shared .amt{margin-left:auto;font-size:var(--fs-4);font-weight:700;color:var(--gold)}
+  .board .shared .amt{margin-left:auto;padding:4px 10px;border-radius:9px;background:#3a2f12;
+    font-size:var(--fs-4);font-weight:700;color:#f2cf77}
 
   /* 结论 */
   .lead{margin-top:16px;background:var(--s2);border-radius:16px;padding:16px 18px}
@@ -683,6 +686,23 @@
   }
   .hlink:active{background:var(--s4)}
   @media (hover:hover){.hlink:hover{background:var(--s3);color:var(--text)}}
+
+  .preview-note{font-size:var(--fs-1);color:var(--gold);padding:4px 8px;border-radius:7px;background:#2a2517}
+  .inline-reset{margin-left:7px;padding:1px 7px;border-radius:6px;color:var(--text);background:var(--s3);font-size:var(--fs-1)}
+  .mactions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
+  .mactions button{padding:9px 14px;border-radius:8px;background:var(--s2);color:var(--dim)}
+  .mactions button.danger{background:#74394d;color:#ffe5ec}
+  @media(max-width:760px){
+    main{display:block;padding:12px 12px 92px}
+    .colleft{margin-bottom:12px}
+    .mapwrap{position:relative;top:auto;min-height:330px;max-height:none}
+    .guide{padding:12px 38px 12px 14px;margin-bottom:10px}
+    .guide ol,.guide .gfoot{display:none}
+    .drawer{left:0;right:0;bottom:0;width:100%;height:min(82vh,760px);border-radius:20px 20px 0 0;border-bottom:0;transform:translateY(105%)}
+    .drawer.open{transform:translateY(0)}
+    .scrim{background:rgba(4,6,10,.54)}
+  }
+  @media(prefers-reduced-motion:reduce){.drawer,.scrim{transition:none}}
 </style>
 </head>
 <body>
@@ -730,6 +750,7 @@
         <button data-who="a" class="on">南京方</button>
         <button data-who="b">黄石方</button>
       </span>
+      <span class="preview-note hidden" id="previewNote">只读预览</span>
     </div>
     <button class="iconbtn" id="pToggle">行程 · <span id="pSum">—</span> <span id="pCaret">▾</span></button>
     <button class="iconbtn accent" id="inviteBtn">邀请 TA</button>
@@ -783,7 +804,7 @@
     <button class="newtrip" id="newTripBtn">＋ 新建行程</button>
     <div class="hubfoot">
       当前身份：<b id="hubWho">南京方</b>
-      <button class="hswitch" id="hubSwitch">切换</button>
+      <button class="hswitch" id="hubSwitch">预览 TA</button>
       <span class="hfsep"></span>
       <a class="hlink" href="/">← 回工具箱</a>
       <button class="hlink" id="hubLogout" type="button">退出登录</button>
@@ -816,7 +837,7 @@
     <div class="panel">
       <h2>想干嘛</h2>
       <div class="vibes" id="vibes"></div>
-      <div class="hint" id="vibeHint">不选 = 全部城市参与排名</div>
+      <div class="hint" id="vibeHint">不选 = 全部城市参与排名 <button class="inline-reset hidden" id="resetVibes" type="button">重置筛选</button></div>
     </div>
 
     <div class="panel">
@@ -945,6 +966,17 @@
       全局黑名单里的城市任何行程都不会出现。
     </div>
     <div class="mact"><button id="ntCancel">取消</button><button class="primary" id="ntCreate">创建</button></div>
+  </div>
+</div>
+
+<div class="modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="mbox">
+    <h3 id="confirmTitle">确认操作</h3>
+    <p id="confirmCopy"></p>
+    <div class="mactions">
+      <button id="confirmCancel" type="button">取消</button>
+      <button class="danger" id="confirmDo" type="button">确认删除</button>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -1108,7 +1140,7 @@ const store = {
   cities: JSON.parse(JSON.stringify(SEED)),
   history:{}, compare:[], vibes:new Set(),
   sel:null, base:'svg', days:2, date:'', expandAll:false,
-  me:'a',                                  // 当前使用者
+  me:'a', preview:false,                   // 当前视角；预览 TA 时只读
   votes:{ a:{}, b:{} },                    // cityId -> 0..3
   free:{ a:new Set(), b:new Set() },       // 'YYYY-MM-DD'
   weather:{}, weatherAt:0, weatherLoading:false,
@@ -1239,12 +1271,17 @@ const DB={
     return t;
   },
 
-  deleteTrip(id){
+  async deleteTrip(id){
     const i=this.data.trips.findIndex(t=>t.id===id);
     if(i<0) return;
     this.data.trips.splice(i,1);
     if(this.data.activeTripId===id) this.data.activeTripId=this.data.trips[0]?.id||null;
     this.save();
+    if(CLOUD.ok && CLOUD.user){
+      const r=await api('DELETE','/api/trips?id='+encodeURIComponent(id));
+      if(!r.ok) throw new Error(r.data?.error || '云端删除失败');
+      delete CLOUD.revs[id];
+    }
   },
 
   /* 锁定：一方发起 -> 等对方确认 -> 冻结 */
@@ -1292,6 +1329,16 @@ const NS='http://www.w3.org/2000/svg';
 const el=(t,a)=>{ const n=document.createElementNS(NS,t); for(const k in a) n.setAttribute(k,a[k]); return n; };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const byId=id=>store.cities.find(c=>c.id===id)||{name:id,station:'',poi:[]};
+const actorSeat=()=>{
+  const seat=CLOUD.user?.seat || DB.data?.me || 'a';
+  return seat==='nj'?'a':seat==='hs'?'b':seat;
+};
+const isPreview=()=>Boolean(store.preview);
+function canEditSeat(seat=actorSeat()){
+  if(!isPreview() && seat===actorSeat()) return true;
+  toast('正在预览 TA 的视角；切回“我”后才能修改', true);
+  return false;
+}
 
 /* =========================================================================
    3. 日期工具
@@ -1334,8 +1381,10 @@ const todayStr=()=>ymd(new Date());
    ========================================================================= */
 function vote(pid,cid){ return store.votes[pid][cid]||0; }
 function setVote(pid,cid,v){
+  if(!canEditSeat(pid)) return false;
   if(v) store.votes[pid][cid]=v; else delete store.votes[pid][cid];
   DB.saveTrip();
+  return true;
 }
 function other(p){ return p==='a'?'b':'a'; }
 function myVote(cid){ return vote(store.me,cid); }
@@ -1804,9 +1853,31 @@ function toast(m,err){
   const t=$('#toast'); t.textContent=m; t.className='toast on'+(err?' err':'');
   clearTimeout(toast._t); toast._t=setTimeout(()=>t.className='toast'+(err?' err':''),2300);
 }
+let confirmAction=null;
+function askConfirm({title, copy, confirm='确认', action}){
+  $('#confirmTitle').textContent=title;
+  $('#confirmCopy').textContent=copy;
+  $('#confirmDo').textContent=confirm;
+  confirmAction=action;
+  $('#confirmModal').classList.add('on');
+  $('#confirmDo').focus();
+}
+function closeConfirm(){
+  confirmAction=null;
+  $('#confirmModal').classList.remove('on');
+}
 
 function renderWho(){
-  $$('#whoSeg button').forEach(b=>b.classList.toggle('on',b.dataset.who===store.me));
+  $$('#whoSeg button').forEach(b=>{
+    b.classList.toggle('on',b.dataset.who===store.me);
+    b.textContent=b.dataset.who===actorSeat()
+      ? WHO[b.dataset.who].short+' · 我'
+      : '预览 '+WHO[b.dataset.who].short;
+    b.setAttribute('aria-pressed',b.dataset.who===store.me?'true':'false');
+  });
+  $('#previewNote').classList.toggle('hidden',!isPreview());
+  $('#hubWho').textContent=WHO[actorSeat()].name;
+  $('#hubSwitch').textContent=isPreview()?'回到我的视角':'预览 TA';
 }
 function hideGuide(){
   if($('#guide').classList.contains('hide')) return;
@@ -1826,6 +1897,7 @@ function renderDates(){
     w.innerHTML=`<span class="dt">${d.getMonth()+1}/${d.getDate()} 周${WEEK[d.getDay()]}</span>
       <span class="pips"><span class="pip a${a?' on':''}" data-p="a"></span><span class="pip b${b?' on':''}" data-p="b"></span></span>`;
     w.addEventListener('click',ev=>{
+      if(!canEditSeat()) return;
       const pip=ev.target.closest('.pip');
       if(pip){
         ev.stopPropagation();
@@ -1858,14 +1930,20 @@ function renderVibes(){
   VIBES.forEach(v=>{
     const b=document.createElement('button');
     b.className='vibe'+(store.vibes.has(v)?' on':''); b.textContent=v;
-    b.addEventListener('click',()=>{ store.vibes.has(v)?store.vibes.delete(v):store.vibes.add(v);
+    b.disabled=isPreview();
+    b.addEventListener('click',()=>{ if(!canEditSeat()) return; store.vibes.has(v)?store.vibes.delete(v):store.vibes.add(v);
       DB.saveTrip(); renderVibes(); refresh(); });
     box.appendChild(b);
   });
   const n=visibleCities().length;
   $('#vibeHint').innerHTML = store.vibes.size
-    ? `筛选中，<b style="color:#c3cee2">${n}</b> 个城市符合`
+    ? `已筛选出 <b style="color:var(--text)">${n}</b> 个符合城市 <button class="inline-reset" id="resetVibes" type="button">重置筛选</button>`
     : '不选 = 全部城市参与排名';
+  const reset=$('#resetVibes');
+  if(reset) reset.onclick=()=>{
+    if(!canEditSeat()) return;
+    store.vibes.clear(); DB.saveTrip(); renderVibes(); refresh(); toast('已重置玩法筛选');
+  };
 }
 function renderSliders(){
   const box=$('#sliders'); box.innerHTML='';
@@ -1877,6 +1955,7 @@ function renderSliders(){
   });
   box.querySelectorAll('input[type=range]').forEach(r=>{
     r.addEventListener('input',()=>{
+      if(!canEditSeat()) return;
       store.weights[r.dataset.k]=+r.value;
       $('#v_'+r.dataset.k).textContent=r.value;
       DB.saveTrip(); refresh();
@@ -1891,6 +1970,7 @@ function renderHistory(){
     row.innerHTML=`<span style="flex:1">${c.name}</span>
       <button class="mini" data-d="-1">−</button><span class="cnt">${n}</span><button class="mini" data-d="1">+</button>`;
     row.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      if(!canEditSeat()) return;
       const v=clamp((store.history[c.id]||0)+(+b.dataset.d),0,9);
       if(v) store.history[c.id]=v; else delete store.history[c.id];
       DB.saveTrip(); renderHistory(); refresh();
@@ -2158,6 +2238,8 @@ function renderDrawer(){
   $('#btnNo').classList.toggle('on',myV===1);
   $('#btnYes').textContent = myV===3?'❤️ 已标记想去':'❤️ 我们去这';
   $('#btnNo').textContent  = myV===1?'❌ 已标记算了':'❌ 算了';
+  $('#btnYes').disabled=isPreview();
+  $('#btnNo').disabled=isPreview();
 
   bindLockZone();
   box.querySelectorAll('.vrow button').forEach(b=>b.addEventListener('click',()=>{
@@ -2323,9 +2405,10 @@ function updPSum(){
   }
 }
 $$('#whoSeg button').forEach(b=>b.addEventListener('click',()=>{
-  store.me=b.dataset.who; DB.me=store.me;
+  store.me=b.dataset.who;
+  store.preview=store.me!==actorSeat();
   renderWho(); renderHistory(); refresh();
-  toast(`现在是以「${WHO[store.me].name}」的身份操作`);
+  toast(store.preview?'正在只读预览「'+WHO[store.me].name+'」':'已回到「'+WHO[store.me].name+'」的操作视角');
 }));
 /* 时间窗口：预设直接写窗口，不再有「星期几」这种状态 */
 function defaultWindow(){
@@ -2376,12 +2459,19 @@ $('#hubLogout').addEventListener('click', async ()=>{
 });
 $('#ntCancel').addEventListener('click',()=>$('#ntModal').classList.remove('on'));
 $('#ntInherit').addEventListener('click',()=>$('#ntInherit').classList.toggle('on'));
+$('#confirmCancel').addEventListener('click',closeConfirm);
+$('#confirmModal').addEventListener('click',e=>{ if(e.target===$('#confirmModal')) closeConfirm(); });
+$('#confirmDo').addEventListener('click',async()=>{
+  const action=confirmAction;
+  closeConfirm();
+  try{ await action?.(); }catch(e){ toast(e.message || '操作失败',true); }
+});
 $('#hubSwitch').addEventListener('click',()=>{
-  const n=other(DB.data.me);
-  DB.me=n;
-  $('#hubWho').textContent=WHO[n].name;
+  const n=isPreview()?actorSeat():other(actorSeat());
+  store.me=n;
+  store.preview=n!==actorSeat();
   renderWho();
-  toast(`已切换到「${WHO[n].name}」，回到行程后生效`);
+  toast(store.preview?'正在只读预览「'+WHO[n].name+'」':'已回到「'+WHO[n].name+'」的操作视角');
 });
 $('#ntCreate').addEventListener('click',()=>{
   const title=$('#ntTitle').value.trim();
@@ -2484,13 +2574,18 @@ $('#impSave').addEventListener('click',()=>{
 });
 $('#scrim').addEventListener('click',closeDrawer);
 $('#btnYes').addEventListener('click',()=>{ const cid=store.sel; if(!cid) return;
-  setVote(store.me,cid, myVote(cid)===3?0:3); hideGuide();
+  if(!setVote(store.me,cid, myVote(cid)===3?0:3)) return; hideGuide();
   if(myVote(cid)===3){ closeDrawer(); toast('已标记「想去」❤️'); } else renderDrawer();
   refresh(); });
 $('#btnNo').addEventListener('click',()=>{ const cid=store.sel; if(!cid) return;
-  setVote(store.me,cid, myVote(cid)===1?0:1); hideGuide();
-  if(myVote(cid)===1){ closeDrawer(); toast('已标记「算了」，可以之后改'); } else renderDrawer();
-  refresh(); });
+  if(!setVote(store.me,cid, myVote(cid)===1?0:1)) return; hideGuide();
+  refresh();
+  if(myVote(cid)!==1){ renderDrawer(); return; }
+  const next=store.results.find(r=>r.city.id!==cid && vote(store.me,r.city.id)!==1)
+    || store.results.find(r=>r.city.id!==cid);
+  if(next){ openDrawer(next.city.id); toast('已跳过，继续看下一座'); }
+  else { closeDrawer(); toast('已标记「算了」，当前没有更多候选'); }
+});
 /* 抽屉顶部下滑关闭 */
 (function(){
   const d=$('#drawer'); let sy=null;
@@ -2503,7 +2598,7 @@ $('#btnNo').addEventListener('click',()=>{ const cid=store.sel; if(!cid) return;
 })();
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ $('#impModal').classList.remove('on'); $('#invModal').classList.remove('on'); closeDrawer(); }
+  if(e.key==='Escape'){ $('#impModal').classList.remove('on'); $('#invModal').classList.remove('on'); closeConfirm(); closeDrawer(); }
   if(e.target.matches('input,textarea')) return;
   if(/^[1-9]$/.test(e.key)){ const r=store.results[+e.key-1]; if(r) select(r.city.id); }
 });
@@ -2535,7 +2630,7 @@ function openHub(){
   $('#tripview').style.display='none';
   $('#hub').style.display='';
   document.querySelector('header').style.display='none';   // 顶栏是行程级控件，大厅里不显示
-  const hw=document.getElementById('hubWho'); if(hw) hw.textContent=WHO[DB.data.me].name;
+  const hw=document.getElementById('hubWho'); if(hw) hw.textContent=WHO[actorSeat()].name;
   renderHub();
 }
 function openTripView(id){
@@ -2603,8 +2698,12 @@ function renderHub(){
     const t=DB.data.trips.find(x=>x.id===b.dataset.del);
     if(!t) return;
     if(DB.data.trips.length<=1){ toast('至少保留一个行程',true); return; }
-    if(!confirm(`删除「${t.title}」？里面的表态和权重都会没。`)) return;
-    DB.deleteTrip(b.dataset.del); renderHub();
+    askConfirm({
+      title:'删除这个行程？',
+      copy:'「'+t.title+'」的表态、时间和权重将从本机与云端同时删除，无法恢复。',
+      confirm:'删除行程',
+      action:async()=>{ await DB.deleteTrip(t.id); renderHub(); toast('行程已删除'); }
+    });
   }));
 }
 
@@ -2649,6 +2748,7 @@ function renderBlacklist(){
     return `<button class="${cls}" data-bl="${c.id}" title="${tip}">${c.name}</button>`;
   }).join('');
   box.querySelectorAll('[data-bl]').forEach(b=>b.addEventListener('click',()=>{
+    if(!canEditSeat()) return;
     DB.toggleBlacklist(b.dataset.bl, DB.data.me);
     renderBlacklist(); refresh();
   }));
@@ -2677,11 +2777,20 @@ function renderLockZone(r){
 function bindLockZone(){
   const box=$('#dscroll'); if(!box) return;
   const dl=box.querySelector('#doLock');
-  if(dl) dl.onclick=()=>{ DB.requestLock(store.sel, DB.data.me); toast('已发起，等 TA 确认'); renderDrawer(); renderTripBar(); };
+  if(dl) dl.onclick=()=>{
+    if(!canEditSeat()) return;
+    DB.requestLock(store.sel, actorSeat()); toast('已发起，等 TA 确认'); renderDrawer(); renderTripBar();
+  };
   const dc=box.querySelector('#doConfirm');
-  if(dc) dc.onclick=()=>{ DB.confirmLock(); toast('双方确认，行程落定 🏁'); closeDrawer(); renderTripBar(); renderCards(); renderHub(); };
+  if(dc) dc.onclick=()=>{
+    if(!canEditSeat()) return;
+    DB.confirmLock(); toast('双方确认，行程落定 🏁'); closeDrawer(); renderTripBar(); renderCards(); renderHub();
+  };
   const dr=box.querySelector('#doReject');
-  if(dr) dr.onclick=()=>{ DB.cancelLock(); toast('已退回继续讨论'); renderDrawer(); renderTripBar(); };
+  if(dr) dr.onclick=()=>{
+    if(!canEditSeat()) return;
+    DB.cancelLock(); toast('已退回继续讨论'); renderDrawer(); renderTripBar();
+  };
 }
 
 /* 新建行程 */
@@ -2689,7 +2798,9 @@ function newTripDialog(){
   const trips=DB.data.trips.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const prev=trips[0];
   const w=defaultWindow();
-  $('#ntTitle').value=`${new Date().getMonth()+1}月第${Math.ceil(new Date().getDate()/7)}周`;
+  const start=w.t0.slice(5,10).replace('-','.');
+  const end=w.t1.slice(5,10).replace('-','.');
+  $('#ntTitle').value=(new Date().getMonth()+1)+'月第'+Math.ceil(new Date().getDate()/7)+'周 · '+start+'–'+end;
   $('#ntT0').value=prev?.t0||w.t0;
   $('#ntT1').value=prev?.t1||w.t1;
   $('#ntInherit').checked=false;
@@ -2960,6 +3071,9 @@ async function afterLogin(){
     console.warn('[cloud] 拉取失败，退回本地数据：', e.message);
     try{ toast('云同步失败，先用本地数据', true); }catch(_){}
   }
+  DB.data.me=actorSeat();
+  store.me=actorSeat();
+  store.preview=false;
   DB.openTrip();
   const trips = DB.data.trips;
   const blank = trips.length===1

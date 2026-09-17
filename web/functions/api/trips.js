@@ -4,6 +4,8 @@
 import { json, fail, currentUser, needSecret, ensureSeed } from './_lib.js';
 
 const MAX_STATE = 200*1024;   // 单个行程状态上限 200KB，防止误传大文件
+const seatKey = seat => seat === 'nj' ? 'a' : seat === 'hs' ? 'b' : null;
+const same = (left, right) => JSON.stringify(left ?? {}) === JSON.stringify(right ?? {});
 
 export async function onRequestGet({ request, env }){
   const bad = needSecret(env); if(bad) return fail(bad, 500);
@@ -59,7 +61,7 @@ export async function onRequestPut({ request, env }){
   let body;
   try{ body = await request.json(); }catch(e){ return fail('请求格式错误'); }
 
-  const cur = await env.DB.prepare('select rev, state from trips where id = ?').bind(id).first();
+  const cur = await env.DB.prepare('select rev, status, state from trips where id = ?').bind(id).first();
   if(!cur) return fail('行程不存在', 404);
 
   /* 乐观并发：客户端拿的是旧版本就拒绝，避免一方把另一方的改动盖掉 */
@@ -68,7 +70,32 @@ export async function onRequestPut({ request, env }){
     return json({ ok:false, error:'stale', rev:cur.rev, state:JSON.parse(cur.state) }, { status:409 });
   }
 
-  const state = JSON.stringify(body.state || {});
+  const nextState = body.state || {};
+  const currentState = JSON.parse(cur.state);
+  const me = seatKey(u.seat);
+  if(me){
+    const them = me === 'a' ? 'b' : 'a';
+    if(!same(currentState.votes?.[them], nextState.votes?.[them])
+      || !same(currentState.free?.[them], nextState.free?.[them])){
+      return fail('不能修改对方的表态或空闲日', 403);
+    }
+
+    const nextStatus = body.status || 'planning';
+    if(nextStatus !== cur.status){
+      const validPending = cur.status === 'planning' && nextStatus === 'pending'
+        && nextState.lockedBy === me && nextState.lockedCity;
+      const validConfirm = cur.status === 'pending' && nextStatus === 'locked'
+        && currentState.lockedBy !== me && nextState.lockedBy === currentState.lockedBy
+        && nextState.lockedCity === currentState.lockedCity;
+      const validCancel = cur.status === 'pending' && nextStatus === 'planning'
+        && currentState.lockedBy === me;
+      if(!validPending && !validConfirm && !validCancel){
+        return fail('这个行程状态不能由当前身份修改', 403);
+      }
+    }
+  }
+
+  const state = JSON.stringify(nextState);
   if(state.length > MAX_STATE) return fail('行程数据过大');
 
   const now = Date.now();
