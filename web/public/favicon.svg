@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="A377Tool">
+  <rect width="64" height="64" rx="15" fill="#c96442"/>
+  <path d="M32 14 47 50h-7.5l-2.6-6.5h-9.8L24.5 50H17L32 14Zm0 13.6-2.9 8h5.8l-2.9-8Z"
+        fill="#faf9f5" fill-rule="evenodd"/>
+</svg>

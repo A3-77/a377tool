@@ -1,19 +1,22 @@
 # a377tool
 
-<https://a377.xyz> 上的两样东西，共用一套设计语言和主题偏好：
+<https://a377.xyz> 上的四个入口，共用 `web/public/assets/` 下的设计令牌和主题：
 
 | 路径 | 是什么 | 需要登录 |
 | --- | --- | --- |
-| `/` | **文件工具箱** —— PDF 转图片、重排页面、合并、拆分、ncm 转音频 | 否 |
+| `/` | **门户首页** —— 进入文件、生图、见面三个模块 | 否 |
+| `/file/` | **文件工具箱** —— PDF 转图片、重排页面、合并、拆分、ncm 转音频 | 否 |
 | `/trips/` | **周末去哪见面** —— 两个人一起挑见面的中间城市 | 是 |
 | `/draw/` | **生图** —— 两个绘图工作台，支持文生图 / 图生图 / 批量 | 否 |
 
-两个页面都有**浅色 / 深色主题**，共用 `localStorage` 的 `a377theme` 键——切一次两边都变。
-首次访问跟随系统设置。
+所有页面都有**浅色 / 深色主题**，共用 `assets/theme.js` 和 `localStorage` 的 `a377theme` 键——切一次全站都变。
+首次访问跟随系统设置；顶栏和通用组件由 `assets/shell.js` 统一注入。
+
+版本更新记录见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
 
 ---
 
-## 文件工具箱
+## 文件工具箱（`/file/`）
 
 纯浏览器实现，**文件不上传任何服务器**。
 
@@ -40,6 +43,8 @@
 - 注册需要审批（防陌生人注册）
 - 每个行程可以反复讨论、改期、定案
 - 有地图视图，支持示意图 / 高德切换
+- 邀请链接把日期、表态、空闲日和权重编码在 `#s=...` 里，线上登录后也会导入，不依赖服务器
+- 接口按归属校验：新行程归属创建者 user id，旧数据兼容 seat；列表、详情、修改、删除都会校验
 
 技术栈：单文件前端 + Cloudflare Pages Functions + D1（SQLite）。
 
@@ -75,8 +80,12 @@ Pages Functions，API Key 从环境变量 `CODE0_API_KEY` 读，**前端源码�
 .
 ├── web/                        ← 部署到 Cloudflare Pages 的完整项目
 │   ├── public/                 静态资源（部署目录）
-│   │   ├── index.html          文件工具箱
+│   │   ├── index.html          门户首页
+│   │   ├── file/index.html     文件工具箱
+│   │   ├── assets/             共享 tokens / theme / shell / ZIP
+│   │   ├── favicon.svg
 │   │   ├── vendor/             pdf.js、pdf-lib、标准字体
+│   │   ├── draw/               生图（index / studio / code0）
 │   │   └── trips/index.html    周末去哪见面
 │   ├── functions/api/*.js      后端接口 → 自动变成 /api/*
 │   ├── schema.sql              D1 建表语句
@@ -131,7 +140,7 @@ npx wrangler pages dev public --d1=DB --persist-to .d1dev --port 8789
 
 必须走 wrangler（要跑 Functions 和 D1），不能用 `python -m http.server`。
 
-只想看工具箱的话，`cd web/public && python -m http.server 8899` 也行。
+只想看静态页（门户 / 文件 / 生图落地页 / 绘图工作台）的话，`cd web/public && python -m http.server 8899` 也行；见面页要后端和 D1，必须走 wrangler。
 
 ---
 

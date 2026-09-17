@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/tokens.css">
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/shell.css">
+<script src="/assets/shell.js" defer></script>
 <title>Code0 图片工作台</title>
 <style>
 /* ===== shadcn/ui new-york-v4 · zinc 设计系统 ===== */
@@ -162,17 +168,27 @@ textarea:disabled,#taskName:disabled{opacity:.5}
   opacity:.5;transition:opacity .2s,transform .2s
 }
 .a377-back:hover{opacity:1;transform:translateY(-1px)}
+  body{padding-top:var(--shell-h)}
+  html[data-theme="dark"]{
+    --background:var(--ui-bg);--foreground:var(--ui-ink);
+    --card:var(--ui-surface);--primary:var(--ui-ink);
+    --primary-hover:color-mix(in srgb,var(--ui-ink) 90%,transparent);
+    --primary-fg:var(--ui-bg);--secondary:var(--ui-sunken);--secondary-fg:var(--ui-ink);
+    --muted:var(--ui-sunken);--muted-fg:var(--ui-ink-3);--accent:var(--ui-sunken);
+    --border:var(--ui-line);--input:var(--ui-line);--ring:var(--ui-ink-3);--destructive:var(--ui-err);
+  }
+  html[data-theme="dark"] .mode label:has(input:checked){background:var(--ui-surface);color:var(--ui-ink)}
+  html[data-theme="dark"] textarea,html[data-theme="dark"] .pinput,html[data-theme="dark"] #taskName,html[data-theme="dark"] #importText,html[data-theme="dark"] select{background:var(--ui-surface);color:var(--ui-ink)}
 </style>
 </head>
-<body>
+<body data-nav="draw" data-shell="生图 / Code0" data-shell-pad="none">
 <div class="wrap">
   <div class="topbar">
     <h1>🎨 Code0 图片工作台</h1>
     <span id="srvBadge" class="srvbadge hidden">API 已就绪</span>
   </div>
-  <div class="sub">gpt-image-2.5 系列 · 文生图 / 图生图 / 批量生成 · 密钥只存在本机环境变量里，不会离开你的电脑</div>
-  <div id="keyWarn" class="warn hidden">未检测到 API Key：请先在本机执行 <b>setx CODE0_API_KEY "sk-你的密钥"</b>，
-然后关掉本窗口重新双击 图片工作台.bat 启动。</div>
+  <div class="sub">gpt-image-2.5 系列 · 文生图 / 图生图 / 批量生成 · API Key 存在服务端环境变量里，页面源码里看不到</div>
+  <div id="keyWarn" class="warn hidden">服务端未检测到 API Key：请管理员配置 <b>CODE0_API_KEY</b> 环境变量并重新部署。</div>
 
   <div class="card">
     <div class="mode">

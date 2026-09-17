@@ -143,6 +143,15 @@ export async function currentUser(req, env){
 /* ---------- 席位 ---------- */
 export const SEATS = { nj:'南京方', hs:'黄石方' };
 
+/* ---------- 行程归属 ----------
+   新行程把 created_by 写成 user.id；旧数据里 created_by 是 seat，所以两种都认。 */
+export async function getOwnedTrip(env, id, user){
+  if(!id || !user) return null;
+  return env.DB.prepare(
+    'select * from trips where id = ? and (created_by = ? or created_by = ?)'
+  ).bind(id, user.id, user.seat).first();
+}
+
 /* ---------- 首次运行时种下两个测试账号 ---------- */
 export async function ensureSeed(env){
   await ensureTables(env);                    // 表不在这个 D1 实例里就现建

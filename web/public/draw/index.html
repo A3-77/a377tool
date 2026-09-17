@@ -1,138 +1,85 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>生图 · a377tool</title>
-<meta name="theme-color" content="#faf9f5" id="theme-color" />
-<script>
-(function () {
-  try {
-    var t = localStorage.getItem("a377theme");
-    if (t !== "light" && t !== "dark") {
-      t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    document.documentElement.dataset.theme = t;
-  } catch (e) { document.documentElement.dataset.theme = "light"; }
-})();
-</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/tokens.css">
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/shell.css">
+<script src="/assets/shell.js" defer></script>
+<title>生图 · A377Tool</title>
 <style>
-  :root{
-    --bg:#faf9f5; --surface:#ffffff; --sunken:#f4f2ec;
-    --line:#e8e6dc; --line-strong:#d6d3c6;
-    --ink:#1c1b19; --ink-2:#57544d; --ink-3:#918c80;
-    --accent:#c96442; --accent-ink:#a44e30; --accent-soft:#fbf0eb;
-    --ok:#5f7a4a; --ok-soft:#f1f5ec;
-    --err:#a83a2c; --err-soft:#fdf1ef;
-    --r-lg:16px; --r-md:11px; --r-sm:8px;
-    --ease:cubic-bezier(0.16,1,0.3,1);
-  }
-  html[data-theme="dark"]{
-    --bg:#16140f; --surface:#1e1b16; --sunken:#25211a;
-    --line:#332e26; --line-strong:#4a4237;
-    --ink:#f2efe8; --ink-2:#b8b1a4; --ink-3:#837c6f;
-    --accent:#e08a63; --accent-ink:#f0a37f; --accent-soft:#2e211a;
-    --ok:#8fbf72; --ok-soft:#1e2618;
-    --err:#e8735f; --err-soft:#2b1a17;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
   body{
-    background:var(--bg); color:var(--ink);
-    font:15px/1.65 "Segoe UI","Microsoft YaHei",-apple-system,system-ui,sans-serif;
-    -webkit-font-smoothing:antialiased;
-    min-height:100vh; padding:34px 20px 60px;
+    background:var(--ui-bg);color:var(--ui-ink);
+    font:15px/1.65 var(--ui-font);
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
   }
-  .wrap{max-width:660px;margin:0 auto}
-  header{position:relative;margin-bottom:26px}
-  .back{
-    display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-3);
-    text-decoration:none;padding:5px 10px;margin-left:-10px;border-radius:8px;
-    transition:background .15s,color .15s
+  .wrap{max-width:760px;margin:0 auto;padding:52px 22px 90px}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--ui-accent-ink);
+    background:var(--ui-accent-soft);padding:4px 10px;border-radius:var(--ui-r-full);margin-bottom:14px
   }
-  .back:hover{background:var(--sunken);color:var(--ink)}
-  header h1{margin:14px 0 6px;font-size:29px;line-height:1.2;letter-spacing:-.028em;font-weight:650}
-  header p{color:var(--ink-2);font-size:14px}
-  .theme-toggle{
-    position:absolute;top:0;right:0;width:36px;height:36px;
-    border:1px solid var(--line);border-radius:10px;background:var(--surface);
-    color:var(--ink-2);display:grid;place-items:center;cursor:pointer;
-    transition:background .16s var(--ease),border-color .16s,color .16s,transform .1s
-  }
-  .theme-toggle:active{transform:scale(.94)}
-  .theme-toggle svg{width:16px;height:16px}
-  @media (hover:hover){.theme-toggle:hover{background:var(--sunken);color:var(--ink);border-color:var(--line-strong)}}
-  html[data-theme="light"] .i-sun{display:none}
-  html[data-theme="dark"] .i-moon{display:none}
+  .eyebrow svg{width:12px;height:12px;flex:none}
+  header h1{margin:0 0 9px;font-size:32px;line-height:1.18;letter-spacing:-.032em;font-weight:650}
+  header p{margin:0;color:var(--ui-ink-2);font-size:14px;max-width:56ch}
 
-  .grid{display:grid;gap:14px}
+  .grid{display:grid;gap:14px;margin-top:28px}
   @media (min-width:620px){.grid{grid-template-columns:1fr 1fr}}
-
   .card{
-    display:flex;flex-direction:column;gap:12px;padding:22px 20px;
-    border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);
-    text-decoration:none;color:var(--ink);
-    transition:border-color .18s var(--ease),background .18s var(--ease),transform .18s var(--ease);
-    box-shadow:0 1px 2px rgba(28,27,25,.03)
+    display:flex;flex-direction:column;gap:12px;padding:21px 20px;
+    border-radius:var(--ui-r-lg);background:var(--ui-surface);border:1px solid var(--ui-line);
+    text-decoration:none;color:var(--ui-ink);box-shadow:var(--ui-shadow-1);
+    transition:border-color .18s var(--ui-ease),background .18s var(--ui-ease),transform .18s var(--ui-ease)
   }
-  a.card:focus-visible,.card:focus-within{outline:2px solid var(--accent);outline-offset:2px}
-  @media (hover:hover){
-    a.card:hover{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-2px)}
-    a.card:hover .go{transform:translateX(3px);color:var(--accent)}
+  .card:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+  .card .ico{
+    width:42px;height:42px;display:grid;place-items:center;flex:none;
+    border-radius:12px;background:var(--ui-accent-soft);color:var(--ui-accent)
   }
-  .ico{
-    width:42px;height:42px;flex:none;display:grid;place-items:center;
-    border-radius:12px;background:var(--accent-soft);color:var(--accent)
-  }
-  .ico svg{width:21px;height:21px}
-  .card h2{font-size:16.5px;font-weight:650;letter-spacing:-.012em}
-  .card p{font-size:13px;color:var(--ink-3);line-height:1.6}
+  .card .ico svg{width:21px;height:21px}
+  .card h2{margin:2px 0 0;font-size:16.5px;font-weight:650;letter-spacing:-.012em}
+  .card p{margin:0;color:var(--ui-ink-3);font-size:13px;line-height:1.62}
   .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
-  .tag{
-    font-size:11.5px;padding:3px 9px;border-radius:999px;
-    background:var(--sunken);color:var(--ink-2);border:1px solid var(--line)
+  .tag{font-size:11.5px;padding:3px 9px;border-radius:var(--ui-r-full);background:var(--ui-sunken);color:var(--ui-ink-2);border:1px solid var(--ui-line)}
+  .tag.on{background:var(--ui-ok-soft);color:var(--ui-ok);border-color:transparent}
+  .go{margin-top:auto;font-size:13px;color:var(--ui-ink-3);display:flex;align-items:center;gap:5px;transition:transform .18s var(--ui-ease),color .18s}
+  @media (hover:hover){
+    .card:hover{border-color:var(--ui-accent);background:var(--ui-accent-soft);transform:translateY(-2px)}
+    .card:hover .go{transform:translateX(3px);color:var(--ui-accent)}
   }
-  .tag.on{background:var(--ok-soft);color:var(--ok);border-color:transparent}
-  .go{
-    margin-top:auto;font-size:13px;color:var(--ink-3);
-    display:flex;align-items:center;gap:5px;
-    transition:transform .18s var(--ease),color .18s
-  }
+
   .note{
-    margin-top:18px;padding:14px 16px;border-radius:var(--r-md);
-    background:var(--sunken);border:1px solid var(--line);
-    font-size:12.5px;color:var(--ink-2);line-height:1.7
+    margin-top:20px;padding:15px 17px;border-radius:var(--ui-r-md);
+    background:var(--ui-sunken);border:1px solid var(--ui-line);color:var(--ui-ink-2);
+    font-size:12.5px;line-height:1.7
   }
-  .note b{color:var(--ink);font-weight:600}
-  .note code{
-    background:var(--surface);border:1px solid var(--line);border-radius:5px;
-    padding:1px 5px;font-size:12px;font-family:ui-monospace,Consolas,monospace
+  .note b{color:var(--ui-ink);font-weight:650}
+  .note code{background:var(--ui-surface);border:1px solid var(--ui-line);border-radius:5px;padding:1px 5px;font-family:var(--ui-mono);font-size:12px}
+  .act{
+    margin:0 0 0 6px;padding:5px 12px;border-radius:8px;border:1px solid var(--ui-line-strong);
+    background:var(--ui-surface);color:var(--ui-ink);font:inherit;font-size:12.5px;cursor:pointer
   }
-  button.act{
-    margin-top:10px;padding:9px 16px;border-radius:9px;border:1px solid var(--line-strong);
-    background:var(--surface);color:var(--ink);font:inherit;font-size:13px;
-    cursor:pointer;transition:background .15s,border-color .15s
-  }
-  button.act:hover{background:var(--sunken);border-color:var(--accent)}
-  .msg{margin-top:9px;font-size:12.5px;min-height:18px}
-  .msg.ok{color:var(--ok)}
-  .msg.err{color:var(--err)}
+  .act:hover{background:var(--ui-sunken);border-color:var(--ui-accent)}
+  .msg{margin-top:8px;font-size:12.5px;min-height:18px}
+  .msg.ok{color:var(--ui-ok)} .msg.err{color:var(--ui-err)}
 </style>
 </head>
-<body>
+<body data-nav="draw" data-shell="生图">
 <div class="wrap">
   <header>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换深浅色">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path class="i-moon" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
-        <g class="i-sun">
-          <circle cx="12" cy="12" r="4"/>
-          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
-        </g>
+    <div class="eyebrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/>
       </svg>
-    </button>
-    <a class="back" href="/">← 工具箱</a>
+      两个绘图工作台
+    </div>
     <h1>生图</h1>
-    <p>两个绘图工具，按需要选</p>
+    <p>右边是浏览器直连 Right Code，左边是经后端代理的 Code0。按需要选，都是打开就能用。</p>
   </header>
 
   <div class="grid">
@@ -140,17 +87,12 @@
       <span class="ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="3"/>
-          <circle cx="8.5" cy="8.5" r="1.8"/>
-          <path d="M21 15l-5-5L5 21"/>
+          <circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/>
         </svg>
       </span>
       <h2>Right Code 绘图工作台</h2>
-      <p>打开就能用，手机也行。支持单张 / 批量、1K / 2K / 4K。</p>
-      <div class="tags">
-        <span class="tag on">在线可用</span>
-        <span class="tag">批量</span>
-        <span class="tag">4K</span>
-      </div>
+      <p>支持单张 / 批量、1K / 2K / 4K，手机也能用。</p>
+      <div class="tags"><span class="tag on">在线可用</span><span class="tag">批量</span><span class="tag">4K</span></div>
       <span class="go">进入 <span aria-hidden="true">→</span></span>
     </a>
 
@@ -162,83 +104,45 @@
         </svg>
       </span>
       <h2>Code0 图片工作台</h2>
-      <p>文生图 / 图生图 / 批量队列，6 个模型可选。API Key 存在服务端，页面源码里看不到。</p>
-      <div class="tags">
-        <span class="tag on">在线可用</span>
-        <span class="tag">图生图</span>
-        <span class="tag">批量</span>
-      </div>
+      <p>文生图 / 图生图 / 批量队列，6 个模型可选；API Key 在服务端，页面源码里看不到。</p>
+      <div class="tags"><span class="tag on">在线可用</span><span class="tag">图生图</span><span class="tag">批量</span></div>
       <span class="go">进入 <span aria-hidden="true">→</span></span>
     </a>
   </div>
 
   <div class="note">
     <b>还有一个本地版</b>（功能一样，跑在自己电脑上，不经过服务器）：
-    双击桌面上的「<b>图片工作台</b>」快捷方式（或
-    <code>桌面\glmyytest\图片工作台.bat</code>），窗口别关，然后
-    <button class="act" id="openLocal" type="button" style="margin:0 0 0 6px;padding:5px 12px;font-size:12.5px">打开本地服务</button>
+    双击桌面「图片工作台」快捷方式，窗口别关，然后
+    <button class="act" id="openLocal" type="button">打开本地服务</button>
     <div class="msg" id="localMsg"></div>
   </div>
 </div>
 
 <script>
-/* 主题切换 */
-(function () {
-  var KEY = "a377theme";
-  var root = document.documentElement;
-  var btn = document.getElementById("theme-toggle");
-  var meta = document.getElementById("theme-color");
-  function apply(t) {
-    root.dataset.theme = t;
-    if (meta) meta.setAttribute("content", t === "dark" ? "#16140f" : "#faf9f5");
-    if (btn) btn.setAttribute("aria-label", t === "dark" ? "切换到浅色" : "切换到深色");
-  }
-  apply(root.dataset.theme === "dark" ? "dark" : "light");
-  if (btn) {
-    btn.addEventListener("click", function () {
-      var next = root.dataset.theme === "dark" ? "light" : "dark";
-      try { localStorage.setItem(KEY, next); } catch (e) {}
-      apply(next);
-    });
-  }
-  try {
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (e) {
-      try { if (localStorage.getItem(KEY)) return; } catch (err) { return; }
-      apply(e.matches ? "dark" : "light");
-    });
-  } catch (e) {}
-})();
-
-/* 打开本地服务：先探一下在不在，不在就告诉用户怎么启动 */
-(function () {
-  var btn = document.getElementById("openLocal");
+document.getElementById("openLocal").addEventListener("click", async function () {
+  var btn = this;
   var msg = document.getElementById("localMsg");
   var LOCAL = "http://127.0.0.1:8765";
-  if (!btn) return;
-
-  btn.addEventListener("click", async function () {
-    btn.disabled = true;
-    msg.className = "msg";
-    msg.textContent = "正在检查本地服务…";
-    var alive = false;
-    try {
-      // no-cors：本地服务没配 CORS，用不透明响应判断"活着"就够了
-      await fetch(LOCAL + "/", { mode: "no-cors", cache: "no-store" });
-      alive = true;
-    } catch (e) {
-      alive = false;
-    }
-    btn.disabled = false;
-    if (alive) {
-      msg.className = "msg ok";
-      msg.textContent = "服务在跑，正在打开…";
-      window.open(LOCAL, "_blank");
-    } else {
-      msg.className = "msg err";
-      msg.textContent = "没连上。先双击桌面「图片工作台」启动服务，窗口别关，再回来点一次。";
-    }
-  });
-})();
+  btn.disabled = true;
+  msg.className = "msg";
+  msg.textContent = "正在检查本地服务…";
+  var alive = false;
+  try {
+    await fetch(LOCAL + "/", { mode: "no-cors", cache: "no-store" });
+    alive = true;
+  } catch (e) {
+    alive = false;
+  }
+  btn.disabled = false;
+  if (alive) {
+    msg.className = "msg ok";
+    msg.textContent = "服务在跑，正在打开…";
+    window.open(LOCAL, "_blank");
+  } else {
+    msg.className = "msg err";
+    msg.textContent = "没连上。先双击桌面「图片工作台」启动服务，窗口别关，再回来点一次。";
+  }
+});
 </script>
 </body>
 </html>

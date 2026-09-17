@@ -3,21 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0a0d14" id="theme-color" />
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/tokens.css">
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/shell.css">
+<script src="/assets/shell.js" defer></script>
 <script>
-// 和工具箱共用同一个 localStorage 键，切一次两边都变
-(function () {
-  try {
-    var t = localStorage.getItem("a377theme");
-    if (t !== "light" && t !== "dark") {
-      t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    document.documentElement.dataset.theme = t;
-  } catch (e) {
-    document.documentElement.dataset.theme = "dark";
-  }
-})();
-
 // 全局错误兜底：初始化过程中任何一处抛异常，后面的绑定就会全部失效
 // （按钮点不动就是这个症状）。把真实错误直接显示出来，别只留在控制台里。
 (function () {
@@ -90,7 +82,7 @@
   .hidden{display:none !important}
 
   /* ================= 顶栏 ================= */
-  header{position:sticky;top:0;z-index:60;background:var(--bg);border-bottom:1px solid var(--s2)}
+  header{position:sticky;top:var(--shell-h);z-index:60;background:var(--bg);border-bottom:1px solid var(--s2)}
   .hbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 16px;min-height:52px}
   .logo{font-size:var(--fs-2);font-weight:600;white-space:nowrap;padding-right:4px;letter-spacing:.2px}
   .logo i{font-style:normal;color:var(--dim2);font-weight:400}
@@ -222,7 +214,7 @@
     .tripbar{padding:9px 12px}
   }
   /* ================= 登录门 ================= */
-  .gate{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+  .gate{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;
     background:radial-gradient(900px 500px at 50% -10%,#16223d,#0a0d14 60%);padding:24px}
   .gate.on{display:flex}
   .gatebox{width:min(400px,100%);background:var(--s1);border-radius:18px;padding:30px 28px}
@@ -244,7 +236,7 @@
   .gatehint{font-size:var(--fs-1);color:var(--dim2);margin-top:16px;text-align:center;line-height:1.8}
 
   /* ================= 同步提示条 ================= */
-  .syncbar{position:fixed;left:50%;top:16px;transform:translate(-50%,-140%);z-index:150;
+  .syncbar{position:fixed;left:50%;top:calc(var(--shell-h) + 14px);transform:translate(-50%,-140%);z-index:150;
     display:flex;align-items:center;gap:10px;background:#1c1a12;color:var(--gold);
     padding:11px 16px;border-radius:999px;font-size:var(--fs-2);transition:transform .28s ease;
     box-shadow:0 10px 30px -10px rgba(0,0,0,.8)}
@@ -394,12 +386,12 @@
   .wicon{font-size:var(--fs-1);pointer-events:none}
 
   /* ================= 详情抽屉 ================= */
-  .scrim{position:fixed;inset:0;z-index:90;background:rgba(4,6,10,.28);
+  .scrim{position:fixed;inset:0;z-index:1000;background:rgba(4,6,10,.28);
     opacity:0;pointer-events:none;transition:opacity .22s}
   .scrim.on{opacity:1;pointer-events:auto}
 
   .drawer{
-    position:fixed;right:18px;bottom:18px;z-index:95;
+    position:fixed;right:18px;bottom:18px;z-index:1000;
     width:min(520px,calc(100vw - 54px));height:min(760px,calc(100vh - 102px));
     display:flex;flex-direction:column;
     background:var(--s1);border:1px solid var(--s3);border-radius:20px;
@@ -534,7 +526,7 @@
   .sw.on{background:#2c5a45} .sw.on::after{left:17.5px;background:#9fe0c0}
 
   /* ================= 对比条 ================= */
-  .cmpbar{position:fixed;left:50%;bottom:0;transform:translate(-50%,112%);z-index:80;
+  .cmpbar{position:fixed;left:50%;bottom:0;transform:translate(-50%,112%);z-index:1000;
     width:min(1000px,calc(100% - 28px));background:var(--s1);
     border-bottom:none;border-radius:12px 12px 0 0;padding:11px 14px 12px;transition:transform .28s ease}
   .cmpbar.on{transform:translate(-50%,0)}
@@ -552,7 +544,7 @@
   .cmpcol .r.hl b{color:var(--ok)} .cmpcol .r.win b{color:var(--gold)}
 
   /* ================= 弹层 ================= */
-  .modal{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;
+  .modal{position:fixed;inset:0;z-index:1010;display:none;align-items:center;justify-content:center;
     background:rgba(5,7,11,.8);padding:20px}
   .modal.on{display:flex}
   .mbox{width:min(560px,100%);background:var(--s1);border-radius:12px;padding:19px;
@@ -570,7 +562,7 @@
   .mact .primary{background:var(--s4);color:#fff;font-weight:600}
   .note{font-size:var(--fs-1);color:var(--dim2);margin-top:8px;line-height:1.7}
   code{background:var(--s2);border-radius:5px;padding:1px 5px;font-size:var(--fs-1)}
-  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);z-index:130;
+  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);z-index:1020;
     background:#13291f;color:#a8ddc6;padding:11px 18px;border-radius:11px;
     font-size:var(--fs-2);opacity:0;pointer-events:none;transition:.22s;max-width:88vw;text-align:center}
   .toast.on{opacity:1;transform:translate(-50%,0)}
@@ -705,7 +697,7 @@
   @media(prefers-reduced-motion:reduce){.drawer,.scrim{transition:none}}
 </style>
 </head>
-<body>
+<body data-nav="trips" data-shell="见面 / 周末去哪">
 
 <!-- 初始化出错时显示在这里。样式写内联，因为出错时样式表未必已生效 -->
 <div id="bootErr" style="display:none;position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:999;max-width:92vw;margin-top:12px;padding:11px 16px;border-radius:11px;background:#a83a2c;color:#fff;font:13px/1.55 -apple-system,'PingFang SC',sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.28)"></div>
@@ -759,15 +751,6 @@
       <button data-base="amap">高德</button>
     </div>
     <button class="iconbtn" id="impBtn">数据</button>
-    <button class="themebtn" id="theme-toggle" type="button" aria-label="切换深浅色" title="切换深浅色">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path class="i-moon" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
-        <g class="i-sun">
-          <circle cx="12" cy="12" r="4"/>
-          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
-        </g>
-      </svg>
-    </button>
   </div>
 
   <div class="pdrawer" id="pDrawer">
@@ -806,7 +789,7 @@
       当前身份：<b id="hubWho">南京方</b>
       <button class="hswitch" id="hubSwitch">预览 TA</button>
       <span class="hfsep"></span>
-      <a class="hlink" href="/">← 回工具箱</a>
+      <a class="hlink" href="/">← 首页</a>
       <button class="hlink" id="hubLogout" type="button">退出登录</button>
     </div>
   </div>
@@ -2382,6 +2365,19 @@ function shareUrl(){
   return u.toString();
 }
 
+function readSharedState(){
+  const m=location.hash.match(/s=([A-Za-z0-9\-_]+)/);
+  return m?decodeShare(m[1]):null;
+}
+function applySharedIfAny(){
+  const shared=readSharedState();
+  if(!shared || !applyShare(shared)) return false;
+  store.preview = store.me !== actorSeat();
+  DB.saveTrip();
+  setTimeout(()=>toast('已载入对方分享的方案'),400);
+  return true;
+}
+
 /* =========================================================================
    13. 事件
    ========================================================================= */
@@ -2884,24 +2880,31 @@ const Auth = {
 
 /* ---------------- 行程同步 ---------------- */
 const Cloud = {
-  /* 启动时拉一次：服务端有就以服务端为准，没有就把本地的推上去 */
+  /* 启动时拉一次：服务端有就以服务端为准，本地独有的行程会补传，不静默清空 */
   async pull(){
     const r = await api('GET','/api/trips');
     if(!r.ok) return false;
     const list = r.data.trips || [];
     CLOUD.revs = {};
+
     if(!list.length){
       /* 服务端是空的：把本地已有的行程推上去（首次部署时用） */
       for(const t of DB.data.trips) await Cloud.pushTrip(t, true);
+      try{ localStorage.setItem(DBKEY, JSON.stringify(DB.data)); }catch(e){}
       return true;
     }
-    DB.data.trips = [];
+
+    /* 先把云端详情完整拉下来，再动本地数据。
+       以前是拿到 list 就先 DB.data.trips=[]，任何一条详情失败都会把本地清空。 */
+    const remote = [];
     for(const meta of list){
       const one = await api('GET','/api/trips?id='+encodeURIComponent(meta.id));
-      if(!one.ok || !one.data?.trip) continue;
+      if(!one.ok || !one.data?.trip){
+        throw new Error('拉取云端行程详情失败：' + meta.id);
+      }
       const t = one.data.trip;
       const st = t.state || {};
-      DB.data.trips.push({
+      remote.push({
         id:t.id, title:t.title, status:t.status,
         createdAt:t.created_at, updatedAt:t.updated_at,
         t0:st.t0, t1:st.t1,
@@ -2915,7 +2918,13 @@ const Cloud = {
       });
       CLOUD.revs[t.id] = t.rev;
     }
-    DB.data.activeTripId = DB.data.trips[0]?.id || null;
+
+    const remoteIds = new Set(remote.map(t=>t.id));
+    const localOnly = DB.data.trips.filter(t=>!remoteIds.has(t.id));
+    DB.data.trips = remote.concat(localOnly);
+    for(const t of localOnly) await Cloud.pushTrip(t, true);
+    if(!DB.data.trips.some(t=>t.id===DB.data.activeTripId))
+      DB.data.activeTripId = DB.data.trips[0]?.id || null;
     try{ localStorage.setItem(DBKEY, JSON.stringify(DB.data)); }catch(e){}
     return true;
   },
@@ -3075,11 +3084,12 @@ async function afterLogin(){
   store.me=actorSeat();
   store.preview=false;
   DB.openTrip();
+  const sharedApplied = applySharedIfAny();
   const trips = DB.data.trips;
   const blank = trips.length===1
     && Object.keys(trips[0].votes?.a||{}).length===0
     && Object.keys(trips[0].votes?.b||{}).length===0;
-  if(blank) openTripView(); else openHub();
+  if(sharedApplied || blank) openTripView(); else openHub();
   Cloud.startPolling();
 }
 
@@ -3106,21 +3116,13 @@ async function afterLogin(){
 })();
 
 function bootLocal(){
-  /* URL hash 里可能带着别人分享的方案 */
-  const m=location.hash.match(/s=([A-Za-z0-9\-_]+)/);
-  const shared=m?decodeShare(m[1]):null;
-
   DB.load();
   store.base=DB.data.ui.base||'svg';
   store.useWeather=DB.data.ui.useWeather!==false;
   store.hideRejected=DB.data.ui.hideRejected!==false;
   DB.openTrip();                       // 把当前行程灌进 store
   store.me=CLOUD.user ? CLOUD.user.seat : DB.data.me;
-
-  if(shared && applyShare(shared)){
-    DB.saveTrip();
-    setTimeout(()=>toast('已载入对方分享的方案'),400);
-  }
+  const sharedApplied = applySharedIfAny();
 
   $('#shutA').value=LS.get('shutA',60);
   $('#shutB').value=LS.get('shutB',25);
@@ -3135,7 +3137,7 @@ function bootLocal(){
     && Object.keys(trips[0].votes?.a||{}).length===0
     && Object.keys(trips[0].votes?.b||{}).length===0;
   const remembered=(()=>{ try{ return sessionStorage.getItem('meet.view')==='trip'; }catch(e){ return false; } })();
-  if(shared || remembered || blank) openTripView(); else openHub();
+  if(sharedApplied || remembered || blank) openTripView(); else openHub();
   const hw=document.getElementById('hubWho'); if(hw) hw.textContent=WHO[DB.data.me].name;
 }
 
@@ -3153,40 +3155,6 @@ function renderAll(){
   renderCards(); renderCompare(); renderHistory();
   renderTripBar();
 }
-</script>
-<script>
-/* ---------- 主题切换 ----------
-   和工具箱共用 localStorage 的 a377theme 键，切一次两边都跟着变。 */
-(function () {
-  var KEY = "a377theme";
-  var root = document.documentElement;
-  var btn = document.getElementById("theme-toggle");
-  var meta = document.getElementById("theme-color");
-
-  function apply(t) {
-    root.dataset.theme = t;
-    if (meta) meta.setAttribute("content", t === "dark" ? "#0a0d14" : "#f3f5f9");
-    if (btn) btn.setAttribute("aria-label", t === "dark" ? "切换到浅色" : "切换到深色");
-  }
-
-  apply(root.dataset.theme === "light" ? "light" : "dark");
-
-  if (btn) {
-    btn.addEventListener("click", function () {
-      var next = root.dataset.theme === "dark" ? "light" : "dark";
-      try { localStorage.setItem(KEY, next); } catch (e) {}
-      apply(next);
-    });
-  }
-
-  // 没手动选过就跟随系统
-  try {
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (e) {
-      try { if (localStorage.getItem(KEY)) return; } catch (err) { return; }
-      apply(e.matches ? "dark" : "light");
-    });
-  } catch (e) {}
-})();
 </script>
 </body>
 </html>

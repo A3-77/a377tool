@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/tokens.css">
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/shell.css">
+<script src="/assets/shell.js" defer></script>
 <title>Right Code 绘图工作台</title>
 <style>
   /* ============================================================
@@ -794,9 +800,36 @@
     opacity:.5;transition:opacity .2s,transform .2s
   }
   .a377-back:hover{opacity:1;transform:translateY(-1px)}
+  /* 共享顶栏占位；sidebar 是 fixed，需要跟着下移 */
+  body{padding-top:var(--shell-h)}
+  .sidebar-wrapper{min-height:calc(100svh - var(--shell-h))}
+  .sidebar-container{inset-block:var(--shell-h) 0}
+  .inset-header{top:var(--shell-h)}
+  html[data-theme="dark"]{
+    --background:var(--ui-bg);--foreground:var(--ui-ink);
+    --card:var(--ui-surface);--card-foreground:var(--ui-ink);
+    --popover:var(--ui-surface);--popover-foreground:var(--ui-ink);
+    --primary:var(--ui-ink);--primary-foreground:var(--ui-bg);
+    --secondary:var(--ui-sunken);--secondary-foreground:var(--ui-ink);
+    --muted:var(--ui-sunken);--muted-foreground:var(--ui-ink-3);
+    --accent:var(--ui-sunken);--accent-foreground:var(--ui-ink);
+    --destructive:var(--ui-err);
+    --border:var(--ui-line);--input:var(--ui-line);--ring:var(--ui-ink-3);
+    --sidebar:var(--ui-surface);--sidebar-foreground:var(--ui-ink);
+    --sidebar-primary:var(--ui-ink);--sidebar-primary-foreground:var(--ui-bg);
+    --sidebar-accent:var(--ui-sunken);--sidebar-accent-foreground:var(--ui-ink);
+    --sidebar-border:var(--ui-line);--sidebar-ring:var(--ui-ink-3);--surface:var(--ui-sunken);
+    --primary-90:color-mix(in srgb,var(--ui-ink) 90%,transparent);
+    --primary-20:color-mix(in srgb,var(--ui-ink) 20%,transparent);
+    --ring-50:color-mix(in srgb,var(--ui-ink-3) 50%,transparent);
+    --secondary-80:color-mix(in srgb,var(--ui-sunken) 80%,transparent);
+    --sidebar-fg-70:color-mix(in srgb,var(--ui-ink) 70%,transparent);
+    --destructive-90:color-mix(in srgb,var(--ui-err) 90%,transparent);
+    --destructive-20:color-mix(in srgb,var(--ui-err) 20%,transparent);
+  }
 </style>
 </head>
-<body>
+<body data-nav="draw" data-shell="生图 / Right Code" data-shell-pad="none">
 
 <div class="sidebar-wrapper" id="sidebarWrapper" data-state="expanded">
 

@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/tokens.css">
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/shell.css">
+<script src="/assets/shell.js" defer></script>
+<title>文件工具箱 · A377Tool</title>
+<style>
+:root{
+    /* 全部指向 /assets/tokens.css 里的共享令牌 —— 改一处，全站生效 */
+    --bg:var(--ui-bg); --surface:var(--ui-surface); --sunken:var(--ui-sunken);
+    --line:var(--ui-line); --line-strong:var(--ui-line-strong);
+    --ink:var(--ui-ink); --ink-2:var(--ui-ink-2); --ink-3:var(--ui-ink-3);
+    --accent:var(--ui-accent); --accent-ink:var(--ui-accent-ink); --accent-soft:var(--ui-accent-soft);
+    --ok:var(--ui-ok); --ok-soft:var(--ui-ok-soft);
+    --err:var(--ui-err); --err-soft:var(--ui-err-soft);
+    --r-lg:var(--ui-r-lg); --r-md:var(--ui-r-md); --r-sm:var(--ui-r-sm);
+    --ease:var(--ui-ease);
+  }
+  html[data-theme="dark"] .btn.primary{background:var(--accent);color:#1a1712}
+  html[data-theme="dark"] .btn.primary:hover:not(:disabled){background:#eb9873}
+  html[data-theme="dark"] .btn.primary:disabled{background:#3a352c;color:#6b6459}
+  html[data-theme="dark"] .tabs button[aria-selected="true"]{background:var(--accent);color:#1a1712}
+  html[data-theme="dark"] .card .no{background:var(--accent);color:#1a1712}
+  html[data-theme="dark"] .thumb img,
+  html[data-theme="dark"] .card img{background:#f7f5f0}
+  html[data-theme="dark"] .single .thumbwrap{background:#f7f5f0}
+  html[data-theme="dark"] .banner.warn{background:#2b2418;border-color:#4a3d24;color:#d9b568}
+  html[data-theme="dark"] .banner.err{background:#2b1a17;border-color:#4a2b25;color:#e8735f}
+  html[data-theme="dark"] .banner.ok{background:#1e2618;border-color:#33422a;color:#8fbf72}
+
+  /* ---------- 主题切换按钮 ---------- */
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font:15px/1.6 "Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:44px 22px 90px}
+
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);
+    background:var(--accent-soft);padding:4px 10px;border-radius:99px;margin-bottom:14px
+  }
+  .eyebrow svg{width:12px;height:12px;flex:none}
+  header{position:relative}
+  header h1{margin:0 0 8px;font-size:30px;line-height:1.2;letter-spacing:-.028em;font-weight:650}
+  /* 浅色显示月亮（点了变暗），深色显示太阳 */
+  header .sub{margin:0;color:var(--ink-2);font-size:14px;max-width:60ch}
+
+  .banner{
+    margin:22px 0 0;padding:13px 15px;border-radius:var(--r-md);font-size:13.5px;
+    line-height:1.55;background:var(--ok-soft);border:1px solid color-mix(in srgb, var(--ok) 26%, transparent);
+    color:var(--ok)
+  }
+  .banner > summary{
+    display:flex;gap:9px;align-items:center;cursor:pointer;list-style:none;font-weight:600
+  }
+  .banner > summary::-webkit-details-marker{display:none}
+  .banner > summary svg{width:15px;height:15px;flex:none}
+  .banner > summary::after{
+    content:"▾";margin-left:auto;font-size:12px;opacity:.75;
+    transition:transform .18s var(--ease)
+  }
+  .banner[open] > summary::after{transform:rotate(180deg)}
+  .banner .bbody{margin-top:9px;padding-left:24px;font-weight:400;opacity:.92}
+  .banner b{font-weight:650}
+  .hidden{display:none !important}
+
+  .toolgroup{
+    display:inline-flex;gap:3px;padding:3px;margin:0 0 12px;
+    background:var(--sunken);border:1px solid var(--line);border-radius:999px
+  }
+  .toolgroup button{
+    border:0;background:transparent;color:var(--ink-3);font:inherit;font-size:12.5px;font-weight:600;
+    padding:6px 16px;border-radius:999px;cursor:pointer;
+    transition:background .15s var(--ease),color .15s var(--ease)
+  }
+  .toolgroup button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.07)}
+  .toolgroup button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .tabs{
+    display:flex;gap:5px;flex-wrap:wrap;margin:22px 0;
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:5px
+  }
+  .tabs button{
+    flex:1 1 auto;border:none;background:transparent;color:var(--ink-2);
+    font:inherit;font-size:13.5px;font-weight:600;padding:9px 13px;border-radius:10px;
+    cursor:pointer;white-space:nowrap;transition:background .16s var(--ease),color .16s,transform .1s
+  }
+  .tabs button:active{transform:scale(.98)}
+  .tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .tabs button[aria-selected="true"]{background:var(--ink);color:#fff}
+
+  .panel{display:none}
+  .panel.active{display:block;animation:rise .32s var(--ease) both}
+  .hint-line{margin:0 0 16px;color:var(--ink-3);font-size:13px;line-height:1.65}
+
+  .drop{
+    background:var(--surface);border:1.5px dashed var(--line-strong);
+    border-radius:var(--r-lg);padding:36px 24px;text-align:center;cursor:pointer;
+    transition:border-color .2s var(--ease),background .2s var(--ease),transform .2s var(--ease);
+    box-shadow:0 1px 2px rgba(28,27,25,.03)
+  }
+  .drop.over{border-color:var(--accent);border-style:solid;background:var(--accent-soft);transform:scale(1.008)}
+  .drop .ico{width:44px;height:44px;margin:0 auto 13px;display:grid;place-items:center;color:var(--accent);transition:transform .25s var(--ease)}
+  .drop .ico svg{width:32px;height:32px}
+  .drop .t{font-size:15.5px;font-weight:650;letter-spacing:-.01em}
+  .drop .s{margin-top:6px;color:var(--ink-3);font-size:13px}
+  .link{color:var(--accent-ink);text-decoration:underline;text-underline-offset:2.5px;text-decoration-thickness:1px;cursor:pointer;background:none;border:none;font:inherit;padding:0;font-weight:600}
+
+  .files{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+  .fitem{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:10px 13px;display:flex;align-items:center;gap:11px;font-size:13.5px;
+    animation:rise .34s var(--ease) both
+  }
+  .fitem .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fitem .sz{color:var(--ink-3);font-size:12.5px;white-space:nowrap}
+  .fitem .mv,.fitem .rm{
+    border:none;background:transparent;color:var(--ink-3);cursor:pointer;
+    line-height:1;padding:5px 7px;border-radius:6px;transition:background .15s,color .15s
+  }
+  .fitem .mv{font-size:13px}
+  .fitem .rm{font-size:16px}
+  .fitem .mv:disabled{opacity:.3;cursor:default}
+  .fitem .rm:active,.fitem .mv:active{transform:scale(.94)}
+
+  .opts{
+    margin-top:20px;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:20px;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:18px
+  }
+  .opt label{display:block;font-size:12px;font-weight:650;color:var(--ink-2);margin-bottom:7px}
+  .opt .hint{font-weight:400;color:var(--ink-3);font-size:11.5px;margin-left:3px}
+  select,input[type=text]{
+    width:100%;padding:9px 11px;border:1px solid var(--line-strong);border-radius:var(--r-sm);
+    background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;outline:none;
+    transition:border-color .16s
+  }
+  select:focus-visible,input[type=text]:focus-visible{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:1px}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .qval{color:var(--accent-ink);font-weight:650}
+
+  .actions{margin-top:22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .btn{
+    border:1px solid transparent;border-radius:var(--r-sm);padding:9px 18px;
+    font:inherit;font-size:13.5px;font-weight:650;cursor:pointer;text-decoration:none;
+    display:inline-block;white-space:nowrap;
+    transition:background .16s var(--ease),border-color .16s,color .16s,transform .1s
+  }
+  .btn:active{transform:scale(.975)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .btn.primary{background:var(--ink);color:#fff}
+  .btn.primary:disabled{background:#d9d6cd;color:#fff;cursor:not-allowed}
+  .btn.ghost{background:var(--surface);border-color:var(--line-strong);color:var(--ink)}
+  .btn.cta{padding:11px 26px;font-size:14.5px}
+
+  .status{font-size:13.5px;color:var(--ink-3)}
+  .status.busy{color:var(--ink-2)}
+  .status.ok{color:var(--ok)}
+  .status.err{color:var(--err)}
+  .bar{flex:1 1 100%;height:3px;background:var(--line);border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;width:100%;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease)}
+
+  .results{margin-top:26px;display:flex;flex-direction:column;gap:12px}
+  .res{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:16px 18px;box-shadow:0 1px 2px rgba(28,27,25,.03);animation:rise .4s var(--ease) both
+  }
+  .res .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--ok-soft);color:var(--ok);white-space:nowrap}
+  .tag.bad{background:var(--err-soft);color:var(--err)}
+  .tag.wait{background:var(--accent-soft);color:var(--accent-ink)}
+  .res .fn{font-weight:650;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .res .meta{margin-top:6px;color:var(--ink-3);font-size:12.5px}
+  .res .err{margin-top:8px;color:var(--err);font-size:13px;line-height:1.55}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .single{display:flex;gap:18px;align-items:flex-start;margin-top:14px;flex-wrap:wrap}
+  .single .thumbwrap{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--sunken);flex:none;line-height:0}
+  .single img{display:block;max-width:170px;max-height:210px}
+
+  .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(106px,1fr));gap:11px;margin-top:14px}
+  .thumb{
+    border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--sunken);
+    display:flex;flex-direction:column;animation:rise .4s var(--ease) both;animation-delay:calc(var(--i,0) * 30ms)
+  }
+  .thumb img{display:block;width:100%;height:94px;object-fit:contain;background:#fff;border-bottom:1px solid var(--line);cursor:zoom-in}
+  .thumb .cap{font-size:10.5px;color:var(--ink-3);text-align:center;padding:5px 3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .thumb .dl{border:none;background:transparent;color:var(--accent-ink);font:inherit;font-size:11.5px;font-weight:650;padding:4px 0 6px;cursor:pointer}
+
+  .sortbar{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .sortbar .lbl{font-size:12px;font-weight:650;color:var(--ink-2)}
+  .sortbar input[type=text]{flex:1 1 200px;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13px}
+  .sortgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px;margin-top:14px}
+  .card{
+    position:relative;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;
+    background:var(--surface);cursor:grab;
+    animation:rise .35s var(--ease) both;animation-delay:calc(var(--i,0) * 26ms)
+  }
+  .card.dragging{opacity:.35;cursor:grabbing}
+  .card.over{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .card img{display:block;width:100%;height:118px;object-fit:contain;background:#fff;border-bottom:1px solid var(--line);pointer-events:none}
+  .card .no{position:absolute;top:6px;left:6px;background:var(--ink);color:#fff;font-size:11px;font-weight:700;min-width:24px;height:22px;line-height:22px;text-align:center;border-radius:6px;padding:0 6px}
+  .card .src{font-size:10.5px;color:var(--ink-3);text-align:center;padding:5px 3px}
+  .card .movers{display:flex;border-top:1px solid var(--line)}
+  .card .movers button{
+    flex:1;border:none;background:transparent;color:var(--ink-2);font:inherit;font-size:14px;
+    line-height:1;padding:0;min-height:40px;cursor:pointer;transition:background .15s,color .15s
+  }
+  .card .movers button:first-child{border-right:1px solid var(--line)}
+  .card .movers button:disabled{opacity:.28;cursor:default}
+  .card .movers button:active:not(:disabled){background:var(--accent-soft);color:var(--accent-ink)}
+
+  .skel{height:13px;border-radius:6px;margin-top:10px;background:linear-gradient(90deg,var(--sunken) 25%,#eceae2 37%,var(--sunken) 63%);background-size:400% 100%;animation:shimmer 1.4s ease-in-out infinite}
+
+  footer{margin-top:52px;padding-top:22px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12.5px;line-height:1.75}
+  footer b{color:var(--ink-2);font-weight:650}
+  code{background:var(--sunken);padding:1.5px 6px;border-radius:5px;font-size:12px;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace}
+
+  button,.link,select,input,label,.drop,.card{-webkit-tap-highlight-color:transparent}
+  button,.link,.drop,.card{touch-action:manipulation}
+  .card img,.thumb img{-webkit-user-drag:none;user-select:none}
+
+  @keyframes rise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+  @keyframes shimmer{from{background-position:100% 0}to{background-position:0 0}}
+
+  @media (hover:hover){
+    .drop:hover{border-color:var(--accent);background:#fffdfb}
+    .drop:hover .ico{transform:translateY(-2px)}
+    .btn.primary:hover:not(:disabled){background:#312e2a}
+    .btn.ghost:hover{background:var(--sunken);border-color:var(--ink-3)}
+    .thumb:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:0 6px 16px rgba(28,27,25,.09)}
+    .card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(28,27,25,.1)}
+    .tabs button:hover:not([aria-selected="true"]){background:var(--sunken);color:var(--ink)}
+    .fitem .rm:hover{background:var(--sunken);color:var(--err)}
+    .fitem .mv:hover:not(:disabled){background:var(--sunken);color:var(--ink)}
+    .thumb .dl:hover{background:var(--accent-soft)}
+    select:hover,input[type=text]:hover{border-color:var(--ink-3)}
+  }
+
+  @media (hover:none){
+    .drop .t::after{content:"，或点一下这里"}
+  }
+
+  @media (max-width:640px){
+    .wrap{
+      padding:22px 14px 40px;
+      padding-bottom:calc(40px + env(safe-area-inset-bottom));
+      padding-left:calc(14px + env(safe-area-inset-left));
+      padding-right:calc(14px + env(safe-area-inset-right))
+    }
+    header h1{font-size:23px;letter-spacing:-.02em}
+    header .sub{font-size:13.5px}
+    .tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity;padding:5px;gap:4px}
+    .tabs::-webkit-scrollbar{display:none}
+    .tabs button{flex:0 0 auto;font-size:13px;padding:0 15px;min-height:44px;scroll-snap-align:start}
+    .btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 18px}
+    .btn.cta{min-height:48px;font-size:14.5px;width:100%}
+    .actions{gap:12px}
+    .actions .status{flex:1 1 100%;order:3}
+    .drop{padding:30px 16px}
+    .opts{grid-template-columns:1fr;padding:16px;gap:16px}
+    select,input[type=text]{min-height:44px;font-size:16px}
+    .fitem{padding:8px 10px;gap:6px}
+    .fitem .rm,.fitem .mv{min-width:40px;min-height:40px;font-size:15px}
+    .fitem .nm{font-size:13px}
+    .thumbs{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
+    .thumb img{height:86px}
+    .sortgrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+    .card img{height:104px}
+    .card .movers button{min-height:44px}
+    .sortbar{padding:12px;gap:9px}
+    .sortbar input[type=text]{flex:1 1 100%;font-size:16px}
+    .sortbar .btn{flex:1 1 0}
+    .single{flex-direction:column;align-items:stretch;gap:14px}
+    .single img{max-width:100%;max-height:240px;margin:0 auto}
+    .res{padding:14px}
+    footer{margin-top:36px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+    .drop.over{transform:none}
+  }
+</style>
+</head>
+<body data-nav="file" data-shell="文件 / 工具箱">
+<div class="wrap">
+  <header>
+    <div class="eyebrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      纯浏览器运行 · 文件不离开你的设备
+    </div>
+<h1>文件工具箱</h1>
+    <p class="sub">PDF 转图片、重排、合并、拆分，以及 ncm 转音频。全部在你的浏览器里完成，文件不上传到任何服务器。</p>
+  </header>
+
+  <details class="banner">
+    <summary>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
+      </svg>
+      断网也能用 · 文件不离开你的设备
+    </summary>
+    <div class="bbody">
+      <b>这个页面没有后端。</b>打开之后断网也能用，文件从头到尾只在你本机内存里。
+      大文件（比如几百页或 600 DPI）受浏览器内存限制，慢的时候请耐心等 —— 那种场合用桌面版更快。
+    </div>
+  </details>
+
+
+  <div class="toolgroup" id="toolGroup" role="group" aria-label="工具分类">
+    <button type="button" data-g="pdf" aria-pressed="true">PDF</button>
+    <button type="button" data-g="audio" aria-pressed="false">音频</button>
+  </div>
+
+  <nav class="tabs" role="tablist" id="tabs" aria-label="工具">
+    <button role="tab" data-tab="toimg"   data-group="pdf"   aria-selected="true">转图片</button>
+    <button role="tab" data-tab="reorder" data-group="pdf"   aria-selected="false">重排页面</button>
+    <button role="tab" data-tab="merge"   data-group="pdf"   aria-selected="false">合并</button>
+    <button role="tab" data-tab="split"   data-group="pdf"   aria-selected="false">拆分</button>
+    <button role="tab" data-tab="ncm"     data-group="audio" aria-selected="false">ncm 转音频</button>
+  </nav>
+
+  <!-- ============================== 转图片 ============================== -->
+  <section class="panel active" id="panel-toimg" role="tabpanel">
+    <p class="hint-line">把 PDF 每页导出成 PNG 或 JPG。只转 1 页就直接给图片，多页会列出每张。</p>
+
+    <div class="drop" id="toimg-drop" role="button" tabindex="0" aria-label="选择或拖入 PDF">
+      <div class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/>
+          <path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/>
+        </svg>
+      </div>
+      <div class="t">把 PDF 拖到这里</div>
+      <div class="s">或者 <button class="link" data-pick="toimg" type="button">选择文件</button> · 支持一次多个</div>
+      <input type="file" id="toimg-input" accept="application/pdf,.pdf" multiple hidden>
+    </div>
+    <div class="files" id="toimg-files"></div>
+
+    <section class="opts">
+      <div class="opt">
+        <label for="toimg-dpi">清晰度 <span class="hint">越高越清晰、越吃内存</span></label>
+        <select id="toimg-dpi">
+          <option value="72">72 DPI · 屏幕预览</option>
+          <option value="150" selected>150 DPI · 常规</option>
+          <option value="200">200 DPI · 推荐</option>
+          <option value="300">300 DPI · 印刷级</option>
+        </select>
+      </div>
+      <div class="opt">
+        <label for="toimg-fmt">图片格式</label>
+        <select id="toimg-fmt">
+          <option value="png" selected>PNG · 无损</option>
+          <option value="jpg">JPG · 体积小</option>
+        </select>
+      </div>
+      <div class="opt hidden" id="toimg-qwrap">
+        <label for="toimg-quality">JPG 质量 <span class="qval" id="toimg-qval">92</span></label>
+        <input type="range" id="toimg-quality" min="40" max="100" value="92" step="1">
+      </div>
+      <div class="opt">
+        <label for="toimg-pages">页面范围 <span class="hint">留空 = 全部</span></label>
+        <input type="text" id="toimg-pages" placeholder="如 1-3,7,12-">
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="btn primary cta" id="toimg-go" disabled>开始转换</button>
+      <button class="btn ghost hidden" id="toimg-cancel" type="button">取消</button>
+      <button class="btn ghost hidden" id="toimg-clear" data-clear="toimg-results" type="button">清空结果</button>
+      <span class="status" id="toimg-status" role="status" aria-live="polite"></span>
+      <div class="bar hidden" id="toimg-bar"><i></i></div>
+    </div>
+    <div class="results" id="toimg-results"></div>
+  </section>
+
+  <!-- ============================= 重排页面 ============================= -->
+  <section class="panel" id="panel-reorder" role="tabpanel">
+    <p class="hint-line">拖缩略图（手机用卡片上的 ◀ ▶）调整顺序。可以反向、可以重复某一页，原文件不动。</p>
+
+    <div class="drop" id="ro-drop" role="button" tabindex="0" aria-label="选择或拖入 PDF">
+      <div class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/><path d="M10 12h4"/>
+        </svg>
+      </div>
+      <div class="t">把 PDF 拖到这里</div>
+      <div class="s">或者 <button class="link" data-pick="ro" type="button">选择文件</button></div>
+      <input type="file" id="ro-input" accept="application/pdf,.pdf" hidden>
+    </div>
+
+    <div id="ro-stage" class="hidden">
+      <div class="sortbar">
+        <span class="lbl">当前页序</span>
+        <input type="text" id="ro-order" aria-label="页序">
+        <button class="btn ghost" id="ro-reset" type="button">重置</button>
+        <button class="btn ghost" id="ro-reverse" type="button">反向</button>
+      </div>
+      <div class="sortgrid" id="ro-grid"></div>
+      <div class="actions">
+        <button class="btn primary cta" id="ro-go">导出 PDF</button>
+        <button class="btn ghost hidden" data-clear="ro-results" type="button">清空结果</button>
+        <span class="status" id="ro-status" role="status" aria-live="polite"></span>
+      </div>
+      <div class="results" id="ro-results"></div>
+    </div>
+  </section>
+
+  <!-- =============================== 合并 =============================== -->
+  <section class="panel" id="panel-merge" role="tabpanel">
+    <p class="hint-line">把多个 PDF 按列表顺序拼成一个。用 ▲▼ 调整先后，第 1 个的页面排在最前面。</p>
+
+    <div class="drop" id="mg-drop" role="button" tabindex="0" aria-label="选择或拖入 PDF">
+      <div class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4"/>
+          <path d="M12 8v8M8.5 12.5 12 16l3.5-3.5"/>
+        </svg>
+      </div>
+      <div class="t">把要合并的 PDF 都拖进来</div>
+      <div class="s">或者 <button class="link" data-pick="mg" type="button">选择文件</button> · 至少 2 个</div>
+      <input type="file" id="mg-input" accept="application/pdf,.pdf" multiple hidden>
+    </div>
+    <div class="files" id="mg-files"></div>
+
+    <section class="opts">
+      <div class="opt">
+        <label for="mg-name">输出文件名</label>
+        <input type="text" id="mg-name" placeholder="合并结果">
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="btn primary cta" id="mg-go" disabled>合并并下载</button>
+      <button class="btn ghost hidden" data-clear="mg-results" type="button">清空结果</button>
+      <span class="status" id="mg-status" role="status" aria-live="polite"></span>
+    </div>
+    <div class="results" id="mg-results"></div>
+  </section>
+
+  <!-- =============================== 拆分 =============================== -->
+  <section class="panel" id="panel-split" role="tabpanel">
+    <p class="hint-line">按规则拆成多份。用分号分组，比如 <code>1-3;4-6;7-</code> 拆成三份。留空则每页一个文件。</p>
+
+    <div class="drop" id="sp-drop" role="button" tabindex="0" aria-label="选择或拖入 PDF">
+      <div class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v18"/><path d="M5 7 2 12l3 5M19 7l3 5-3 5"/><path d="M12 3 9 6M12 3l3 3M12 21l-3-3M12 21l3-3"/>
+        </svg>
+      </div>
+      <div class="t">把 PDF 拖到这里</div>
+      <div class="s">或者 <button class="link" data-pick="sp" type="button">选择文件</button></div>
+      <input type="file" id="sp-input" accept="application/pdf,.pdf" hidden>
+    </div>
+    <div class="files" id="sp-files"></div>
+
+    <section class="opts">
+      <div class="opt">
+        <label for="sp-groups">拆分规则 <span class="hint">留空 = 每页一份</span></label>
+        <input type="text" id="sp-groups" placeholder="如 1-3;4-6;7-">
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="btn primary cta" id="sp-go" disabled>拆分并下载</button>
+      <button class="btn ghost hidden" data-clear="sp-results" type="button">清空结果</button>
+      <span class="status" id="sp-status" role="status" aria-live="polite"></span>
+    </div>
+    <div class="results" id="sp-results"></div>
+  </section>
+
+  <!-- ============================= ncm 转音频 ============================ -->
+  <section class="panel" id="panel-ncm" role="tabpanel">
+    <p class="hint-line">
+      把网易云音乐的 <code>.ncm</code> 还原成通用的 mp3 / flac，文件名会自动变成
+      <code>歌手 - 歌名</code>。解密全程在你的浏览器里跑，文件不经过任何服务器。
+    </p>
+
+    <div class="drop" id="ncm-drop" role="button" tabindex="0" aria-label="选择或拖入 ncm 文件">
+      <div class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>
+        </svg>
+      </div>
+      <div class="t">把 ncm 文件拖到这里</div>
+      <div class="s">或者 <button class="link" data-pick="ncm" type="button">选择文件</button> · 支持一次多个</div>
+      <input type="file" id="ncm-input" accept=".ncm" multiple hidden>
+    </div>
+    <div class="files" id="ncm-files"></div>
+
+    <section class="opts">
+      <div class="opt">
+        <label for="ncm-tags">写入歌曲信息</label>
+        <select id="ncm-tags">
+          <option value="1" selected>写入歌名、歌手、专辑和封面</option>
+          <option value="0">不写入，只要纯音频</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="btn primary cta" id="ncm-go" disabled>开始转换</button>
+      <button class="btn ghost hidden" id="ncm-cancel" type="button">取消</button>
+      <button class="btn ghost hidden" id="ncm-clear" data-clear="ncm-results" type="button">清空结果</button>
+      <span class="status" id="ncm-status" role="status" aria-live="polite"></span>
+      <div class="bar hidden" id="ncm-bar"><i></i></div>
+    </div>
+    <div class="results" id="ncm-results"></div>
+  </section>
+
+  <footer>
+    所有处理都在浏览器里完成，页面没有后端，文件不会上传。<br>
+    需要处理超大文件（几百页 PDF、600 DPI）？那个得用桌面版——它跑本机 Python，能力更强。
+  </footer>
+</div>
+
+<script src="/vendor/pdf-lib.min.js"></script>
+<script type="module">
+import * as pdfjsLib from "/vendor/pdf.min.js";
+import { makeZipBlob } from "/assets/zip.js";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = "/vendor/pdf.worker.min.js";
+
+const { PDFDocument } = PDFLib;
+const $ = (id) => document.getElementById(id);
+const $$ = (sel, root) => [...(root || document).querySelectorAll(sel)];
+
+/* ==================== 页码解析 ==================== */
+function parsePageSpec(spec, total) {
+  spec = (spec || "").trim();
+  if (!spec || spec.toLowerCase() === "all") {
+    return Array.from({ length: total }, (_v, i) => i + 1);
+  }
+  const picked = [];
+  for (const token of spec.split(/[,，;；\s]+/)) {
+    if (!token) continue;
+    const range = /^(\d+)?\s*[-–—~]\s*(\d+)?$/.exec(token);
+    if (range) {
+      const a = range[1] ? +range[1] : 1;
+      const b = range[2] ? +range[2] : total;
+      const lo = Math.min(a, b), hi = Math.max(a, b);
+      for (let v = lo; v <= hi; v++) picked.push(v);
+    } else if (/^\d+$/.test(token)) {
+      picked.push(+token);
+    } else {
+      throw new Error("看不懂的页码：" + token);
+    }
+  }
+  const seen = new Set(), out = [];
+  for (const p of picked) {
+    if (p >= 1 && p <= total && !seen.has(p)) { seen.add(p); out.push(p); }
+  }
+  if (!out.length) throw new Error(`页码没落在 1-${total} 页之内`);
+  return out;
+}
+
+function parseOrder(spec, total) {
+  spec = (spec || "").trim();
+  if (!spec) return Array.from({ length: total }, (_v, i) => i + 1);
+  const out = [];
+  for (const token of spec.split(/[,，\s]+/)) {
+    if (!token) continue;
+    const range = /^(\d+)\s*[-–—~]\s*(\d+)$/.exec(token);
+    if (range) {
+      const a = +range[1], b = +range[2], step = a <= b ? 1 : -1;
+      for (let v = a; step > 0 ? v <= b : v >= b; v += step) out.push(v);
+    } else if (/^\d+$/.test(token)) {
+      out.push(+token);
+    } else {
+      throw new Error("看不懂的页序：" + token);
+    }
+  }
+  const bad = out.filter((p) => p < 1 || p > total);
+  if (bad.length) throw new Error(`页序里有超出 1-${total} 的页码：${bad[0]}`);
+  if (!out.length) throw new Error("页序是空的");
+  return out;
+}
+
+function parseGroups(spec, total) {
+  spec = (spec || "").trim();
+  if (!spec) return Array.from({ length: total }, (_v, i) => [i + 1]);
+  const groups = [];
+  for (const chunk of spec.split(/[;；|]+/)) {
+    if (chunk.trim()) groups.push(parsePageSpec(chunk, total));
+  }
+  if (!groups.length) throw new Error("拆分规则是空的");
+  return groups;
+}
+
+/* ==================== 通用工具 ==================== */
+function human(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1048576).toFixed(1) + " MB";
+}
+
+const stemOf = (name) => (name || "document").replace(/\.pdf$/i, "");
+
+function safeName(s) {
+  return (s || "output").replace(/[\\/:*?"<>|]+/g, "_").trim().slice(0, 120) || "output";
+}
+
+function setStatus(el, text, kind) {
+  el.textContent = text;
+  el.className = "status" + (kind ? " " + kind : "");
+}
+
+function setProgress(bar, ratio) {
+  bar.firstElementChild.style.transform = "scaleX(" + ratio + ")";
+}
+
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/* 逐个触发下载会被浏览器拦截（"此网站尝试下载多个文件"），
+   而且用户根本不知道下了几个。多文件一律打包成 ZIP。 */
+async function saveAll(items, zipName) {
+  if (!items.length) return;
+  if (items.length === 1) { saveBlob(items[0].blob, items[0].name); return; }
+  try {
+    const blob = await makeZipBlob(items);
+    saveBlob(blob, zipName || "a377tool.zip");
+  } catch (e) {
+    A377Toast("打包失败，改为逐个下载", "err");
+    saveAllEach(items);
+  }
+}
+
+/* 用户明确点「逐张下载」时才用这条老路 */
+function saveAllEach(items) {
+  let i = 0;
+  (function step() {
+    if (i >= items.length) return;
+    saveBlob(items[i].blob, items[i].name);
+    i++;
+    setTimeout(step, 320);
+  })();
+}
+
+function bindDrop(zone, input, onFiles) {
+  ["dragenter", "dragover"].forEach((ev) =>
+    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) =>
+    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove("over"); }));
+  zone.addEventListener("drop", (e) => {
+    if (e.dataTransfer && e.dataTransfer.files) onFiles([...e.dataTransfer.files]);
+  });
+  zone.addEventListener("click", (e) => { if (e.target.tagName !== "BUTTON") input.click(); });
+  zone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); }
+  });
+  input.addEventListener("change", () => { onFiles([...input.files]); input.value = ""; });
+}
+
+const isPdf = (f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+
+function fileRow(name, sizeText, opts) {
+  opts = opts || {};
+  const row = document.createElement("div");
+  row.className = "fitem";
+  let html = '<span class="nm"></span><span class="sz"></span>';
+  if (opts.movable) {
+    html += '<button class="mv" data-a="up" title="上移" aria-label="上移">▲</button>' +
+            '<button class="mv" data-a="down" title="下移" aria-label="下移">▼</button>';
+  }
+  html += '<button class="rm" title="移除" aria-label="移除">×</button>';
+  row.innerHTML = html;
+  row.querySelector(".nm").textContent = name;
+  row.querySelector(".sz").textContent = sizeText;
+  if (opts.movable) {
+    const up = row.querySelector('[data-a="up"]');
+    const down = row.querySelector('[data-a="down"]');
+    up.disabled = !!opts.first;
+    down.disabled = !!opts.last;
+    up.onclick = () => opts.onMove(-1);
+    down.onclick = () => opts.onMove(1);
+  }
+  row.querySelector(".rm").onclick = opts.onRemove;
+  return row;
+}
+
+function resultCard(host, fileName) {
+  const el = document.createElement("div");
+  el.className = "res";
+  el.dataset.name = fileName;
+  el.innerHTML = '<div class="top"><span class="tag wait">处理中</span><span class="fn"></span></div>' +
+                 '<div class="skel" style="width:58%"></div>';
+  el.querySelector(".fn").textContent = fileName;
+  host.insertBefore(el, host.firstChild);
+  return el;
+}
+
+function failCard(el, msg) {
+  const name = el.dataset.name || "";
+  el.innerHTML = '<div class="top"><span class="tag bad">失败</span><span class="fn"></span></div>' +
+                 '<div class="err"></div>';
+  el.querySelector(".fn").textContent = name;
+  el.querySelector(".err").textContent = msg;
+}
+
+/* ==================== 标签切换 ==================== */
+const tabs = $("tabs");
+const toolGroup = $("toolGroup");
+function syncToolGroup(group) {
+  [...toolGroup.querySelectorAll("button[data-g]")].forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.g === group)));
+}
+tabs.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if (!btn) return;
+  [...tabs.querySelectorAll("button")].forEach((b) => b.setAttribute("aria-selected", String(b === btn)));
+  [...document.querySelectorAll(".panel")].forEach((p) => p.classList.toggle("active", p.id === "panel-" + btn.dataset.tab));
+  if (btn.dataset.group) syncToolGroup(btn.dataset.group);
+});
+toolGroup.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-g]");
+  if (!btn) return;
+  const first = tabs.querySelector('button[data-group="' + btn.dataset.g + '"]');
+  if (first) first.click();
+});
+tabs.addEventListener("keydown", (e) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  const buttons = [...tabs.querySelectorAll("button[data-tab]")];
+  const current = buttons.findIndex((button) => button.getAttribute("aria-selected") === "true");
+  const next = e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1
+    : (current + (e.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+  e.preventDefault();
+  buttons[next].focus();
+  buttons[next].click();
+  buttons[next].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+});
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pick]");
+  if (!b) return;
+  const el = $({ toimg: "toimg-input", ro: "ro-input", mg: "mg-input", sp: "sp-input", ncm: "ncm-input" }[b.dataset.pick]);
+  if (el) el.click();
+});
+
+/* 清空结果 */
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-clear]");
+  if (!btn) return;
+  const host = $(btn.dataset.clear);
+  if (!host) return;
+  host.innerHTML = "";
+  const panel = btn.closest(".panel");
+  const st = panel && panel.querySelector(".status");
+  if (st) setStatus(st, "已清空结果", "");
+  refreshAll();
+});
+
+/* ==================== PDF 渲染（pdf.js） ==================== */
+const MAX_PIXELS = 40e6;   // 浏览器里保守一点
+
+async function openPdf(file) {
+  const data = new Uint8Array(await file.arrayBuffer());
+  // standardFontDataUrl 必须给：PDF 里用 Helvetica/Times 这类标准字体又没嵌入时，
+  // pdf.js 要拿本地替代字体来渲染，不给的话文字会直接消失
+  return pdfjsLib.getDocument({
+    data,
+    isEvalSupported: false,
+    standardFontDataUrl: "/vendor/standard_fonts/"
+  }).promise;
+}
+
+async function renderPageToCanvas(pdf, pageNo, scale) {
+  const page = await pdf.getPage(pageNo);
+  const viewport = page.getViewport({ scale });
+  const w = Math.floor(viewport.width), h = Math.floor(viewport.height);
+  if (w * h > MAX_PIXELS) {
+    throw new Error(`第 ${pageNo} 页按当前清晰度是 ${w}×${h}，超过浏览器能承受的范围，请降低清晰度`);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d", { alpha: false });
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, w, h);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  page.cleanup();
+  return canvas;
+}
+
+const canvasToBlob = (canvas, type, quality) =>
+  new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("图片编码失败"))), type, quality);
+  });
+
+/* ==================== 1. 转图片 ==================== */
+const toimg = { files: [], running: false, cancel: false };
+const toimgGo = $("toimg-go"), toimgBar = $("toimg-bar"), toimgStatus = $("toimg-status");
+const toimgCancel = $("toimg-cancel");
+const toimgResults = $("toimg-results");
+
+toimgCancel.addEventListener("click", () => {
+  if (!toimg.running) return;
+  toimg.cancel = true;
+  setStatus(toimgStatus, "正在取消…", "err");
+});
+
+bindDrop($("toimg-drop"), $("toimg-input"), (list) => {
+  const bad = list.find((f) => !isPdf(f));
+  if (bad) setStatus(toimgStatus, "「" + bad.name + "」不是 PDF，已跳过", "err");
+  list.filter(isPdf).forEach((f) => {
+    if (!toimg.files.some((x) => x.name === f.name && x.size === f.size)) toimg.files.push(f);
+  });
+  renderToimg();
+});
+
+function renderToimg() {
+  const host = $("toimg-files");
+  host.innerHTML = "";
+  toimg.files.forEach((f, i) => {
+    host.appendChild(fileRow(f.name, human(f.size), {
+      onRemove: () => { toimg.files.splice(i, 1); renderToimg(); }
+    }));
+  });
+  refreshAll();
+}
+
+$("toimg-fmt").addEventListener("change", function () {
+  $("toimg-qwrap").classList.toggle("hidden", this.value !== "jpg");
+});
+$("toimg-quality").addEventListener("input", function () { $("toimg-qval").textContent = this.value; });
+
+toimgGo.addEventListener("click", async () => {
+  if (toimg.running || !toimg.files.length) return;
+  toimg.running = true; toimg.cancel = false; refreshAll();
+  toimgResults.innerHTML = "";
+  toimgBar.classList.remove("hidden");
+
+  const dpi = +$("toimg-dpi").value;
+  const fmt = $("toimg-fmt").value;
+  const quality = +$("toimg-quality").value / 100;
+  const spec = $("toimg-pages").value.trim();
+  const scale = dpi / 72;
+  const mime = fmt === "jpg" ? "image/jpeg" : "image/png";
+  let done = 0, failed = 0;
+
+  /* 进度按"页"算：以前按文件算，一本 300 页的 PDF 进度条从头到尾停在 0% */
+  let pagesTotal = 0, pagesDone = 0, cancelled = false;
+
+  for (let i = 0; i < toimg.files.length; i++) {
+    if (toimg.cancel) { cancelled = true; break; }
+    const file = toimg.files[i];
+    const card = resultCard(toimgResults, file.name);
+    setStatus(toimgStatus, `正在读取 ${i + 1}/${toimg.files.length}：${file.name}`, "busy");
+    try {
+      const pdf = await openPdf(file);
+      const pages = parsePageSpec(spec, pdf.numPages);
+      pagesTotal += pages.length;
+      const stem = safeName(stemOf(file.name));
+      const pad = Math.max(3, String(pdf.numPages).length);
+      const images = [];
+
+      if (pages.length > 150 && !toimg.warned) {
+        toimg.warned = true;
+        A377Toast(`这份 PDF 有 ${pdf.numPages} 页，浏览器里处理会比较慢，中途别关页面`, null, null, 6000);
+      }
+
+      for (const p of pages) {
+        if (toimg.cancel) { cancelled = true; break; }
+        const canvas = await renderPageToCanvas(pdf, p, scale);
+        const blob = await canvasToBlob(canvas, mime, quality);
+        images.push({ name: `${stem}_p${String(p).padStart(pad, "0")}.${fmt}`, blob, w: canvas.width, h: canvas.height });
+        canvas.width = canvas.height = 0;
+        pagesDone++;
+        const ratio = pagesTotal ? pagesDone / pagesTotal : 0;
+        setProgress(toimgBar, ratio);
+        setStatus(toimgStatus,
+          `${file.name} · 第 ${p}/${pdf.numPages} 页 · 已完成 ${pagesDone} 页（${Math.round(ratio * 100)}%）`, "busy");
+      }
+      if (cancelled && !images.length) { failCard(card, "已取消"); pdf.destroy(); break; }
+      pdf.destroy();
+      done++;
+
+      if (images.length === 1) {
+        const it = images[0];
+        card.innerHTML = '<div class="top"><span class="tag">完成</span><span class="fn"></span></div>' +
+          '<div class="meta"></div><div class="single"><div class="thumbwrap"><img alt="预览"></div>' +
+          '<div class="acts"><button class="btn primary" type="button">下载图片</button></div></div>';
+        card.querySelector(".fn").textContent = file.name;
+        card.querySelector(".meta").textContent = `1 页 · ${dpi} DPI · ${fmt.toUpperCase()} · ${it.w}×${it.h} px · ${human(it.blob.size)}`;
+        const img = card.querySelector("img");
+        img.src = URL.createObjectURL(it.blob);
+        card.querySelector(".btn.primary").onclick = () => saveBlob(it.blob, it.name);
+      } else {
+        const total = images.reduce((s, x) => s + x.blob.size, 0);
+        card.innerHTML = '<div class="top"><span class="tag">完成</span><span class="fn"></span></div>' +
+          '<div class="meta"></div><div class="acts">' +
+          `<button class="btn primary" type="button" data-a="all">打包下载 ZIP（${images.length} 张）</button>` +
+          '<button class="btn ghost" type="button" data-a="each">逐张下载</button>' +
+          '</div><div class="thumbs"></div>';
+        card.querySelector(".fn").textContent = file.name;
+        card.querySelector(".meta").textContent = `${pages.length} / ${pdf.numPages} 页 · ${dpi} DPI · ${fmt.toUpperCase()} · 合计 ${human(total)}`;
+        const grid = card.querySelector(".thumbs");
+        images.forEach((it, idx) => {
+          const box = document.createElement("div");
+          box.className = "thumb";
+          box.style.setProperty("--i", idx);
+          const im = document.createElement("img");
+          im.loading = "lazy"; im.alt = it.name; im.title = "点一下直接下载这张";
+          im.src = URL.createObjectURL(it.blob);
+          im.onclick = () => saveBlob(it.blob, it.name);
+          const cap = document.createElement("div");
+          cap.className = "cap";
+          cap.textContent = it.name.replace(/^.*?_p(?=\d)/, "p").replace(/\.[a-z]+$/i, "");
+          const btn = document.createElement("button");
+          btn.className = "dl"; btn.type = "button"; btn.textContent = "下载";
+          btn.onclick = () => saveBlob(it.blob, it.name);
+          box.append(im, cap, btn);
+          grid.appendChild(box);
+        });
+        card.querySelector('[data-a="all"]').onclick = () => saveAll(images, `${stem}_${fmt}.zip`);
+        card.querySelector('[data-a="each"]').onclick = () => saveAllEach(images);
+      }
+    } catch (err) {
+      failed++;
+      failCard(card, String(err && err.message ? err.message : err));
+    }
+    setProgress(toimgBar, (i + 1) / toimg.files.length);
+  }
+
+  toimg.running = false;
+  toimg.cancel = false;
+  toimgBar.classList.add("hidden");
+  setProgress(toimgBar, 0);
+  refreshAll();
+  if (cancelled) setStatus(toimgStatus, `已取消 · 完成 ${done} 个`, "err");
+  else setStatus(toimgStatus, `全部结束：成功 ${done} 个${failed ? "，失败 " + failed + " 个" : ""}`, failed ? "err" : "ok");
+});
+
+/* ==================== pdf-lib 辅助 ==================== */
+async function loadPdfLib(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return PDFDocument.load(bytes, { ignoreEncryption: false });
+}
+
+async function buildPdf(sourceDocs, pagesByDoc) {
+  const out = await PDFDocument.create();
+  for (let i = 0; i < sourceDocs.length; i++) {
+    const idx = pagesByDoc[i].map((p) => p - 1);
+    const copied = await out.copyPages(sourceDocs[i], idx);
+    copied.forEach((pg) => out.addPage(pg));
+  }
+  return out;
+}
+
+const pdfBlob = (bytes) => new Blob([bytes], { type: "application/pdf" });
+
+/* ==================== 2. 重排页面 ==================== */
+const ro = { file: null, order: [], thumbs: [], running: false };
+const roStage = $("ro-stage"), roGrid = $("ro-grid"), roOrder = $("ro-order");
+const roStatus = $("ro-status"), roResults = $("ro-results");
+let dragFrom = -1;
+
+bindDrop($("ro-drop"), $("ro-input"), (list) => {
+  const f = list.find(isPdf);
+  if (!f) { setStatus(roStatus, "请拖入一个 PDF 文件", "err"); return; }
+  ro.file = f;
+  ro.thumbs = [];
+  ro.order = [];
+  roStage.classList.add("hidden");
+  roGrid.innerHTML = "";
+  roOrder.value = "";
+  setStatus(roStatus, "正在读取页面…", "busy");
+  refreshAll();
+  loadThumbs();
+});
+
+async function loadThumbs() {
+  try {
+    const pdf = await openPdf(ro.file);
+    const total = pdf.numPages;
+    if (total > 200) {
+      const ok = await A377Confirm({
+        title: "这份 PDF 有 " + total + " 页",
+        copy: "重排页面需要先给每一页生成缩略图。超过 200 页会明显变慢，也可能吃满浏览器内存。仍要继续吗？",
+        confirm: "继续生成预览",
+        cancel: "取消"
+      });
+      if (!ok) {
+        pdf.destroy();
+        setStatus(roStatus, "已取消读取这份大文件", "err");
+        refreshAll();
+        return;
+      }
+    }
+    const items = [];
+    for (let p = 1; p <= total; p++) {
+      const canvas = await renderPageToCanvas(pdf, p, 0.5);
+      items.push({ blob: await canvasToBlob(canvas, "image/png"), w: canvas.width });
+      canvas.width = canvas.height = 0;
+      setStatus(roStatus, `正在生成预览 ${p}/${total}…`, "busy");
+    }
+    pdf.destroy();
+    ro.thumbs = items;
+    ro.order = Array.from({ length: total }, (_v, i) => i + 1);
+    roStage.classList.remove("hidden");
+    renderSort();
+    setStatus(roStatus, `共 ${total} 页，拖缩略图或用 ◀ ▶ 调整顺序`, "ok");
+  } catch (err) {
+    setStatus(roStatus, String(err && err.message ? err.message : err), "err");
+  }
+}
+
+function moveCard(from, to) {
+  if (from === to || to < 0 || to >= ro.order.length) return;
+  const moved = ro.order.splice(from, 1)[0];
+  ro.order.splice(to, 0, moved);
+  renderSort();
+}
+
+function renderSort() {
+  roGrid.innerHTML = "";
+  const canDrag = window.matchMedia("(hover: hover)").matches;
+
+  ro.order.forEach((pageNo, idx) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.setProperty("--i", idx);
+    card.dataset.idx = idx;
+
+    const no = document.createElement("div");
+    no.className = "no";
+    no.textContent = idx + 1;
+
+    const im = document.createElement("img");
+    im.src = URL.createObjectURL(ro.thumbs[pageNo - 1].blob);
+    im.alt = "第 " + pageNo + " 页";
+    im.draggable = false;
+
+    const cap = document.createElement("div");
+    cap.className = "src";
+    cap.textContent = "原第 " + pageNo + " 页";
+
+    const movers = document.createElement("div");
+    movers.className = "movers";
+    const left = document.createElement("button");
+    left.type = "button"; left.textContent = "◀"; left.title = "往前挪";
+    left.setAttribute("aria-label", `把第 ${idx + 1} 张往前挪`);
+    left.disabled = idx === 0;
+    left.onclick = (e) => { e.stopPropagation(); moveCard(idx, idx - 1); };
+    const right = document.createElement("button");
+    right.type = "button"; right.textContent = "▶"; right.title = "往后挪";
+    right.setAttribute("aria-label", `把第 ${idx + 1} 张往后挪`);
+    right.disabled = idx === ro.order.length - 1;
+    right.onclick = (e) => { e.stopPropagation(); moveCard(idx, idx + 1); };
+    movers.append(left, right);
+
+    card.append(im, no, cap, movers);
+
+    if (canDrag) {
+      card.draggable = true;
+      card.addEventListener("dragstart", (e) => {
+        dragFrom = idx;
+        card.classList.add("dragging");
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+      });
+      card.addEventListener("dragend", () => {
+        card.classList.remove("dragging");
+        [...roGrid.children].forEach((c) => c.classList.remove("over"));
+      });
+      card.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (dragFrom !== idx) card.classList.add("over");
+      });
+      card.addEventListener("dragleave", () => card.classList.remove("over"));
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        card.classList.remove("over");
+        if (dragFrom < 0 || dragFrom === idx) return;
+        const from = dragFrom;
+        dragFrom = -1;
+        moveCard(from, idx);
+      });
+    }
+    roGrid.appendChild(card);
+  });
+
+  roOrder.value = ro.order.join(",");
+  refreshAll();
+}
+
+roOrder.addEventListener("change", () => {
+  try {
+    ro.order = parseOrder(roOrder.value, ro.thumbs.length);
+    renderSort();
+    setStatus(roStatus, `页序已更新，共 ${ro.order.length} 页`, "ok");
+  } catch (err) {
+    setStatus(roStatus, err.message, "err");
+    roOrder.value = ro.order.join(",");
+  }
+});
+
+$("ro-reset").onclick = () => {
+  ro.order = ro.thumbs.map((_t, i) => i + 1);
+  renderSort();
+  setStatus(roStatus, "已重置为原始顺序", "ok");
+};
+$("ro-reverse").onclick = () => {
+  ro.order.reverse();
+  renderSort();
+  setStatus(roStatus, "已反向", "ok");
+};
+
+$("ro-go").onclick = async () => {
+  if (!ro.file || ro.running) return;
+  ro.running = true; refreshAll();
+  const card = resultCard(roResults, ro.file.name + " · 重排");
+  setStatus(roStatus, "正在导出…", "busy");
+  try {
+    const src = await loadPdfLib(ro.file);
+    const out = await buildPdf([src], [ro.order]);
+    const bytes = await out.save();
+    const name = safeName(stemOf(ro.file.name)) + "_重排.pdf";
+    card.innerHTML = '<div class="top"><span class="tag">完成</span><span class="fn"></span></div>' +
+      '<div class="meta"></div><div class="acts"><button class="btn primary" type="button">下载 PDF</button></div>';
+    card.querySelector(".fn").textContent = name;
+    card.querySelector(".meta").textContent = `${ro.order.length} 页 · 页序 ${ro.order.join(",")} · ${human(bytes.length)}`;
+    card.querySelector(".btn.primary").onclick = () => saveBlob(pdfBlob(bytes), name);
+    setStatus(roStatus, "导出完成", "ok");
+  } catch (err) {
+    failCard(card, String(err && err.message ? err.message : err));
+    setStatus(roStatus, String(err && err.message ? err.message : err), "err");
+  }
+  ro.running = false; refreshAll();
+};
+
+/* ==================== 3. 合并 ==================== */
+const mg = { files: [], running: false };
+const mgGo = $("mg-go"), mgStatus = $("mg-status"), mgResults = $("mg-results");
+
+bindDrop($("mg-drop"), $("mg-input"), (list) => {
+  const bad = list.find((f) => !isPdf(f));
+  if (bad) setStatus(mgStatus, "「" + bad.name + "」不是 PDF，已跳过", "err");
+  list.filter(isPdf).forEach((f) => {
+    if (!mg.files.some((x) => x.name === f.name && x.size === f.size)) mg.files.push(f);
+  });
+  renderMerge();
+});
+
+function renderMerge() {
+  const host = $("mg-files");
+  host.innerHTML = "";
+  mg.files.forEach((f, i) => {
+    host.appendChild(fileRow((i + 1) + ". " + f.name, human(f.size), {
+      movable: true,
+      first: i === 0,
+      last: i === mg.files.length - 1,
+      onMove: (dir) => {
+        const t = i + dir;
+        if (t < 0 || t >= mg.files.length) return;
+        [mg.files[i], mg.files[t]] = [mg.files[t], mg.files[i]];
+        renderMerge();
+      },
+      onRemove: () => { mg.files.splice(i, 1); renderMerge(); }
+    }));
+  });
+  refreshAll();
+}
+
+mgGo.addEventListener("click", async () => {
+  if (mg.running || mg.files.length < 2) return;
+  mg.running = true; refreshAll();
+  const card = resultCard(mgResults, mg.files.length + " 个文件合并");
+  setStatus(mgStatus, `正在合并 ${mg.files.length} 个文件…`, "busy");
+  try {
+    const docs = [];
+    for (let i = 0; i < mg.files.length; i++) {
+      setStatus(mgStatus, `正在读取 ${i + 1}/${mg.files.length}：${mg.files[i].name}`, "busy");
+      docs.push(await loadPdfLib(mg.files[i]));
+    }
+    const counts = docs.map((d) => d.getPageCount());
+    const pagesByDoc = docs.map((d) => Array.from({ length: d.getPageCount() }, (_v, i) => i + 1));
+    const out = await buildPdf(docs, pagesByDoc);
+    const bytes = await out.save();
+    const total = counts.reduce((a, b) => a + b, 0);
+    const name = safeName($("mg-name").value.trim() || "合并结果") + ".pdf";
+    card.innerHTML = '<div class="top"><span class="tag">完成</span><span class="fn"></span></div>' +
+      '<div class="meta"></div><div class="acts"><button class="btn primary" type="button">下载 PDF</button></div>';
+    card.querySelector(".fn").textContent = name;
+    card.querySelector(".meta").textContent =
+      `${mg.files.length} 个文件 → ${total} 页（${counts.join(" + ")}） · ${human(bytes.length)}`;
+    card.querySelector(".btn.primary").onclick = () => saveBlob(pdfBlob(bytes), name);
+    setStatus(mgStatus, "合并完成", "ok");
+  } catch (err) {
+    failCard(card, String(err && err.message ? err.message : err));
+    setStatus(mgStatus, String(err && err.message ? err.message : err), "err");
+  }
+  mg.running = false; refreshAll();
+});
+
+/* ==================== 4. 拆分 ==================== */
+const sp = { file: null, running: false };
+const spGo = $("sp-go"), spStatus = $("sp-status"), spResults = $("sp-results");
+
+bindDrop($("sp-drop"), $("sp-input"), (list) => {
+  const f = list.find(isPdf);
+  if (!f) { setStatus(spStatus, "请拖入一个 PDF 文件", "err"); return; }
+  sp.file = f;
+  const host = $("sp-files");
+  host.innerHTML = "";
+  host.appendChild(fileRow(f.name, human(f.size), {
+    onRemove: () => { sp.file = null; host.innerHTML = ""; refreshAll(); }
+  }));
+  setStatus(spStatus, "已就绪", "ok");
+  refreshAll();
+});
+
+spGo.addEventListener("click", async () => {
+  if (!sp.file || sp.running) return;
+  sp.running = true; refreshAll();
+  const card = resultCard(spResults, sp.file.name + " · 拆分");
+  setStatus(spStatus, "正在拆分…", "busy");
+  try {
+    const src = await loadPdfLib(sp.file);
+    const total = src.getPageCount();
+    const groups = parseGroups($("sp-groups").value.trim(), total);
+    const pad = Math.max(3, String(total).length);
+    const stem = safeName(stemOf(sp.file.name));
+    const parts = [];
+
+    for (let i = 0; i < groups.length; i++) {
+      setStatus(spStatus, `正在生成第 ${i + 1}/${groups.length} 份…`, "busy");
+      const out = await buildPdf([src], [groups[i]]);
+      const bytes = await out.save();
+      const g = groups[i];
+      const label = g[0] === g[g.length - 1]
+        ? `p${String(g[0]).padStart(pad, "0")}`
+        : `p${String(g[0]).padStart(pad, "0")}-${String(g[g.length - 1]).padStart(pad, "0")}`;
+      parts.push({ name: `${stem}_${label}.pdf`, blob: pdfBlob(bytes), pages: g.length });
+    }
+
+    if (parts.length === 1) {
+      const p = parts[0];
+      card.innerHTML = '<div class="top"><span class="tag">完成</span><span class="fn"></span></div>' +
+        '<div class="meta"></div><div class="acts"><button class="btn primary" type="button">下载 PDF</button></div>';
+      card.querySelector(".fn").textContent = p.name;
+      card.querySelector(".meta").textContent = `${total} 页 → 1 份（只拆出一份，直接给 PDF）`;
+      card.querySelector(".btn.primary").onclick = () => saveBlob(p.blob, p.name);
+    } else {
+      card.innerHTML = '<div class="top"><span class="tag">完成</span><span class="fn"></span></div>' +
+        '<div class="meta"></div><div class="acts">' +
+        `<button class="btn primary" type="button" data-a="all">打包下载 ZIP（${parts.length} 份）</button>` +
+        '<button class="btn ghost" type="button" data-a="each">逐份下载</button>' +
+        '</div><div class="files" style="margin-top:12px"></div>';
+      card.querySelector(".fn").textContent = `${stem}_拆分${parts.length}份`;
+      card.querySelector(".meta").textContent =
+        `${total} 页 → ${parts.length} 份 · 合计 ${human(parts.reduce((s, p) => s + p.blob.size, 0))}`;
+      const list = card.querySelector(".files");
+      parts.forEach((p) => {
+        list.appendChild(fileRow(p.name, human(p.blob.size), { onRemove: () => saveBlob(p.blob, p.name) }));
+        const rm = list.lastChild.querySelector(".rm");
+        rm.textContent = "下载";
+        rm.style.cssText = "font-size:12px;width:auto;padding:4px 10px;color:var(--accent-ink);font-weight:650";
+      });
+      card.querySelector('[data-a="all"]').onclick = () => saveAll(parts, `${stem}_拆分${parts.length}份.zip`);
+      card.querySelector('[data-a="each"]').onclick = () => saveAllEach(parts);
+    }
+    setStatus(spStatus, `拆分完成，共 ${parts.length} 份`, "ok");
+  } catch (err) {
+    failCard(card, String(err && err.message ? err.message : err));
+    setStatus(spStatus, String(err && err.message ? err.message : err), "err");
+  }
+  sp.running = false; refreshAll();
+});
+
+/* ==================== 按钮状态 ==================== */
+function refreshAll() {
+  toimgGo.disabled = toimg.running || !toimg.files.length;
+  toimgGo.textContent = toimg.running ? "转换中…" : "开始转换";
+  toimgCancel.classList.toggle("hidden", !toimg.running);
+  $("ro-go").disabled = ro.running || !ro.file || !ro.order.length;
+  $("ro-go").textContent = ro.running ? "导出中…" : "导出 PDF";
+  mgGo.disabled = mg.running || mg.files.length < 2;
+  mgGo.textContent = mg.running ? "合并中…" : "合并并下载";
+  spGo.disabled = sp.running || !sp.file;
+  spGo.textContent = sp.running ? "拆分中…" : "拆分并下载";
+  ncmGo.disabled = ncm.running || !ncm.files.length;
+  ncmGo.textContent = ncm.running ? "转换中…" : "开始转换";
+  ncmCancel.classList.toggle("hidden", !ncm.running);
+  document.querySelectorAll("[data-clear]").forEach((b) => {
+    const host = $(b.dataset.clear);
+    const busy = b.dataset.clear === "toimg-results" ? toimg.running
+      : b.dataset.clear === "ncm-results" ? ncm.running
+      : b.dataset.clear === "ro-results" ? ro.running
+      : b.dataset.clear === "mg-results" ? mg.running
+      : b.dataset.clear === "sp-results" ? sp.running : false;
+    b.classList.toggle("hidden", busy || !host || !host.children.length);
+  });
+}
+
+/* ==================== ncm 解密（纯 JS） ==================== */
+/* AES-128 ECB 解密。Web Crypto 不支持 ECB 模式，所以自己实现——
+   只做解密，用 FIPS-197 标准测试向量验证过。 */
+const AES_SBOX = new Uint8Array([
+  0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
+  0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
+  0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
+  0x04,0xc7,0x23,0xc3,0x18,0x96,0x05,0x9a,0x07,0x12,0x80,0xe2,0xeb,0x27,0xb2,0x75,
+  0x09,0x83,0x2c,0x1a,0x1b,0x6e,0x5a,0xa0,0x52,0x3b,0xd6,0xb3,0x29,0xe3,0x2f,0x84,
+  0x53,0xd1,0x00,0xed,0x20,0xfc,0xb1,0x5b,0x6a,0xcb,0xbe,0x39,0x4a,0x4c,0x58,0xcf,
+  0xd0,0xef,0xaa,0xfb,0x43,0x4d,0x33,0x85,0x45,0xf9,0x02,0x7f,0x50,0x3c,0x9f,0xa8,
+  0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5,0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2,
+  0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17,0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73,
+  0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88,0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb,
+  0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
+  0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9,0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08,
+  0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6,0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a,
+  0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e,0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e,
+  0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
+  0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16,
+]);
+const AES_RSBOX = new Uint8Array(256);
+for (let i = 0; i < 256; i++) AES_RSBOX[AES_SBOX[i]] = i;
+
+function aesGmul(a, b) {
+  let p = 0;
+  for (let i = 0; i < 8; i++) {
+    if (b & 1) p ^= a;
+    const hi = a & 0x80;
+    a = (a << 1) & 0xff;
+    if (hi) a ^= 0x1b;
+    b >>= 1;
+  }
+  return p;
+}
+
+function aesExpandKey(key) {
+  const w = new Uint8Array(176);
+  w.set(key, 0);
+  let rcon = 1;
+  for (let i = 16; i < 176; i += 4) {
+    let t0 = w[i - 4], t1 = w[i - 3], t2 = w[i - 2], t3 = w[i - 1];
+    if (i % 16 === 0) {
+      const tmp = t0;
+      t0 = AES_SBOX[t1] ^ rcon;
+      t1 = AES_SBOX[t2];
+      t2 = AES_SBOX[t3];
+      t3 = AES_SBOX[tmp];
+      rcon = aesGmul(rcon, 2);
+    }
+    w[i] = w[i - 16] ^ t0; w[i + 1] = w[i - 15] ^ t1;
+    w[i + 2] = w[i - 14] ^ t2; w[i + 3] = w[i - 13] ^ t3;
+  }
+  return w;
+}
+
+function aesDecryptBlock(rk, inp) {
+  const s = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) s[i] = inp[i] ^ rk[160 + i];
+  for (let round = 9; round >= 1; round--) {
+    let t = s[13]; s[13] = s[9]; s[9] = s[5]; s[5] = s[1]; s[1] = t;
+    t = s[2]; s[2] = s[10]; s[10] = t;
+    t = s[6]; s[6] = s[14]; s[14] = t;
+    t = s[3]; s[3] = s[7]; s[7] = s[11]; s[11] = s[15]; s[15] = t;
+    for (let i = 0; i < 16; i++) s[i] = AES_RSBOX[s[i]];
+    const off = round * 16;
+    for (let i = 0; i < 16; i++) s[i] ^= rk[off + i];
+    for (let c = 0; c < 4; c++) {
+      const i = c * 4;
+      const a0 = s[i], a1 = s[i + 1], a2 = s[i + 2], a3 = s[i + 3];
+      s[i]     = aesGmul(a0, 14) ^ aesGmul(a1, 11) ^ aesGmul(a2, 13) ^ aesGmul(a3, 9);
+      s[i + 1] = aesGmul(a0, 9)  ^ aesGmul(a1, 14) ^ aesGmul(a2, 11) ^ aesGmul(a3, 13);
+      s[i + 2] = aesGmul(a0, 13) ^ aesGmul(a1, 9)  ^ aesGmul(a2, 14) ^ aesGmul(a3, 11);
+      s[i + 3] = aesGmul(a0, 11) ^ aesGmul(a1, 13) ^ aesGmul(a2, 9)  ^ aesGmul(a3, 14);
+    }
+  }
+  let t = s[13]; s[13] = s[9]; s[9] = s[5]; s[5] = s[1]; s[1] = t;
+  t = s[2]; s[2] = s[10]; s[10] = t;
+  t = s[6]; s[6] = s[14]; s[14] = t;
+  t = s[3]; s[3] = s[7]; s[7] = s[11]; s[11] = s[15]; s[15] = t;
+  for (let i = 0; i < 16; i++) s[i] = AES_RSBOX[s[i]] ^ rk[i];
+  return s;
+}
+
+function aesEcbDecrypt(key, data) {
+  const usable = data.length - (data.length % 16);
+  if (usable === 0) return new Uint8Array(0);
+  const rk = aesExpandKey(key);
+  const out = new Uint8Array(usable);
+  for (let off = 0; off < usable; off += 16) {
+    out.set(aesDecryptBlock(rk, data.subarray(off, off + 16)), off);
+  }
+  let pad = out[usable - 1];
+  if (pad > 16) pad = 0;
+  return out.subarray(0, usable - pad);
+}
+
+const NCM_CORE_KEY = new Uint8Array([0x68,0x7A,0x48,0x52,0x41,0x6D,0x73,0x6F,0x35,0x6B,0x49,0x6E,0x62,0x61,0x78,0x57]);
+const NCM_MODIFY_KEY = new Uint8Array([0x23,0x31,0x34,0x6C,0x6A,0x6B,0x5F,0x21,0x5C,0x5D,0x26,0x30,0x55,0x3C,0x27,0x28]);
+const NCM_META_PREFIX_LEN = 22;
+
+function ncmXor(arr, v) {
+  const out = new Uint8Array(arr.length);
+  for (let i = 0; i < arr.length; i++) out[i] = arr[i] ^ v;
+  return out;
+}
+
+function ncmBuildKeybox(key) {
+  const box = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) box[i] = i;
+  let last = 0, koff = 0;
+  for (let i = 0; i < 256; i++) {
+    const swap = box[i];
+    const c = (swap + last + key[koff]) & 0xff;
+    koff++;
+    if (koff >= key.length) koff = 0;
+    box[i] = box[c];
+    box[c] = swap;
+    last = c;
+  }
+  return box;
+}
+
+function ncmKeystream(box) {
+  const ks = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) {
+    const j = (i + 1) & 0xff;
+    const a = box[j];
+    const b = (a + j) & 0xff;
+    const c = box[b];
+    ks[i] = box[(a + c) & 0xff];
+  }
+  return ks;
+}
+
+function ncmDecryptAudio(data, box) {
+  const ks = ncmKeystream(box);
+  const n = data.length;
+  const out = new Uint8Array(n);
+  const ks32 = new Uint32Array(64);
+  for (let k = 0; k < 64; k++) {
+    ks32[k] = (ks[k * 4] | (ks[k * 4 + 1] << 8) | (ks[k * 4 + 2] << 16) | (ks[k * 4 + 3] << 24)) >>> 0;
+  }
+  const full = n - (n % 4);
+  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const ov = new DataView(out.buffer);
+  for (let i = 0; i < full; i += 4) {
+    ov.setUint32(i, (dv.getUint32(i, true) ^ ks32[(i >> 2) & 63]) >>> 0, true);
+  }
+  for (let i = full; i < n; i++) out[i] = data[i] ^ ks[i & 0xff];
+  return out;
+}
+
+function ncmParseMeta(raw) {
+  try {
+    const body = raw.subarray(NCM_META_PREFIX_LEN);
+    let bin = "";
+    for (let i = 0; i < body.length; i++) bin += String.fromCharCode(body[i]);
+    const decoded = atob(bin);
+    const bytes = new Uint8Array(decoded.length);
+    for (let i = 0; i < decoded.length; i++) bytes[i] = decoded.charCodeAt(i);
+    const plain = aesEcbDecrypt(NCM_MODIFY_KEY, bytes);
+    return JSON.parse(new TextDecoder().decode(plain.subarray(6)));
+  } catch (e) {
+    return {};
+  }
+}
+
+function ncmDecrypt(data) {
+  if (data.length < 16) throw new Error("文件太小，不是 ncm");
+  let magic = "";
+  for (let i = 0; i < 8; i++) magic += String.fromCharCode(data[i]);
+  if (magic !== "CTENFDAM") throw new Error("这不是 ncm 文件（文件头不是 CTENFDAM）");
+
+  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let pos = 10;
+
+  const keyLen = dv.getUint32(pos, true); pos += 4;
+  if (keyLen <= 0 || pos + keyLen > data.length) throw new Error("ncm 文件已损坏（key 段异常）");
+  const keyPlain = aesEcbDecrypt(NCM_CORE_KEY, ncmXor(data.subarray(pos, pos + keyLen), 0x64));
+  pos += keyLen;
+  if (keyPlain.length <= 17) throw new Error("ncm 文件已损坏（密钥段太短）");
+  const box = ncmBuildKeybox(keyPlain.subarray(17));
+
+  const metaLen = dv.getUint32(pos, true); pos += 4;
+  let meta = {};
+  if (metaLen > 0) {
+    if (pos + metaLen > data.length) throw new Error("ncm 文件已损坏（元数据段异常）");
+    meta = ncmParseMeta(ncmXor(data.subarray(pos, pos + metaLen), 0x63));
+    pos += metaLen;
+  }
+
+  pos += 5;
+  const coverFrameLen = dv.getUint32(pos, true); pos += 4;
+  const coverLen = dv.getUint32(pos, true); pos += 4;
+  let cover = new Uint8Array(0);
+  if (coverLen > 0) cover = data.subarray(pos, pos + coverLen);
+  pos += coverLen;
+  const extra = coverFrameLen - coverLen;
+  if (extra > 0) pos += extra;
+
+  if (pos >= data.length) throw new Error("ncm 里没有音频数据");
+  const audio = ncmDecryptAudio(data.subarray(pos), box);
+  if (!audio.length) throw new Error("解密后没有音频数据");
+
+  let ext;
+  if (audio[0] === 0x66 && audio[1] === 0x4c && audio[2] === 0x61 && audio[3] === 0x43) ext = "flac";
+  else if (audio[0] === 0x49 && audio[1] === 0x44 && audio[2] === 0x33) ext = "mp3";
+  else {
+    const g = String(meta.format || "").toLowerCase();
+    ext = (g === "mp3" || g === "flac") ? g : "mp3";
+  }
+
+  const artists = [];
+  for (const item of (meta.artist || [])) {
+    if (Array.isArray(item) && item.length) artists.push(String(item[0]));
+    else if (typeof item === "string") artists.push(item);
+  }
+  const title = String(meta.musicName || "");
+  const artist = artists.join("/");
+  const album = String(meta.album || "");
+  const coverMime = (cover[0] === 0x89 && cover[1] === 0x50) ? "image/png" : "image/jpeg";
+  const stem = [artist, title].filter(Boolean).join(" - ") || title || "output";
+  const safe = stem.replace(/[\\/:*?"<>|]+/g, "_").trim().slice(0, 120) || "output";
+
+  return { audio, ext, title, artist, album, cover, coverMime, meta, outName: safe + "." + ext };
+}
+
+/* ---------- 写标签 ---------- */
+const _enc = new TextEncoder();
+
+function id3Frame(id, body) {
+  const out = new Uint8Array(10 + body.length);
+  for (let i = 0; i < 4; i++) out[i] = id.charCodeAt(i);
+  const n = body.length;
+  out[4] = (n >>> 24) & 0xff; out[5] = (n >>> 16) & 0xff;
+  out[6] = (n >>> 8) & 0xff;  out[7] = n & 0xff;
+  out.set(body, 10);
+  return out;
+}
+
+function id3Text(id, text) {
+  const t = _enc.encode(text);
+  const body = new Uint8Array(1 + t.length);
+  body[0] = 3;                       // UTF-8
+  body.set(t, 1);
+  return id3Frame(id, body);
+}
+
+function id3Apic(mime, data) {
+  const m = _enc.encode(mime);
+  const body = new Uint8Array(1 + m.length + 1 + 1 + 1 + data.length);
+  let p = 0;
+  body[p++] = 0;                     // latin1，用于 mime 和描述
+  body.set(m, p); p += m.length;
+  body[p++] = 0;                     // mime 结束
+  body[p++] = 3;                     // 3 = 封面
+  body[p++] = 0;                     // 空描述
+  body.set(data, p);
+  return id3Frame("APIC", body);
+}
+
+function writeId3v2(mp3, info) {
+  const parts = [];
+  if (info.title) parts.push(id3Text("TIT2", info.title));
+  if (info.artist) parts.push(id3Text("TPE1", info.artist));
+  if (info.album) parts.push(id3Text("TALB", info.album));
+  if (info.cover && info.cover.length) parts.push(id3Apic(info.coverMime, info.cover));
+  if (!parts.length) return mp3;
+
+  const total = parts.reduce((s, p) => s + p.length, 0);
+
+  // 原有 ID3v2 标签要去掉，不然会有两份
+  let start = 0;
+  if (mp3[0] === 0x49 && mp3[1] === 0x44 && mp3[2] === 0x33) {
+    const sz = ((mp3[6] & 0x7f) << 21) | ((mp3[7] & 0x7f) << 14) |
+               ((mp3[8] & 0x7f) << 7) | (mp3[9] & 0x7f);
+    start = 10 + sz + ((mp3[5] & 0x10) ? 10 : 0);   // footer 标志
+    if (start > mp3.length) start = 0;
+  }
+
+  const out = new Uint8Array(10 + total + (mp3.length - start));
+  out[0] = 0x49; out[1] = 0x44; out[2] = 0x33;   // "ID3"
+  out[3] = 3; out[4] = 0;                        // v2.3.0
+  out[5] = 0;
+  out[6] = (total >>> 21) & 0x7f;                // synchsafe
+  out[7] = (total >>> 14) & 0x7f;
+  out[8] = (total >>> 7) & 0x7f;
+  out[9] = total & 0x7f;
+  let off = 10;
+  for (const p of parts) { out.set(p, off); off += p.length; }
+  out.set(mp3.subarray(start), off);
+  return out;
+}
+
+const _dec = new TextDecoder();
+
+function flacBlock(type, body, isLast) {
+  const out = new Uint8Array(4 + body.length);
+  out[0] = (isLast ? 0x80 : 0) | (type & 0x7f);
+  out[1] = (body.length >>> 16) & 0xff;
+  out[2] = (body.length >>> 8) & 0xff;
+  out[3] = body.length & 0xff;
+  out.set(body, 4);
+  return out;
+}
+
+function vorbisComment(fields) {
+  const vendor = _enc.encode("ncm-web");
+  const list = Object.entries(fields).filter(([, v]) => v);
+  const chunks = [];
+  let size = 4 + vendor.length + 4;
+  for (const [k, v] of list) {
+    const item = _enc.encode(k.toUpperCase() + "=" + v);
+    chunks.push(item);
+    size += 4 + item.length;
+  }
+  const body = new Uint8Array(size);
+  const dv = new DataView(body.buffer);
+  let p = 0;
+  dv.setUint32(p, vendor.length, true); p += 4;
+  body.set(vendor, p); p += vendor.length;
+  dv.setUint32(p, chunks.length, true); p += 4;
+  for (const item of chunks) {
+    dv.setUint32(p, item.length, true); p += 4;
+    body.set(item, p); p += item.length;
+  }
+  return body;
+}
+
+function writeFlacTags(flac, info) {
+  if (flac[0] !== 0x66 || flac[1] !== 0x4c || flac[2] !== 0x61 || flac[3] !== 0x43) return flac;
+  if (!info.title && !info.artist && !info.album) return flac;
+
+  const blocks = [];
+  let pos = 4;
+  let last = false;
+  while (!last && pos + 4 <= flac.length) {
+    const type = flac[pos] & 0x7f;
+    last = (flac[pos] & 0x80) !== 0;
+    const len = (flac[pos + 1] << 16) | (flac[pos + 2] << 8) | flac[pos + 3];
+    blocks.push({ type, body: flac.subarray(pos + 4, pos + 4 + len) });
+    pos += 4 + len;
+  }
+  if (!blocks.length) return flac;
+
+  const vc = vorbisComment({ TITLE: info.title, ARTIST: info.artist, ALBUM: info.album });
+  const kept = blocks.filter((b) => b.type !== 4);       // 丢掉原有的 VORBIS_COMMENT
+  kept.push({ type: 4, body: vc });
+
+  const chunks = [];
+  for (let i = 0; i < kept.length; i++) {
+    chunks.push(flacBlock(kept[i].type, kept[i].body, i === kept.length - 1));
+  }
+  const metaSize = chunks.reduce((s, c) => s + c.length, 0);
+  const out = new Uint8Array(4 + metaSize + (flac.length - pos));
+  out[0] = 0x66; out[1] = 0x4c; out[2] = 0x61; out[3] = 0x43;
+  let off = 4;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  out.set(flac.subarray(pos), off);
+  return out;
+}
+
+/* ==================== ncm 面板 ==================== */
+const ncm = { files: [], running: false, cancel: false };
+const ncmGo = $("ncm-go"), ncmBar = $("ncm-bar"), ncmStatus = $("ncm-status");
+const ncmResults = $("ncm-results");
+const ncmCancel = $("ncm-cancel");
+
+ncmCancel.addEventListener("click", () => {
+  if (!ncm.running) return;
+  ncm.cancel = true;
+  setStatus(ncmStatus, "正在取消…", "err");
+});
+
+bindDrop($("ncm-drop"), $("ncm-input"), (list) => {
+  const bad = list.find((f) => !/\.ncm$/i.test(f.name));
+  if (bad) setStatus(ncmStatus, "「" + bad.name + "」不是 ncm 文件，已跳过", "err");
+  list.filter((f) => /\.ncm$/i.test(f.name)).forEach((f) => {
+    if (!ncm.files.some((x) => x.name === f.name && x.size === f.size)) ncm.files.push(f);
+  });
+  renderNcm();
+});
+
+function renderNcm() {
+  const host = $("ncm-files");
+  host.innerHTML = "";
+  ncm.files.forEach((f, i) => {
+    host.appendChild(fileRow(f.name, human(f.size), {
+      onRemove: () => { ncm.files.splice(i, 1); renderNcm(); }
+    }));
+  });
+  refreshAll();
+}
+
+ncmGo.addEventListener("click", async () => {
+  if (ncm.running || !ncm.files.length) return;
+  ncm.running = true; ncm.cancel = false; refreshAll();
+  ncmResults.innerHTML = "";
+  ncmBar.classList.remove("hidden");
+  const writeTags = $("ncm-tags").value === "1";
+  let done = 0, failed = 0, cancelled = false;
+  const zipItems = [];
+
+  for (let i = 0; i < ncm.files.length; i++) {
+    if (ncm.cancel) { cancelled = true; break; }
+    const file = ncm.files[i];
+    const card = resultCard(ncmResults, file.name);
+    setStatus(ncmStatus, `正在转换 ${i + 1}/${ncm.files.length}：${file.name}`, "busy");
+    setProgress(ncmBar, i / ncm.files.length);
+    try {
+      const raw = new Uint8Array(await file.arrayBuffer());
+      const r = ncmDecrypt(raw);
+
+      let audio = r.audio;
+      let tagNote = null;
+      if (writeTags) {
+        try {
+          audio = r.ext === "mp3"
+            ? writeId3v2(audio, r)
+            : writeFlacTags(audio, r);
+        } catch (e) {
+          tagNote = String(e.message || e);
+        }
+      }
+
+      const blob = new Blob([audio], { type: r.ext === "flac" ? "audio/flac" : "audio/mpeg" });
+      const bits = [];
+      if (r.title) bits.push(r.title);
+      if (r.artist) bits.push(r.artist);
+      if (r.album) bits.push("《" + r.album + "》");
+      bits.push(r.ext.toUpperCase());
+      if (r.meta.duration) bits.push(Math.round(r.meta.duration / 1000) + " 秒");
+      if (r.cover.length) bits.push("含封面");
+      if (r.meta.bitrate) bits.push(Math.round(r.meta.bitrate / 1000) + " kbps");
+      bits.push(human(blob.size));
+      if (tagNote) bits.push("（标签写入失败，音频正常）");
+
+      card.innerHTML = '<div class="top"><span class="tag">完成</span><span class="fn"></span></div>' +
+        '<div class="meta"></div><div class="acts">' +
+        '<button class="btn primary" type="button">下载音频</button></div>';
+      card.querySelector(".fn").textContent = r.outName;
+      card.querySelector(".meta").textContent = bits.join(" · ");
+      card.querySelector(".btn.primary").onclick = () => saveBlob(blob, r.outName);
+      zipItems.push({ name: r.outName, blob });
+      done++;
+    } catch (err) {
+      failed++;
+      failCard(card, String(err && err.message ? err.message : err));
+    }
+    setProgress(ncmBar, (i + 1) / ncm.files.length);
+  }
+
+  if (zipItems.length > 1) {
+    const sum = resultCard(ncmResults, "全部音频 · " + zipItems.length + " 个");
+    sum.innerHTML = '<div class="top"><span class="tag">汇总</span><span class="fn"></span></div>' +
+      '<div class="meta"></div><div class="acts">' +
+      '<button class="btn primary" type="button" data-a="all">打包下载 ZIP</button>' +
+      '<button class="btn ghost" type="button" data-a="each">逐个下载</button></div>';
+    sum.querySelector(".fn").textContent = "全部音频 · " + zipItems.length + " 个";
+    sum.querySelector(".meta").textContent = "已成功转换 " + zipItems.length + " 个文件，可一次性打包下载。";
+    sum.querySelector('[data-a="all"]').onclick = () => saveAll(zipItems, "ncm音频_" + zipItems.length + "个.zip");
+    sum.querySelector('[data-a="each"]').onclick = () => saveAllEach(zipItems);
+  }
+
+  ncm.running = false;
+  ncmBar.classList.add("hidden");
+  setProgress(ncmBar, 0);
+  refreshAll();
+  if (cancelled) setStatus(ncmStatus, "已取消 · 成功 " + done + " 个", "err");
+  else setStatus(ncmStatus, "全部结束：成功 " + done + " 个" + (failed ? "，失败 " + failed + " 个" : ""), failed ? "err" : "ok");
+});
+
+setStatus($("toimg-status"), "已就绪 · 全部在本机浏览器里完成", "ok");
+refreshAll();
+
+</script>
+</body>
+</html>

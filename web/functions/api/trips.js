@@ -1,7 +1,7 @@
 /* GET  /api/trips        -> 全部行程（含 rev，用于冲突检测）
    POST /api/trips        -> 新建
    PUT  /api/trips?id=x   -> 整块覆盖，带乐观并发（body.rev 必须等于库里的 rev） */
-import { json, fail, currentUser, needSecret, ensureSeed } from './_lib.js';
+import { json, fail, currentUser, needSecret, ensureSeed, getOwnedTrip } from './_lib.js';
 
 const MAX_STATE = 200*1024;   // 单个行程状态上限 200KB，防止误传大文件
 const seatKey = seat => seat === 'nj' ? 'a' : seat === 'hs' ? 'b' : null;
@@ -17,13 +17,13 @@ export async function onRequestGet({ request, env }){
   const id  = url.searchParams.get('id');
 
   if(id){
-    const t = await env.DB.prepare('select * from trips where id = ?').bind(id).first();
+    const t = await getOwnedTrip(env, id, u);
     if(!t) return fail('行程不存在', 404);
     return json({ ok:true, trip: { ...t, state: JSON.parse(t.state) } });
   }
   const { results } = await env.DB.prepare(
-    'select id, title, status, rev, created_by, created_at, updated_at, updated_by from trips order by updated_at desc'
-  ).all();
+    'select id, title, status, rev, created_by, created_at, updated_at, updated_by from trips where (created_by = ? or created_by = ?) order by updated_at desc'
+  ).bind(u.id, u.seat).all();
   return json({ ok:true, trips: results||[], me:{ id:u.id, seat:u.seat, username:u.username } });
 }
 
@@ -44,7 +44,7 @@ export async function onRequestPost({ request, env }){
     `insert into trips (id, title, status, state, rev, created_by, created_at, updated_at, updated_by)
      values (?, ?, ?, ?, 1, ?, ?, ?, ?)`
   ).bind(id, String(body.title||'新行程').slice(0,60),
-         body.status||'planning', state, u.seat, now, now, u.seat).run();
+         body.status||'planning', state, u.id, now, now, u.seat).run();
 
   await logEvent(env, id, u.seat, 'create', { title: body.title });
   return json({ ok:true, id, rev:1 });
@@ -61,7 +61,7 @@ export async function onRequestPut({ request, env }){
   let body;
   try{ body = await request.json(); }catch(e){ return fail('请求格式错误'); }
 
-  const cur = await env.DB.prepare('select rev, status, state from trips where id = ?').bind(id).first();
+  const cur = await getOwnedTrip(env, id, u);
   if(!cur) return fail('行程不存在', 404);
 
   /* 乐观并发：客户端拿的是旧版本就拒绝，避免一方把另一方的改动盖掉 */
@@ -112,10 +112,14 @@ export async function onRequestPut({ request, env }){
 }
 
 export async function onRequestDelete({ request, env }){
+  const bad = needSecret(env); if(bad) return fail(bad, 500);
+  await ensureSeed(env);
   const u = await currentUser(request, env);
   if(!u) return json({ ok:false, error:'未登录' }, { status:401 });
   const id = new URL(request.url).searchParams.get('id');
   if(!id) return fail('缺少 id');
+  const cur = await getOwnedTrip(env, id, u);
+  if(!cur) return fail('行程不存在', 404);
   await env.DB.prepare('delete from trips where id = ?').bind(id).run();
   await env.DB.prepare('delete from trip_events where trip_id = ?').bind(id).run();
   return json({ ok:true });

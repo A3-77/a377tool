@@ -10,7 +10,8 @@
 
 | 路径 | 模块 |
 | --- | --- |
-| `/` | 文件工具箱：PDF 转图 / 重排 / 合并 / 拆分、ncm 转音频 |
+| `/` | 门户首页：进入文件、生图、见面三个模块 |
+| `/file/` | 文件工具箱：PDF 转图 / 重排 / 合并 / 拆分、ncm 转音频 |
 | `/trips/` | 周末去哪见面：两人选中间城市，含高铁时长和地图 |
 | `/draw/` | 生图落地页 |
 | `/draw/studio/` | Right Code 绘图工作台（浏览器直连 rightapi.ai） |
@@ -22,9 +23,12 @@
 ```
 web/
 ├── public/                 静态资源（这就是部署目录）
-│   ├── index.html          文件工具箱
+│   ├── index.html          门户首页
+│   ├── file/index.html     文件工具箱
+│   ├── assets/             共享 tokens / theme / shell / ZIP
+│   ├── favicon.svg
 │   ├── trips/index.html    周末去哪见面
-│   ├── draw/               生图（studio / code0）
+│   ├── draw/               生图（index / studio / code0）
 │   └── vendor/             pdf.js、pdf-lib、标准字体（本地副本，不依赖 CDN）
 ├── functions/api/*.js      后端接口，自动映射成 /api/*
 ├── schema.sql              D1 建表语句
@@ -95,6 +99,9 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 ---
 
 ## 已知的坑（别重复踩）
+
+- **`Cloud.pull()` 不能再先清空本地**：先拉完云端详情再合并，本地独有的行程会补传；接口按 `created_by` 归属校验。
+- **邀请链接是前端状态编码**：`#s=...` 在线上登录后也会导入，不依赖后端。
 
 - **改完 secret 必须重新部署才生效** —— Pages 的 secrets 是部署时绑定的。第一次配
   `CODE0_API_KEY` 后忘了重新部署，`/api/code0/status` 一直返回 `key: false`，查了半天。

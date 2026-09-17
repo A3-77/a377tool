@@ -1,0 +1,170 @@
+/* =========================================================================
+   A377Tool · 顶栏 + 全站通用小件
+   由 /assets/shell.js 注入，页面不需要自己写这段 DOM。
+
+   页面可用 <body data-shell="面包屑文字" data-nav="home|file|draw|trips"
+                 data-shell-pad="none"> 控制。
+   ========================================================================= */
+
+:root{ --shell-h: 46px; }
+
+/* ---------- 顶栏 ---------- */
+.a377bar{
+  position: fixed; inset: 0 0 auto 0; z-index: 900;
+  height: var(--shell-h);
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px;
+  background: color-mix(in srgb, var(--ui-surface) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--ui-line);
+  font-family: var(--ui-font);
+  font-size: 13px; line-height: 1;
+  color: var(--ui-ink);
+}
+/* 老浏览器不支持 color-mix 时给个兜底 */
+@supports not (background: color-mix(in srgb, red 50%, blue)){
+  .a377bar{ background: var(--ui-surface); }
+}
+
+.a377bar-brand{
+  display: inline-flex; align-items: baseline; gap: 1px; flex: none;
+  text-decoration: none; color: var(--ui-ink);
+  font-weight: 700; letter-spacing: -.02em; font-size: 14px;
+  padding: 4px 2px; border-radius: var(--ui-r-sm);
+}
+.a377bar-brand i{
+  font-style: normal; font-weight: 500; color: var(--ui-ink-3);
+}
+.a377bar-brand:focus-visible{ outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+
+.a377bar-crumb{
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  color: var(--ui-ink-3); font-size: 12.5px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.a377bar-crumb b{ color: var(--ui-ink-2); font-weight: 600; }
+.a377bar-crumb::before{
+  content: ""; width: 1px; height: 14px; background: var(--ui-line-strong);
+  flex: none; margin-right: 2px;
+}
+
+.a377bar-grow{ flex: 1 1 auto; min-width: 0; }
+
+.a377bar-nav{ display: flex; align-items: center; gap: 2px; flex: none; }
+.a377bar-nav a{
+  display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
+  border-radius: var(--ui-r-full); text-decoration: none;
+  color: var(--ui-ink-2); font-size: 12.5px; font-weight: 500;
+  transition: background var(--ui-dur) var(--ui-ease), color var(--ui-dur);
+}
+@media (hover:hover){
+  .a377bar-nav a:hover{ background: var(--ui-sunken); color: var(--ui-ink); }
+}
+.a377bar-nav a[aria-current="page"]{
+  background: var(--ui-accent-soft); color: var(--ui-accent-ink); font-weight: 600;
+}
+.a377bar-nav a:focus-visible{ outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+
+.a377bar-theme{
+  flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+  border: 1px solid var(--ui-line); border-radius: var(--ui-r-sm);
+  background: var(--ui-surface); color: var(--ui-ink-2);
+  cursor: pointer; padding: 0;
+  transition: background var(--ui-dur), border-color var(--ui-dur), color var(--ui-dur), transform .1s;
+}
+.a377bar-theme svg{ width: 15px; height: 15px; }
+.a377bar-theme:active{ transform: scale(.94); }
+@media (hover:hover){
+  .a377bar-theme:hover{ background: var(--ui-sunken); color: var(--ui-ink); border-color: var(--ui-line-strong); }
+}
+.a377bar-theme:focus-visible{ outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+html[data-theme="light"] .a377bar-theme .i-sun{ display: none; }
+html[data-theme="dark"]  .a377bar-theme .i-moon{ display: none; }
+
+/* 顶栏占位：普通页面直接给 body 加内边距 */
+body.shell-pad{ padding-top: var(--shell-h); }
+
+@media (max-width:640px){
+  .a377bar{ padding: 0 9px; gap: 8px; }
+  .a377bar-crumb{ display: none; }        /* 手机上让位给导航 */
+  .a377bar-nav a{ padding: 0 8px; font-size: 12px; }
+}
+
+/* ---------- 跳转到主内容（无障碍）---------- */
+.a377-skip{
+  position: fixed; top: 6px; left: 50%; transform: translate(-50%, -160%);
+  z-index: 1000; padding: 8px 16px; border-radius: var(--ui-r-md);
+  background: var(--ui-ink); color: var(--ui-bg);
+  font: 600 13px/1 var(--ui-font); text-decoration: none;
+  transition: transform var(--ui-dur) var(--ui-ease);
+}
+.a377-skip:focus{ transform: translate(-50%, 0); }
+
+/* ---------- 统一 Toast ---------- */
+.a377-toasts{
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%); z-index: 1200;
+  display: flex; flex-direction: column-reverse; align-items: center; gap: 8px;
+  pointer-events: none; width: max-content; max-width: min(92vw, 460px);
+}
+.a377-toast{
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 15px; border-radius: var(--ui-r-md);
+  background: var(--ui-ink); color: var(--ui-bg);
+  font: 500 13px/1.5 var(--ui-font);
+  box-shadow: var(--ui-shadow-3);
+  opacity: 0; transform: translateY(10px) scale(.97);
+  transition: opacity .22s var(--ui-ease), transform .22s var(--ui-ease);
+  max-width: 100%;
+}
+.a377-toast.on{ opacity: 1; transform: none; }
+.a377-toast.err{ background: var(--ui-err); color: #fff; }
+.a377-toast.ok{ background: var(--ui-ok); color: #fff; }
+.a377-toast-act{
+  flex: none; margin-left: 4px; padding: 3px 9px; border: 0; border-radius: var(--ui-r-full);
+  background: rgba(255,255,255,.18); color: inherit;
+  font: 600 12px/1 var(--ui-font); cursor: pointer;
+}
+.a377-toast-act:hover{ background: rgba(255,255,255,.3); }
+
+/* ---------- 统一按钮（新代码优先用；老样式保留不动）---------- */
+.ui-btn{
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 36px; padding: 0 15px; border-radius: var(--ui-r-md);
+  border: 1px solid var(--ui-line-strong); background: var(--ui-surface); color: var(--ui-ink);
+  font: 500 13px/1 var(--ui-font); text-decoration: none; cursor: pointer;
+  transition: background var(--ui-dur), border-color var(--ui-dur), transform .1s;
+}
+.ui-btn:active{ transform: scale(.985); }
+.ui-btn:disabled{ opacity: .5; cursor: not-allowed; }
+.ui-btn:focus-visible{ outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+@media (hover:hover){ .ui-btn:hover:not(:disabled){ background: var(--ui-sunken); border-color: var(--ui-accent); } }
+.ui-btn.primary{
+  background: var(--ui-ink); border-color: var(--ui-ink); color: var(--ui-bg); font-weight: 600;
+}
+@media (hover:hover){ .ui-btn.primary:hover:not(:disabled){ background: var(--ui-accent); border-color: var(--ui-accent); color: var(--ui-on-accent); } }
+.ui-btn.ghost{ border-color: transparent; background: transparent; }
+@media (hover:hover){ .ui-btn.ghost:hover:not(:disabled){ background: var(--ui-sunken); border-color: transparent; } }
+
+/* ---------- 统一确认弹窗 ---------- */
+.a377-modal{
+  position: fixed; inset: 0; z-index: 1300;
+  display: grid; place-items: center; padding: 20px;
+  opacity: 0; transition: opacity .18s var(--ui-ease);
+}
+.a377-modal.on{ opacity: 1; }
+.a377-modal-mask{ position: absolute; inset: 0; background: rgba(8,7,5,.42); }
+.a377-modal-box{
+  position: relative; width: 100%; max-width: 380px;
+  background: var(--ui-surface); color: var(--ui-ink);
+  border: 1px solid var(--ui-line); border-radius: var(--ui-r-lg);
+  box-shadow: var(--ui-shadow-3); padding: 20px;
+  font-family: var(--ui-font);
+  transform: translateY(8px) scale(.98); transition: transform .18s var(--ui-ease);
+}
+.a377-modal.on .a377-modal-box{ transform: none; }
+.a377-modal-box h3{ margin: 0 0 8px; font-size: 15.5px; font-weight: 650; letter-spacing: -.01em; }
+.a377-modal-box p{ margin: 0; font-size: 13px; line-height: 1.65; color: var(--ui-ink-2); }
+.a377-modal-act{ display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
