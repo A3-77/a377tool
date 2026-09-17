@@ -1,3 +1,25 @@
+# A377Tool v0.3.0
+
+发布日期：2026-09-17
+
+本版把整站改造成 One Page Love / Shawn Golden 风格，并加入双皮肤一键切换。
+
+## 新功能
+
+- 全站新视觉：黑白 1px 网格、超大标题、跑马灯、棕色 `#836953` 点缀、硬边框按钮。
+- 双皮肤：
+  - `one`：新版 One Page Love 风格，默认。
+  - `classic`：旧版工具站布局。
+- 左下角 `SKIN` 按钮一键切换，偏好保存在 `localStorage.a377skin`，跨页面同步。
+- `/` 和 `/draw/` 内置两套布局；文件、见面、绘图工作台通过 `assets/onepage.css` / `assets/classic.css` 切换。
+- 新版皮肤覆盖：`/`、`/file/`、`/draw/`、`/draw/studio/`、`/draw/code0/`、`/trips/`。
+
+## 兼容性
+
+- 旧的 `a377theme` 浅色/深色主题和新的 `a377skin` 皮肤互不影响。
+- 切到 `classic` 后，文件、见面、绘图工作台回到旧版视觉，功能不变。
+
+---
 # A377Tool v0.2.0
 
 发布日期：2026-09-17

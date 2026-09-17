@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#000000">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>DRAW · A377Tool</title>
+<script src="/assets/skin.js"></script>
 <style>
   :root{--ink:#000;--paper:#fff;--copy:#836953;--grey:#c8c8c8;--serif:"Times New Roman",Times,"Songti SC","SimSun",serif;--pixel:"Courier New","MS Gothic",Consolas,monospace}
   *{box-sizing:border-box}
@@ -38,6 +39,7 @@
   @media(max-width:760px){.intro{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.card{min-height:0}}
   @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
+<link rel="stylesheet" href="/assets/classic.css">
 </head>
 <body>
 <main class="page">
@@ -68,6 +70,19 @@
     <span>NO NONSENSE</span><span class="sp"></span>
     <a href="/">← HOME</a><a href="/file/">FILE</a><a href="/trips/">TRIPS</a>
   </footer>
+</main>
+
+<main class="classic" id="classicDraw">
+  <div class="classic-inner">
+    <div class="classic-eyebrow">DRAW / CLASSIC</div>
+    <h1>生图工作台</h1>
+    <p class="classic-sub">Right Code 浏览器直连；Code0 走服务端代理，Key 不暴露在源码里。</p>
+    <div class="classic-grid">
+      <a class="classic-card" href="/draw/studio/"><span class="n">01 / STUDIO</span><h2>Right Code 绘图工作台</h2><p>单张 / 批量、1K / 2K / 4K，手机也能用。</p><span class="go">进入 →</span></a>
+      <a class="classic-card" href="/draw/code0/"><span class="n">02 / CODE0</span><h2>Code0 图片工作台</h2><p>文生图 / 图生图 / 批量队列，6 个模型可选。</p><span class="go">进入 →</span></a>
+    </div>
+    <div class="classic-foot"><a href="/">← 首页</a><span class="sp"></span><span>SKIN: CLASSIC</span></div>
+  </div>
 </main>
 </body>
 </html>

@@ -12,6 +12,13 @@
 所有页面都有**浅色 / 深色主题**，共用 `assets/theme.js` 和 `localStorage` 的 `a377theme` 键——切一次全站都变。
 首次访问跟随系统设置；顶栏和通用组件由 `assets/shell.js` 统一注入。
 
+另外有两套皮肤，可一键切换：
+
+- `one`：One Page Love / Shawn Golden 风格的黑白网格
+- `classic`：旧版工具站布局
+
+页面左下角的 `SKIN` 按钮用于切换，偏好保存在 `localStorage` 的 `a377skin` 键，默认 `one`。
+
 版本更新记录见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
 
 ---

@@ -2,7 +2,7 @@
    A377Tool · One Page Love / Shawn Golden 风格覆盖层
    在页面自身样式之后加载，用黑白网格 + 棕色点缀统一全站视觉。
    ========================================================================= */
-:root{
+html[data-skin="one"]{
   --op-ink:#000;
   --op-paper:#fff;
   --op-copy:#836953;
@@ -10,9 +10,9 @@
   --op-serif:"Times New Roman",Times,"Songti SC","SimSun",serif;
   --op-pixel:"Courier New","MS Gothic",Consolas,monospace;
 }
-html,
-html[data-theme="light"],
-html[data-theme="dark"]{
+html[data-skin="one"],
+html[data-skin="one"][data-theme="light"],
+html[data-skin="one"][data-theme="dark"]{
   --ui-bg:#000!important;
   --ui-surface:#fff!important;
   --ui-sunken:#f2f2f2!important;
@@ -87,66 +87,66 @@ html[data-theme="dark"]{
   --shadow-xl:none!important;
   --surface:#fff!important;
 }
-*{box-sizing:border-box}
-::selection{background:var(--op-copy);color:#fff}
-body{
+html[data-skin="one"] *{box-sizing:border-box}
+html[data-skin="one"] ::selection{background:var(--op-copy);color:#fff}
+html[data-skin="one"] body{
   background:#000!important;
   color:#000!important;
   font-family:var(--op-serif)!important;
   cursor:crosshair;
 }
-body.shell-pad{padding-top:var(--shell-h)}
-a{text-decoration-style:dotted;text-underline-offset:2px}
-button,a,input,select,textarea{font-family:var(--op-pixel)!important}
-h1,h2,h3,h4,.logo,.hubhead h1,.tripbar,.tool h2,.name,.brand{
+html[data-skin="one"] body.shell-pad{padding-top:var(--shell-h)}
+html[data-skin="one"] a{text-decoration-style:dotted;text-underline-offset:2px}
+html[data-skin="one"] button, html[data-skin="one"] a, html[data-skin="one"] input, html[data-skin="one"] select, html[data-skin="one"] textarea{font-family:var(--op-pixel)!important}
+html[data-skin="one"] h1, html[data-skin="one"] h2, html[data-skin="one"] h3, html[data-skin="one"] h4, html[data-skin="one"] .logo, html[data-skin="one"] .hubhead h1, html[data-skin="one"] .tripbar, html[data-skin="one"] .tool h2, html[data-skin="one"] .name, html[data-skin="one"] .brand{
   font-family:var(--op-pixel)!important;
   text-transform:uppercase;
   letter-spacing:-.02em;
 }
 
 /* 页面纸张 */
-.wrap,.hub,#tripview main,.sidebar-wrapper,.sidebar-inset,.sidebar,.wrap .inner{
+html[data-skin="one"] .wrap, html[data-skin="one"] .hub, html[data-skin="one"] #tripview main, html[data-skin="one"] .sidebar-wrapper, html[data-skin="one"] .sidebar-inset, html[data-skin="one"] .sidebar, html[data-skin="one"] .wrap .inner{
   background:#fff!important;
   color:#000!important;
   border-radius:0!important;
   box-shadow:none!important;
 }
-.wrap,.hub,#tripview main{
+html[data-skin="one"] .wrap, html[data-skin="one"] .hub, html[data-skin="one"] #tripview main{
   border:1px solid #000!important;
 }
 
 /* 顶栏也黑白化 */
-.a377bar{
+html[data-skin="one"] .a377bar{
   background:#000!important;
   color:#fff!important;
   border-bottom:1px solid #fff!important;
   font-family:var(--op-pixel)!important;
 }
-.a377bar-brand,.a377bar-nav a,.a377bar-crumb{color:#fff!important}
-.a377bar-nav a[aria-current="page"]{background:#fff!important;color:#000!important}
-.a377bar-theme{background:#000!important;color:#fff!important;border-color:#fff!important}
+html[data-skin="one"] .a377bar-brand, html[data-skin="one"] .a377bar-nav a, html[data-skin="one"] .a377bar-crumb{color:#fff!important}
+html[data-skin="one"] .a377bar-nav a[aria-current="page"]{background:#fff!important;color:#000!important}
+html[data-skin="one"] .a377bar-theme{background:#000!important;color:#fff!important;border-color:#fff!important}
 
 /* 通用块：方形、黑边、无阴影 */
 .card,.panel,.res,.opts,.drop,.fitem,.hcard,.tripbar,.lockzone,.wbox,.guide,.fold,
 .mbox,.drawer,.cmpbar,.sidebar,.sidebar-inner,.inset-header,.sidebar-container,
-.syncbar,.toast,.tool,.hubsec,.hubhead,.trip,.foldbody,.foldinner{
+html[data-skin="one"] .syncbar, html[data-skin="one"] .toast, html[data-skin="one"] .tool, html[data-skin="one"] .hubsec, html[data-skin="one"] .hubhead, html[data-skin="one"] .trip, html[data-skin="one"] .foldbody, html[data-skin="one"] .foldinner{
   border-radius:0!important;
   box-shadow:none!important;
 }
 .card,.panel,.res,.opts,.drop,.fitem,.hcard,.tripbar,.lockzone,.wbox,.guide,.fold,
 .mbox,.drawer,.cmpbar,.sidebar,.sidebar-inner,.inset-header,.sidebar-container,
-.syncbar,.toast,.tool,.hubsec,.hubhead,.trip{
+html[data-skin="one"] .syncbar, html[data-skin="one"] .toast, html[data-skin="one"] .tool, html[data-skin="one"] .hubsec, html[data-skin="one"] .hubhead, html[data-skin="one"] .trip{
   border:1px solid #000!important;
   background:#fff!important;
   color:#000!important;
 }
-header{background:#fff!important;border-bottom:1px solid #000!important}
-header .logo,header .who,header .chip,header .iconbtn{color:#000!important}
-.gatebox{background:#fff!important;border:1px solid #000!important;border-radius:0!important;box-shadow:none!important}
-.gate{background:rgba(0,0,0,.82)!important}
+html[data-skin="one"] header{background:#fff!important;border-bottom:1px solid #000!important}
+html[data-skin="one"] header .logo, html[data-skin="one"] header .who, html[data-skin="one"] header .chip, html[data-skin="one"] header .iconbtn{color:#000!important}
+html[data-skin="one"] .gatebox{background:#fff!important;border:1px solid #000!important;border-radius:0!important;box-shadow:none!important}
+html[data-skin="one"] .gate{background:rgba(0,0,0,.82)!important}
 
 /* 按钮 */
-.btn,.ui-btn,.miniBtn,.gsubmit,.newtrip,.act,.iconbtn,.gx,.foldhead,.hswitch,.hlink,.rail2{
+html[data-skin="one"] .btn, html[data-skin="one"] .ui-btn, html[data-skin="one"] .miniBtn, html[data-skin="one"] .gsubmit, html[data-skin="one"] .newtrip, html[data-skin="one"] .act, html[data-skin="one"] .iconbtn, html[data-skin="one"] .gx, html[data-skin="one"] .foldhead, html[data-skin="one"] .hswitch, html[data-skin="one"] .hlink, html[data-skin="one"] .rail2{
   border-radius:0!important;
   box-shadow:none!important;
   border:1px solid #000!important;
@@ -155,51 +155,51 @@ header .logo,header .who,header .chip,header .iconbtn{color:#000!important}
   font-family:var(--op-pixel)!important;
   text-transform:uppercase;
 }
-.btn.primary,.ui-btn.primary,.gsubmit,.newtrip,.go,.impSave{
+html[data-skin="one"] .btn.primary, html[data-skin="one"] .ui-btn.primary, html[data-skin="one"] .gsubmit, html[data-skin="one"] .newtrip, html[data-skin="one"] .go, html[data-skin="one"] .impSave{
   background:#000!important;
   color:#fff!important;
 }
 .btn.primary:hover:not(:disabled),.ui-btn.primary:hover:not(:disabled),
-.gsubmit:hover,.newtrip:hover,.go:hover{background:var(--op-copy)!important;color:#fff!important}
-.btn.ghost,.ui-btn.ghost{background:#fff!important;color:#000!important}
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+html[data-skin="one"] .gsubmit:hover, html[data-skin="one"] .newtrip:hover, html[data-skin="one"] .go:hover{background:var(--op-copy)!important;color:#fff!important}
+html[data-skin="one"] .btn.ghost, html[data-skin="one"] .ui-btn.ghost{background:#fff!important;color:#000!important}
+html[data-skin="one"] button:focus-visible, html[data-skin="one"] a:focus-visible, html[data-skin="one"] input:focus-visible, html[data-skin="one"] select:focus-visible, html[data-skin="one"] textarea:focus-visible{
   outline:2px solid var(--op-copy)!important;
   outline-offset:2px!important
 }
 
 /* 输入 */
-input,select,textarea{
+html[data-skin="one"] input, html[data-skin="one"] select, html[data-skin="one"] textarea{
   border-radius:0!important;
   border:1px solid #000!important;
   background:#fff!important;
   color:#000!important;
   box-shadow:none!important;
 }
-input::placeholder,textarea::placeholder{color:#888!important}
-input[type=range]{accent-color:var(--op-copy)!important}
+html[data-skin="one"] input::placeholder, html[data-skin="one"] textarea::placeholder{color:#888!important}
+html[data-skin="one"] input[type=range]{accent-color:var(--op-copy)!important}
 
 /* 标签、圆点、徽章、进度条 */
-.tag,.badge,.pill,.chip,.wchip,.blchip{
+html[data-skin="one"] .tag, html[data-skin="one"] .badge, html[data-skin="one"] .pill, html[data-skin="one"] .chip, html[data-skin="one"] .wchip, html[data-skin="one"] .blchip{
   border-radius:0!important;
   border:1px solid #000!important;
   background:#fff!important;
   color:#000!important;
 }
-.bar,.pbar{
+html[data-skin="one"] .bar, html[data-skin="one"] .pbar{
   border-radius:0!important;
   background:#000!important;
 }
-.bar i,.pbar>div{background:var(--op-copy)!important}
-.dot,.sw,.av,.no,.hnum,.bnum{border-radius:0!important}
-svg{rx:0}
+html[data-skin="one"] .bar i, html[data-skin="one"] .pbar>div{background:var(--op-copy)!important}
+html[data-skin="one"] .dot, html[data-skin="one"] .sw, html[data-skin="one"] .av, html[data-skin="one"] .no, html[data-skin="one"] .hnum, html[data-skin="one"] .bnum{border-radius:0!important}
+html[data-skin="one"] svg{rx:0}
 
 /* 滚动条 */
-*{scrollbar-color:#000 #fff}
-*::-webkit-scrollbar{width:10px;height:10px}
-*::-webkit-scrollbar-track{background:#fff}
-*::-webkit-scrollbar-thumb{background:#000;border:2px solid #fff}
+html[data-skin="one"] *{scrollbar-color:#000 #fff}
+html[data-skin="one"] *::-webkit-scrollbar{width:10px;height:10px}
+html[data-skin="one"] *::-webkit-scrollbar-track{background:#fff}
+html[data-skin="one"] *::-webkit-scrollbar-thumb{background:#000;border:2px solid #fff}
 
 /* 响应式：小屏也保持硬边 */
 @media (max-width:640px){
-  .wrap,.hub,#tripview main{border-left:0!important;border-right:0!important}
+  html[data-skin="one"] .wrap, html[data-skin="one"] .hub, html[data-skin="one"] #tripview main{border-left:0!important;border-right:0!important}
 }

@@ -1,0 +1,39 @@
+/* Classic skin for the standalone one-page routes (/, /draw/) */
+.classic{
+  display:none;
+  min-height:100dvh;
+  background:#faf9f5;
+  color:#1c1b19;
+  padding:54px 22px 90px;
+  font-family:"Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  cursor:auto
+}
+html[data-skin="classic"] .page{display:none!important}
+html[data-skin="classic"] .classic{display:block}
+html[data-skin="classic"] body{cursor:auto!important}
+.classic-inner{max-width:880px;margin:0 auto}
+.classic-eyebrow{
+  display:inline-flex;align-items:center;gap:6px;font:600 11.5px/1 "Segoe UI",sans-serif;
+  letter-spacing:.06em;text-transform:uppercase;color:#a44e30;background:#fbf0eb;
+  padding:5px 10px;border-radius:999px;margin-bottom:16px
+}
+.classic h1{
+  margin:0 0 10px;font:650 clamp(30px,5vw,52px)/1.08 "Times New Roman",Times,serif;
+  text-transform:uppercase;letter-spacing:-.035em;color:#1c1b19
+}
+.classic .classic-sub{margin:0 0 30px;color:#57544d;font-size:14px;line-height:1.7;max-width:62ch}
+.classic-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.classic-card{
+  display:flex;flex-direction:column;gap:10px;padding:20px;min-height:190px;
+  border:1px solid #d6d3c6;border-radius:14px;background:#fff;color:#1c1b19;
+  text-decoration:none;transition:border-color .16s,background .16s,transform .16s
+}
+.classic-card:hover,.classic-card:focus-visible{border-color:#c96442;background:#fbf0eb;transform:translateY(-2px);outline:none}
+.classic-card .n{font:700 11px/1 "Courier New",monospace;letter-spacing:.12em;color:#c96442}
+.classic-card h2{margin:0;font:650 20px/1.1 "Times New Roman",Times,serif;text-transform:uppercase;letter-spacing:-.02em}
+.classic-card p{margin:0;color:#777;font-size:12.5px;line-height:1.6}
+.classic-card .go{margin-top:auto;font:700 11px/1 "Courier New",monospace;letter-spacing:.08em;text-transform:uppercase;color:#a44e30}
+.classic-foot{margin-top:36px;padding-top:16px;border-top:1px solid #e8e6dc;color:#918c80;font-size:12.5px;display:flex;flex-wrap:wrap;gap:12px}
+.classic-foot a{color:#a44e30;text-decoration:none;border-bottom:1px dotted #a44e30}
+.classic-foot .sp{flex:1}
+@media (max-width:640px){.classic{padding:28px 14px 60px}}
