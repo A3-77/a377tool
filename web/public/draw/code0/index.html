@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code0 图片工作台</title>
+<style>
+/* ===== shadcn/ui new-york-v4 · zinc 设计系统 ===== */
+:root{
+  --background:#fafafa; --foreground:#09090b;
+  --card:#ffffff;
+  --primary:#18181b; --primary-hover:rgba(24,24,27,.9); --primary-fg:#fafafa;
+  --secondary:#f4f4f5; --secondary-fg:#18181b;
+  --muted:#f4f4f5; --muted-fg:#71717a;
+  --accent:#f4f4f5;
+  --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+  --destructive:#dc2626;
+  --radius-md:8px; --radius-lg:10px; --radius-xl:12px;
+  --shadow-xs:0 1px 2px 0 rgba(0,0,0,.05);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--background);color:var(--foreground);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:800px;margin:0 auto;padding:40px 20px 80px}
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:20px;font-weight:600;letter-spacing:-.02em;margin:0}
+.srvbadge{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted-fg);
+  border:1px solid var(--border);border-radius:9999px;padding:3px 10px;background:var(--card)}
+.srvbadge::before{content:"";width:7px;height:7px;border-radius:50%;background:#22c55e;
+  box-shadow:0 0 0 3px rgba(34,197,94,.16)}
+.sub{color:var(--muted-fg);font-size:13.5px;margin:6px 0 22px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-xl);
+  padding:24px;box-shadow:var(--shadow-xs)}
+.card+.card{margin-top:16px}
+/* ---- Tabs 风格模式切换 ---- */
+.mode{display:flex;gap:4px;background:var(--muted);padding:4px;border-radius:9px;margin-bottom:20px}
+.mode label{flex:1;text-align:center;padding:7px 8px;border-radius:7px;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--muted-fg);transition:color .15s,background .15s}
+.mode label:hover{color:var(--foreground)}
+.mode label:has(input:checked){background:#fff;color:var(--foreground);
+  box-shadow:0 1px 2px 0 rgba(0,0,0,.1);font-weight:600}
+.mode input{display:none}
+/* ---- 表单控件（Button/Input 规范: h-9 rounded-md border-input shadow-xs） ---- */
+input,select,textarea{font:inherit;color:var(--foreground)}
+textarea,.pinput,#taskName,#importText,select{
+  border:1px solid var(--input);border-radius:var(--radius-md);background:#fff;font-size:14px;
+  box-shadow:var(--shadow-xs);transition:border-color .15s,box-shadow .15s}
+textarea{width:100%;padding:9px 12px;resize:vertical;min-height:76px;line-height:1.6}
+select{height:36px;padding:0 30px 0 10px;appearance:none;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center}
+#taskName{width:100%;height:36px;padding:0 12px}
+#importText{width:100%;padding:9px 12px}
+textarea::placeholder,.pinput::placeholder,#taskName::placeholder,#importText::placeholder{color:#a1a1aa}
+textarea:focus,#taskName:focus,.pinput:focus,#importText:focus,select:focus{
+  outline:none;border-color:var(--ring);box-shadow:0 0 0 3px rgba(161,161,170,.35)}
+textarea:disabled,#taskName:disabled{opacity:.5}
+/* ---- 参考图拖放区 ---- */
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  border:1.5px dashed #d4d4d8;border-radius:var(--radius-lg);padding:20px;cursor:pointer;
+  color:var(--muted-fg);margin-bottom:14px;min-height:100px;font-size:13px;text-align:center;
+  background:#fcfcfd;transition:border-color .15s,background .15s}
+.drop:hover{border-color:var(--ring);background:var(--accent)}
+.drop.drag{border-color:var(--primary);background:var(--accent)}
+#srcPreview{max-width:100%;max-height:170px;border-radius:var(--radius-md)}
+/* ---- 布局行 ---- */
+.row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.row select{flex:1;min-width:140px}
+.hint{color:var(--muted-fg);font-size:12.5px;margin:8px 0;line-height:1.6}
+/* ---- 提示词填写框 ---- */
+#promptBoxes{display:flex;flex-direction:column;gap:8px}
+.prow{display:flex;align-items:center;gap:10px}
+.bno{min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:6px;background:var(--muted);color:var(--muted-fg);font-size:12px;font-weight:600;
+  flex-shrink:0;font-variant-numeric:tabular-nums}
+.prow .pinput{flex:1;min-width:0;height:36px;padding:0 12px}
+.pdel{border:0;background:transparent;color:#a1a1aa;width:28px;height:28px;border-radius:6px;
+  cursor:pointer;flex-shrink:0;font-size:13px;line-height:1;transition:background .15s,color .15s}
+.pdel:hover{background:var(--accent);color:var(--destructive)}
+.boxTools{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
+.miniBtn{height:36px;padding:0 14px;border:0;border-radius:var(--radius-md);background:var(--primary);
+  color:var(--primary-fg);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;
+  display:inline-flex;align-items:center;gap:6px;box-shadow:var(--shadow-xs);transition:background .15s}
+.miniBtn:hover{background:var(--primary-hover)}
+.miniBtn.ghost{background:#fff;border:1px solid var(--input);color:var(--foreground);box-shadow:var(--shadow-xs)}
+.miniBtn.ghost:hover{background:var(--accent)}
+#batchParallel{flex:1;min-width:220px;max-width:320px;margin-left:auto}
+#importWrap{margin-top:10px;border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:12px;background:#fcfcfd}
+#importText{margin-bottom:8px}
+/* ---- 主按钮 (Button lg: h-10) ---- */
+.go{width:100%;height:40px;margin-top:18px;border:0;border-radius:var(--radius-md);
+  background:var(--primary);color:var(--primary-fg);font-size:14px;font-weight:500;cursor:pointer;
+  font-family:inherit;box-shadow:var(--shadow-xs);transition:background .15s}
+.go:hover{background:var(--primary-hover)}
+.go:disabled{opacity:.55;cursor:wait}
+/* ---- 状态与提示 ---- */
+.status{margin-top:12px;color:var(--muted-fg);font-size:13px}
+.err{margin-top:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;
+  padding:10px 14px;border-radius:var(--radius-lg);font-size:13px;white-space:pre-wrap;
+  word-break:break-all;max-height:220px;overflow:auto}
+.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:10px 14px;
+  border-radius:var(--radius-lg);font-size:13px;margin-bottom:16px}
+/* ---- 进度 (Progress 规范: track bg-primary/20 · h-2 · indicator bg-primary) ---- */
+#batchProgress{margin-top:14px}
+#batchProgressText{font-size:12.5px}
+.pbar{height:8px;background:rgba(24,24,27,.2);border-radius:9999px;overflow:hidden;margin-top:6px}
+.pbar>div{height:100%;background:var(--primary);width:0;transition:width .3s}
+/* ---- 批量结果列表 ---- */
+#batchList{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.brow{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);
+  border-radius:var(--radius-lg);background:#fff;font-size:13px;transition:border-color .15s}
+.brow:hover{border-color:#d4d4d8}
+.bthumb{width:48px;height:48px;object-fit:cover;border-radius:var(--radius-md);
+  border:1px solid var(--border);cursor:zoom-in;flex-shrink:0;background:var(--muted)}
+.bprompt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#3f3f46}
+.bstatus{flex-shrink:0;display:inline-flex;align-items:center;border-radius:9999px;
+  padding:2px 8px;font-size:12px;font-weight:500;border:1px solid transparent;
+  max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-pending{background:var(--secondary);color:var(--muted-fg)}
+.st-running{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.st-done{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+.st-failed{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+/* ---- 操作按钮 ---- */
+.bactions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.bactions button{height:36px;padding:0 16px;border:0;border-radius:var(--radius-md);
+  background:var(--primary);color:var(--primary-fg);font-size:13px;font-weight:500;cursor:pointer;
+  font-family:inherit;display:inline-flex;align-items:center;gap:6px;box-shadow:var(--shadow-xs);
+  transition:background .15s}
+.bactions button:hover{background:var(--primary-hover)}
+.bactions button:disabled{opacity:.5;cursor:not-allowed}
+.bactions button.secondary{background:#fff;border:1px solid var(--input);color:var(--foreground)}
+.bactions button.secondary:hover{background:var(--accent)}
+/* ---- 生成结果 ---- */
+.result{max-width:100%;border:1px solid var(--border);border-radius:var(--radius-lg);
+  display:block;margin:0 auto}
+.row2{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;height:36px;padding:0 16px;background:var(--primary);
+  color:var(--primary-fg);border-radius:var(--radius-md);text-decoration:none;font-size:13px;
+  font-weight:500;box-shadow:var(--shadow-xs);transition:background .15s}
+.btn:hover{background:var(--primary-hover)}
+.meta{color:var(--muted-fg);font-size:12px}
+/* ---- 历史 ---- */
+.hist{display:flex;flex-wrap:wrap;gap:8px}
+.hist img{width:80px;height:80px;object-fit:cover;border-radius:var(--radius-md);cursor:zoom-in;
+  border:1px solid var(--border);transition:border-color .15s}
+.hist img:hover{border-color:var(--ring)}
+.histTitle{font-size:12.5px;color:var(--muted-fg);margin-bottom:10px}
+/* ---- 页脚 ---- */
+.foot{margin-top:28px;text-align:center;color:#a1a1aa;font-size:12px}
+.hidden{display:none}
+
+/* 返回生图模块入口（后加的） */
+.a377-back{
+  position:fixed;right:16px;bottom:16px;z-index:9999;
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 15px;border-radius:999px;
+  background:#18181b;color:#fafafa;
+  font:500 13px/1 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+  text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.2);
+  opacity:.5;transition:opacity .2s,transform .2s
+}
+.a377-back:hover{opacity:1;transform:translateY(-1px)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>🎨 Code0 图片工作台</h1>
+    <span id="srvBadge" class="srvbadge hidden">API 已就绪</span>
+  </div>
+  <div class="sub">gpt-image-2.5 系列 · 文生图 / 图生图 / 批量生成 · 密钥只存在本机环境变量里，不会离开你的电脑</div>
+  <div id="keyWarn" class="warn hidden">未检测到 API Key：请先在本机执行 <b>setx CODE0_API_KEY "sk-你的密钥"</b>，
+然后关掉本窗口重新双击 图片工作台.bat 启动。</div>
+
+  <div class="card">
+    <div class="mode">
+      <label><input type="radio" name="mode" value="gen" checked><span>✨ 文生图</span></label>
+      <label><input type="radio" name="mode" value="edit"><span>🖼 图生图</span></label>
+      <label><input type="radio" name="mode" value="batch"><span>📦 批量</span></label>
+    </div>
+
+    <div id="editArea" class="hidden">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
+        <img id="srcPreview" class="hidden" alt="">
+        <span id="dropText">点击选择或把源图片拖到这里（png / jpg / webp）</span>
+      </label>
+    </div>
+
+    <div id="batchArea" class="hidden">
+      <input id="taskName" placeholder="任务名称（用于文件命名，例：小猫发布会）">
+      <div class="hint">每个填写框一条提示词，序号即文件编号：第 N 个框的成果 → 任务名称-N。上方可放一张参考图（可选）：放了就按图生图，没放就按文生图。空框自动跳过，编号顺延。</div>
+      <div id="promptBoxes"></div>
+      <div class="boxTools">
+        <button type="button" id="addPrompt" class="miniBtn">＋ 添加一条</button>
+        <button type="button" id="toggleImport" class="miniBtn ghost">📋 多行粘贴导入</button>
+        <select id="batchParallel">
+          <option value="par">并行生成（3 张同时，快）</option>
+          <option value="seq">逐张生成（按 1→N 顺序）</option>
+        </select>
+      </div>
+      <div id="importWrap" class="hidden">
+        <textarea id="importText" rows="5" placeholder="粘贴多行文本，每行一条提示词，点击导入后自动拆成独立填写框"></textarea>
+        <button type="button" id="importBtn" class="miniBtn">导入为填写框</button>
+      </div>
+    </div>
+
+    <textarea id="prompt" placeholder="描述你想要的图，或想怎么改这张图…&#10;例（图生图）：保留主体和构图，把背景改成海边日落"></textarea>
+
+    <div class="row">
+      <select id="model"></select>
+      <select id="size">
+        <option value="auto">尺寸：自动</option>
+        <option value="1024x1024">1024×1024（方形）</option>
+        <option value="1536x1024">1536×1024（横版）</option>
+        <option value="1024x1536">1024×1536（竖版）</option>
+      </select>
+      <select id="channel" class="hidden">
+        <option value="edits">通道：edits（推荐）</option>
+        <option value="chat">通道：chat（备用）</option>
+      </select>
+    </div>
+
+    <button id="go" class="go">开始生成</button>
+    <div id="status" class="status hidden">生成中，已用时 <span id="sec">0</span> 秒…（一般 30~180 秒，请勿关闭页面）</div>
+    <div id="err" class="err hidden"></div>
+
+    <div id="batchProgress" class="hidden">
+      <div class="status" style="margin-top:10px"><span id="batchProgressText"></span></div>
+      <div class="pbar"><div id="batchBar"></div></div>
+      <div id="batchList"></div>
+      <div class="bactions">
+        <button id="exportZip" disabled>⬇ 一键导出 ZIP</button>
+        <button id="retryFailed" class="secondary hidden">↻ 重试失败项</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <img id="result" class="result" alt="生成结果">
+    <div class="row2">
+      <a id="download" class="btn" download>⬇ 下载图片</a>
+      <span id="meta" class="meta"></span>
+    </div>
+  </div>
+
+  <div class="card hidden" id="histCard">
+    <div class="histTitle">本次会话的历史结果（点击可重新查看并下载）</div>
+    <div id="hist" class="hist"></div>
+  </div>
+
+  <div class="foot">生成会调用 Code0 接口并按次计费 · API Key 仅保存在本机环境变量</div>
+</div>
+
+<script>
+var $ = function(id){ return document.getElementById(id); };
+var MODELS = ["gpt-image-2.5-sunburst-c","gpt-image-2.5-flare-c","gpt-image-2.5-sunburst",
+              "gpt-image-2.5-flare","gpt-image-2-c","gpt-image-2"];
+MODELS.forEach(function(m){
+  var o = document.createElement("option"); o.value = m; o.textContent = m;
+  if(m === "gpt-image-2.5-sunburst-c") o.selected = true;
+  $("model").appendChild(o);
+});
+
+var fileB64 = null, timer = null, hist = [];
+
+function currentMode(){ return document.querySelector('input[name=mode]:checked').value; }
+function applyMode(){
+  var m = currentMode();
+  var withImage = (m === "edit" || m === "batch");
+  $("editArea").classList.toggle("hidden", !withImage);
+  $("channel").classList.toggle("hidden", !(m === "edit" || (m === "batch" && fileB64)));
+  $("prompt").classList.toggle("hidden", m === "batch");
+  $("batchArea").classList.toggle("hidden", m !== "batch");
+  $("go").textContent = m === "batch" ? "开始批量生成" : "开始生成";
+  if(!fileB64){
+    $("dropText").textContent = m === "batch"
+      ? "参考图（可选）：点击选择或把图片拖到这里"
+      : "点击选择或把源图片拖到这里（png / jpg / webp）";
+  }
+}
+document.querySelectorAll('input[name=mode]').forEach(function(r){
+  r.addEventListener("change", applyMode);
+});
+
+function readImage(file){
+  if(!file) return;
+  if(file.size > 20*1024*1024){ alert("图片不能超过 20MB"); return; }
+  var r = new FileReader();
+  r.onload = function(){
+    fileB64 = r.result.split(",")[1];
+    $("srcPreview").src = r.result;
+    $("srcPreview").classList.remove("hidden");
+    $("dropText").textContent = file.name + "（点击可更换）";
+  };
+  r.readAsDataURL(file);
+}
+$("file").addEventListener("change", function(){ readImage(this.files[0]); });
+var drop = $("drop");
+drop.addEventListener("dragover", function(e){ e.preventDefault(); drop.classList.add("drag"); });
+drop.addEventListener("dragleave", function(){ drop.classList.remove("drag"); });
+drop.addEventListener("drop", function(e){
+  e.preventDefault(); drop.classList.remove("drag");
+  readImage(e.dataTransfer.files[0]);
+});
+
+/* ---------- 批量模式 ---------- */
+var batchItems = [], batchRunning = false, batchTask = "batch", padWidth = 2;
+
+function padNum(n, width){ var s = String(n); while(s.length < width) s = "0" + s; return s; }
+function extOf(mime){ return mime.indexOf("jpeg") > -1 ? "jpg" : (mime.indexOf("webp") > -1 ? "webp" : "png"); }
+function sanitizeName(s){
+  var v = (s || "").replace(/[\\/:*?"<>|\\s]+/g, "_").trim().slice(0, 60);
+  return v || "batch";
+}
+function batchPromptsList(){
+  var vals = [];
+  document.querySelectorAll("#promptBoxes .pinput").forEach(function(inp){
+    var v = inp.value.trim();
+    if(v) vals.push(v);
+  });
+  return vals;
+}
+function addPromptBox(text){
+  var row = document.createElement("div");
+  row.className = "prow";
+  row.innerHTML = '<span class="bno"></span><input class="pinput" placeholder="第 N 条提示词">'
+    + '<button type="button" class="pdel" title="删除本条">✕</button>';
+  row.querySelector(".pinput").value = text || "";
+  row.querySelector(".pdel").addEventListener("click", function(){
+    row.remove();
+    renumberBoxes();
+  });
+  $("promptBoxes").appendChild(row);
+  renumberBoxes();
+}
+function renumberBoxes(){
+  document.querySelectorAll("#promptBoxes .prow").forEach(function(r, i){
+    r.querySelector(".bno").textContent = i + 1;
+  });
+}
+$("addPrompt").addEventListener("click", function(){ addPromptBox(""); });
+$("toggleImport").addEventListener("click", function(){
+  $("importWrap").classList.toggle("hidden");
+});
+$("importBtn").addEventListener("click", function(){
+  $("importText").value.split("\\n").map(function(s){ return s.trim(); })
+    .filter(function(s){ return s.length > 0; })
+    .forEach(function(l){ addPromptBox(l); });
+  $("importText").value = "";
+  $("importWrap").classList.add("hidden");
+});
+addPromptBox("");
+
+function renderBatchRow(it){
+  var row = document.getElementById("brow-" + it.i);
+  if(!row){
+    row = document.createElement("div");
+    row.id = "brow-" + it.i;
+    row.className = "brow";
+    row.innerHTML = '<span class="bno"></span><img class="bthumb hidden" alt=""><span class="bprompt"></span><span class="bstatus"></span>';
+    $("batchList").appendChild(row);
+    row.querySelector(".bthumb").addEventListener("click", function(){
+      if(it.status === "done") showResult("data:" + it.mime + ";base64," + it.b64);
+    });
+  }
+  row.querySelector(".bno").textContent = it.i + 1;
+  var img = row.querySelector(".bthumb");
+  if(it.status === "done"){
+    img.src = "data:" + it.mime + ";base64," + it.b64;
+    img.classList.remove("hidden");
+  }
+  row.querySelector(".bprompt").textContent = it.prompt.slice(0, 60);
+  var st = row.querySelector(".bstatus");
+  var label = {pending: "待生成", running: "生成中…", done: "✓ " + (it.filename || ""), failed: "✗ 失败"}[it.status];
+  st.textContent = label;
+  st.className = "bstatus st-" + it.status;
+  row.title = it.status === "failed" ? (it.error || "失败") : it.prompt;
+}
+
+function updateBatchProgress(){
+  var done = batchItems.filter(function(x){ return x.status === "done"; }).length;
+  var failed = batchItems.filter(function(x){ return x.status === "failed"; }).length;
+  var total = batchItems.length;
+  $("batchProgress").classList.toggle("hidden", total === 0);
+  $("batchProgressText").textContent = total
+    ? ("完成 " + done + " / " + total + (failed ? "，失败 " + failed : "") + (batchRunning ? "，进行中…" : ""))
+    : "";
+  $("batchBar").style.width = (total ? Math.round((done + failed) / total * 100) : 0) + "%";
+  var failedItems = batchItems.filter(function(x){ return x.status === "failed"; });
+  var doneItems = batchItems.filter(function(x){ return x.status === "done"; });
+  $("retryFailed").classList.toggle("hidden", !(failedItems.length > 0 && !batchRunning));
+  $("exportZip").disabled = !(doneItems.length > 0 && !batchRunning);
+  $("exportZip").textContent = doneItems.length
+    ? "⬇ 一键导出 ZIP（" + batchTask + ".zip，含 " + doneItems.length + " 张）"
+    : "⬇ 一键导出 ZIP";
+}
+
+async function processQueue(items){
+  var idx = 0;
+  async function worker(){
+    while(idx < items.length){
+      var it = items[idx++];
+      it.status = "running";
+      renderBatchRow(it);
+      try{
+        var useRef = !!fileB64;
+        var body = useRef
+          ? {image_b64: fileB64, prompt: it.prompt, channel: $("channel").value}
+          : {prompt: it.prompt};
+        body.model = $("model").value;
+        body.size = $("size").value;
+        var r = await fetch("/api/code0/" + (useRef ? "edit" : "gen"), {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(body)
+        });
+        var j = await r.json();
+        if(!j.ok) throw new Error(j.error || "未知错误");
+        it.mime = j.mime;
+        it.b64 = j.image_b64;
+        it.status = "done";
+        it.filename = batchTask + "-" + padNum(it.i + 1, padWidth) + "." + extOf(j.mime);
+      }catch(e){
+        it.status = "failed";
+        it.error = String(e.message || e).slice(0, 400);
+      }
+      renderBatchRow(it);
+      updateBatchProgress();
+    }
+  }
+  var nWorkers = ($("batchParallel").value === "par") ? 3 : 1;
+  var jobs = [];
+  for(var w = 0; w < nWorkers; w++) jobs.push(worker());
+  await Promise.all(jobs);
+}
+
+async function runBatch(){
+  if(batchRunning) return;
+  var prompts = batchPromptsList();
+  if(!prompts.length){ alert("请先填写提示词（每行一条）"); return; }
+  batchTask = sanitizeName($("taskName").value);
+  padWidth = String(prompts.length).length;
+  batchItems = prompts.map(function(p, i){ return {i: i, prompt: p, status: "pending"}; });
+  $("batchList").innerHTML = "";
+  batchItems.forEach(renderBatchRow);
+  updateBatchProgress();
+  batchRunning = true;
+  $("go").disabled = true;
+  updateBatchProgress();
+  await processQueue(batchItems);
+  batchRunning = false;
+  $("go").disabled = false;
+  updateBatchProgress();
+}
+
+$("retryFailed").addEventListener("click", async function(){
+  if(batchRunning) return;
+  var failedItems = batchItems.filter(function(x){ return x.status === "failed"; });
+  if(!failedItems.length) return;
+  failedItems.forEach(function(it){ it.status = "pending"; it.error = null; renderBatchRow(it); });
+  batchRunning = true;
+  $("go").disabled = true;
+  updateBatchProgress();
+  await processQueue(failedItems);
+  batchRunning = false;
+  $("go").disabled = false;
+  updateBatchProgress();
+});
+
+$("exportZip").addEventListener("click", async function(){
+  var files = batchItems.filter(function(x){ return x.status === "done"; })
+    .map(function(x){ return {filename: x.filename, image_b64: x.b64}; });
+  if(!files.length) return;
+  this.disabled = true;
+  this.textContent = "打包中…";
+  try{
+    var r = await fetch("/api/code0/export", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({name: batchTask, files: files})
+    });
+    if(!r.ok){
+      var j = await r.json().catch(function(){ return {}; });
+      throw new Error(j.error || ("HTTP " + r.status));
+    }
+    var blob = await r.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = batchTask + ".zip";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+  }catch(e){
+    showError("导出失败: " + e.message);
+  }
+  updateBatchProgress();
+});
+/* ---------- 批量模式结束 ---------- */
+
+function showError(msg){
+  var e = $("err");
+  e.textContent = msg;
+  e.classList.remove("hidden");
+}
+function setLoading(on){
+  $("go").disabled = on;
+  $("status").classList.toggle("hidden", !on);
+  $("err").classList.add("hidden");
+  if(on){
+    var t0 = Date.now();
+    $("sec").textContent = "0";
+    timer = setInterval(function(){
+      $("sec").textContent = Math.round((Date.now()-t0)/1000);
+    }, 500);
+  } else if(timer){ clearInterval(timer); timer = null; }
+}
+function showResult(url){
+  $("result").src = url;
+  var ext = url.indexOf("image/jpeg") > -1 ? "jpg" : (url.indexOf("image/webp") > -1 ? "webp" : "png");
+  var a = $("download");
+  a.href = url;
+  a.download = "code0-" + Date.now() + "." + ext;
+  var kb = Math.round(url.length * 3 / 4 / 1024);
+  $("meta").textContent = ext.toUpperCase() + " · 约 " + kb + " KB · 模型 " + $("model").value;
+  $("resultCard").classList.remove("hidden");
+  $("resultCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+function addHist(url){
+  hist.unshift(url);
+  hist = hist.slice(0, 12);
+  var box = $("hist");
+  box.innerHTML = "";
+  hist.forEach(function(u){
+    var img = document.createElement("img");
+    img.src = u;
+    img.addEventListener("click", function(){ showResult(u); });
+    box.appendChild(img);
+  });
+  $("histCard").classList.remove("hidden");
+}
+
+$("go").addEventListener("click", function(){
+  if(currentMode() === "batch"){ runBatch(); return; }
+  var prompt = $("prompt").value.trim();
+  if(!prompt){ alert("请先填写提示词"); return; }
+  var mode = currentMode();
+  if(mode === "edit" && !fileB64){ alert("图生图请先选择一张源图片"); return; }
+  var body = {prompt: prompt, model: $("model").value, size: $("size").value};
+  if(mode === "edit"){ body.image_b64 = fileB64; body.channel = $("channel").value; }
+  setLoading(true);
+  fetch("/api/code0/" + (mode === "edit" ? "edit" : "gen"), {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(r){
+    if(!r.ok){ showError(r.error || "未知错误"); return; }
+    showResult("data:" + r.mime + ";base64," + r.image_b64);
+    addHist("data:" + r.mime + ";base64," + r.image_b64);
+  })
+  .catch(function(e){ showError("请求失败: " + e.message); })
+  .finally(function(){ setLoading(false); });
+});
+
+fetch("/api/code0/status").then(function(r){ return r.json(); }).then(function(s){
+  if(!s.key){ $("keyWarn").classList.remove("hidden"); }
+  else{ $("srvBadge").classList.remove("hidden"); }
+});
+</script>
+<a class="a377-back" href="/draw/" title="回到生图模块">← 生图</a>
+</body>
+</html>

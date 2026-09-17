@@ -1,0 +1,39 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ---- Node ----
+node_modules/
+package-lock.json
+
+# ---- WorkBuddy 工作区数据（含会话记忆，不公开）----
+.workbuddy-ai/
+
+# ---- 测试产物 ----
+tests/*.log
+tests/render_*.png
+tests/render_*.jpg
+tests/js_*.mp3
+tests/js_*.flac
+tests/_*.mjs
+tests/web_*.pdf
+tests/web_*.zip
+tests/thumbs_*.zip
+tests/merged_*.pdf
+tests/out_*
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- 编辑器 ----
+.vscode/
+.idea/
+*.swp
+
+# ---- 备份产物（快照不进版本控制，避免自我引用）----
+backup-*/
+backup-*.zip

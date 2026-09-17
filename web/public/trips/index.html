@@ -1,0 +1,3174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0d14" id="theme-color" />
+<script>
+// 和工具箱共用同一个 localStorage 键，切一次两边都变
+(function () {
+  try {
+    var t = localStorage.getItem("a377theme");
+    if (t !== "light" && t !== "dark") {
+      t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.dataset.theme = t;
+  } catch (e) {
+    document.documentElement.dataset.theme = "dark";
+  }
+})();
+
+// 全局错误兜底：初始化过程中任何一处抛异常，后面的绑定就会全部失效
+// （按钮点不动就是这个症状）。把真实错误直接显示出来，别只留在控制台里。
+(function () {
+  function report(msg) {
+    try { console.error('[boot]', msg); } catch (e) {}
+    var show = function () {
+      var box = document.getElementById("bootErr");
+      if (!box) return false;
+      box.style.display = "block";
+      box.textContent = msg;
+      return true;
+    };
+    if (!show()) document.addEventListener("DOMContentLoaded", show, { once: true });
+  }
+  window.addEventListener("error", function (e) {
+    if (e.message) report("页面出错：" + e.message + "（第 " + e.lineno + " 行）");
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e.reason;
+    report("请求出错：" + ((r && r.message) || r));
+  });
+})();
+</script>
+<title>周末去哪见面 · 双人版</title>
+<style>
+  :root{
+    /* 字号规范：全站只用这 5 级，不要再加第 6 级 */
+    --fs-1:11px;   /* 标签 / 提示 / 次要说明 */
+    --fs-2:13px;   /* 正文 / 卡片内容 */
+    --fs-3:16px;   /* 卡片名 / 模块标题 */
+    --fs-4:21px;   /* 面板主标题 */
+    --fs-5:34px;   /* 详情页核心数字 */
+
+    /* 面：靠色差分层，不靠边框 */
+    --bg:#0a0d14;
+    --s1:#12161f;   /* 面板 */
+    --s2:#171c27;   /* 卡片 / 凸起 */
+    --s3:#1e2431;   /* hover / 再上一层 */
+    --s4:#262d3c;   /* 选中 */
+
+    --text:#e6ebf4; --dim:#8b97ab; --dim2:#5d6779;
+    --a:#5b8fd6; --b:#b06f89;              /* 两个人的代表色，全站只有这两处用彩色 */
+    --ok:#5fd39a; --gold:#d9b568;
+    --r:14px;
+  }
+
+  /* ---------- 浅色主题 ----------
+     只翻「界面层」（背景 / 面板 / 文字 / 卡片），地图区保持深色不动——
+     地图本来就适合深底，而且这样两层之间有层次感。 */
+  html[data-theme="light"]{
+    --bg:#f3f5f9;
+    --s1:#ffffff;   /* 面板 */
+    --s2:#eef1f6;   /* 卡片 */
+    --s3:#e3e7ef;   /* hover */
+    --s4:#d6dce7;   /* 选中 */
+    --text:#171c26; --dim:#5a6477; --dim2:#8b94a6;
+    --a:#3a6fb8; --b:#9a5570;
+    --ok:#2b8f61; --gold:#9c7c2c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text);
+    font:var(--fs-2)/1.65 "PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; overflow-wrap:anywhere;
+  }
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer;border:none;background:none}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+  /* ================= 顶栏 ================= */
+  header{position:sticky;top:0;z-index:60;background:var(--bg);border-bottom:1px solid var(--s2)}
+  .hbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 16px;min-height:52px}
+  .logo{font-size:var(--fs-2);font-weight:600;white-space:nowrap;padding-right:4px;letter-spacing:.2px}
+  .logo i{font-style:normal;color:var(--dim2);font-weight:400}
+  .spacer{flex:1}
+  .chip{display:flex;align-items:center;gap:6px;font-size:var(--fs-2);color:var(--dim);
+    padding:3px 9px;border-radius:6px;background:var(--s1);white-space:nowrap}
+  .chip b{color:var(--text);font-weight:500}
+  .dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+  .dot.a{background:var(--a)} .dot.b{background:var(--b)}
+  /* overflow:hidden 的 flex 子项 min-width 会退化成 0，只会被压缩不换行 */
+  .hbar>.chip,.hbar>.iconbtn,.hbar>.seg,.hbar>.logo,.hbar>.who{flex:0 0 auto}
+
+  .iconbtn{padding:5px 11px;border-radius:6px;background:var(--s1);
+    font-size:var(--fs-2);color:var(--dim);transition:.13s;white-space:nowrap}
+  .iconbtn:hover{color:var(--text);border-color:var(--s4)}
+  .iconbtn.accent{color:#9dc0e4}
+  .iconbtn.accent:hover{background:var(--s3);color:#cfe2f7}
+  .seg{display:flex;border-radius:6px;overflow:hidden;background:var(--s1)}
+  .seg button{padding:5px 11px;font-size:var(--fs-2);color:var(--dim2);transition:.13s;white-space:nowrap}
+  .seg button.on{background:#1b2334;color:var(--text)}
+  .seg button:not(:last-child){margin-right:2px}
+
+  /* 身份切换 */
+  .who{display:flex;align-items:center;gap:6px;font-size:var(--fs-1);color:var(--dim2)}
+  .seg.who-seg button{padding:5px 10px}
+  .seg.who-seg button[data-who="a"].on{background:#16283f;color:#a8c8ec}
+  .seg.who-seg button[data-who="b"].on{background:#2a1723;color:#e0a8bd}
+
+  .pdrawer{max-height:0;overflow:hidden;transition:max-height .3s ease}
+  .pdrawer.open{border-top:1px solid var(--s2);max-height:420px}
+  .pdrawer .inner{padding:13px 15px 15px}
+  .prow{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-bottom:11px}
+  .pf{display:flex;align-items:center;gap:7px;font-size:var(--fs-2);color:var(--dim)}
+  .pf input[type=time],.pf input[type=number],.pf input[type=date]{
+    background:var(--s2);border-radius:8px;padding:6px 10px;font-size:var(--fs-2)}
+  .pf input[type=time]{width:86px} .pf input[type=number]{width:64px} .pf input[type=date]{width:132px}
+  .pf input:focus{outline:none;border-color:var(--s4)}
+  .pnote{font-size:var(--fs-1);color:var(--dim2)}
+
+  /* 空闲日 */
+  .freerow{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
+  .wchip{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 10px 5px;border-radius:8px;background:var(--s2);
+    font-size:var(--fs-1);color:var(--dim);transition:.13s;min-width:62px}
+  .wchip:hover{border-color:var(--s4);color:var(--text)}
+  .wchip.on{background:var(--s4);color:var(--text)}
+  .wchip.both{background:#13291f;color:#a9e0c6}
+  .wchip .dt{font-weight:600;letter-spacing:.2px}
+  .wchip .pips{display:flex;gap:4px}
+  .wchip .pip{width:7px;height:7px;border-radius:50%;cursor:pointer}
+  .wchip .pip.a{background:transparent}
+  .wchip .pip.b{background:transparent}
+  .wchip .pip.a.on{background:var(--a);border-color:var(--a)}
+  .wchip .pip.b.on{background:var(--b);border-color:var(--b)}
+
+  /* ================= 布局 ================= */
+  main{display:grid;grid-template-columns:392px minmax(0,1fr);
+    gap:16px;padding:16px 18px 96px;align-items:start}
+  @media(max-width:1560px){ main{grid-template-columns:344px minmax(0,1fr)} }
+  main>*{min-width:0}
+  /* ================= 行程大厅 ================= */
+  .hub{min-height:100vh;padding:40px 20px 80px}
+  .hubinner{max-width:620px;margin:0 auto}
+  .hubhead{margin-bottom:30px}
+  .hubhead h1{font-size:var(--fs-4);font-weight:700;letter-spacing:-.4px}
+  .hubhead p{font-size:var(--fs-2);color:var(--dim2);margin-top:8px;line-height:1.8}
+  .hubsec{margin-bottom:26px}
+  .sechead{font-size:var(--fs-1);color:var(--dim2);letter-spacing:1.4px;margin-bottom:11px;
+    display:flex;align-items:center;gap:8px}
+  .sechead em{font-style:normal;background:var(--s2);border-radius:999px;padding:1px 8px;color:var(--dim)}
+  .hcard{background:var(--s2);border-radius:var(--r);padding:16px 18px;margin-bottom:9px;
+    cursor:pointer;transition:background .15s}
+  .hcard:hover{background:var(--s3)}
+  .hcard.done{background:#111d19}
+  .hcard.pend{background:#1c1a12}
+  .hrow1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .hname{font-size:var(--fs-3);font-weight:600}
+  .hbadge{font-size:var(--fs-1);padding:2px 8px;border-radius:999px;background:var(--s3);color:var(--dim2)}
+  .hbadge.warn{background:#3a2f12;color:var(--gold)}
+  .hmeta{font-size:var(--fs-1);color:var(--dim2);margin-top:6px}
+  .hmeta2{font-size:var(--fs-2);color:var(--dim);margin-top:8px}
+  .hact{display:flex;gap:8px;margin-top:13px}
+  .hgo{flex:1;padding:10px 0;border-radius:10px;background:var(--s3);font-size:var(--fs-2);
+    color:var(--text);transition:.13s}
+  .hgo:hover{background:var(--s4)}
+  .hdel{width:44px;border-radius:10px;background:var(--s3);color:var(--dim2);font-size:var(--fs-2)}
+  .hdel:hover{background:#3a2029;color:#e08aa4}
+  .hempty{font-size:var(--fs-2);color:var(--dim2);padding:14px 0}
+  .newtrip{width:100%;padding:17px 0;border-radius:var(--r);background:var(--s2);
+    font-size:var(--fs-3);color:var(--dim);transition:.13s}
+  .newtrip:hover{background:var(--s3);color:var(--text)}
+  .hubfoot{margin-top:26px;font-size:var(--fs-1);color:var(--dim2);display:flex;
+    align-items:center;gap:9px;justify-content:center}
+  .hubfoot b{color:var(--text)}
+  .hswitch{padding:4px 11px;border-radius:7px;background:var(--s2);color:var(--dim);font-size:var(--fs-1)}
+  .hswitch:hover{background:var(--s3);color:var(--text)}
+
+  /* ================= 行程条 ================= */
+  .tripbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+    padding:10px 18px;background:var(--s1);border-bottom:1px solid var(--s2)}
+  .tripbar.locked{background:#101d18}
+  .tripbar.pend{background:#1c1a12}
+  .tbname{font-size:var(--fs-3);font-weight:600}
+  .tbmeta{font-size:var(--fs-1);color:var(--dim2)}
+  .tbact{display:flex;align-items:center;gap:8px}
+  .tstat{font-size:var(--fs-1);color:var(--dim2)}
+  .tstat.ok{color:var(--ok);font-weight:600}
+
+  /* ================= 黑名单 ================= */
+  .blwrap{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+  .blchip{padding:4px 10px;border-radius:7px;background:var(--s2);font-size:var(--fs-1);
+    color:var(--dim2);transition:.13s}
+  .blchip:hover{background:var(--s3);color:var(--text)}
+  .blchip.mine{background:#2a1a21;color:#d08ba4;text-decoration:line-through}
+  .blchip.dead{background:#241318;color:#8a6a76;text-decoration:line-through;cursor:not-allowed}
+
+  /* ================= 落定区 ================= */
+  .lockzone{margin-top:16px;padding:14px 16px;border-radius:14px;background:#12251d;
+    font-size:var(--fs-2);color:#a9e0c6;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+  .lockzone b{color:#d6f5e6}
+  .lockzone button{margin-left:auto;padding:11px 20px;border-radius:999px;
+    background:var(--ok);color:#08120d;font-size:var(--fs-2);font-weight:700}
+  .lockzone button+button{margin-left:8px;background:var(--s3);color:var(--dim);font-weight:400}
+  .lockzone.pend{background:#1c1a12;color:var(--gold)}
+  .lockzone.pend b{color:#f0dfae}
+  .lockzone.done{background:#101d18;color:var(--ok)}
+
+  @media(max-width:780px){
+    .hub{padding:24px 14px 80px}
+    .tripbar{padding:9px 12px}
+  }
+  /* ================= 登录门 ================= */
+  .gate{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+    background:radial-gradient(900px 500px at 50% -10%,#16223d,#0a0d14 60%);padding:24px}
+  .gate.on{display:flex}
+  .gatebox{width:min(400px,100%);background:var(--s1);border-radius:18px;padding:30px 28px}
+  .gatebox h1{font-size:var(--fs-4);font-weight:700;letter-spacing:-.4px;text-align:center}
+  .gatesub{font-size:var(--fs-2);color:var(--dim2);text-align:center;margin:8px 0 22px}
+  .gatetabs{width:100%;margin-bottom:20px}
+  .gatetabs button{flex:1;padding:9px 0}
+  .gfield{display:flex;align-items:center;gap:10px;font-size:var(--fs-2);color:var(--dim);
+    margin-bottom:12px}
+  .gfield input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--s3);border-radius:10px;
+    padding:11px 13px;font-size:var(--fs-2);color:var(--text)}
+  .gfield input:focus{outline:none;border-color:var(--s4)}
+  .gsubmit{width:100%;margin-top:8px;padding:14px 0;border-radius:999px;background:var(--s3);
+    font-size:var(--fs-3);font-weight:600;color:var(--text);transition:.15s}
+  .gsubmit:hover{background:var(--s4)}
+  .gsubmit:disabled{opacity:.5;cursor:default}
+  .gatemsg{font-size:var(--fs-1);margin-top:14px;text-align:center;line-height:1.8;white-space:pre-wrap}
+  .gatemsg.bad{color:#e08aa4} .gatemsg.ok{color:var(--ok)}
+  .gatehint{font-size:var(--fs-1);color:var(--dim2);margin-top:16px;text-align:center;line-height:1.8}
+
+  /* ================= 同步提示条 ================= */
+  .syncbar{position:fixed;left:50%;top:16px;transform:translate(-50%,-140%);z-index:150;
+    display:flex;align-items:center;gap:10px;background:#1c1a12;color:var(--gold);
+    padding:11px 16px;border-radius:999px;font-size:var(--fs-2);transition:transform .28s ease;
+    box-shadow:0 10px 30px -10px rgba(0,0,0,.8)}
+  .syncbar.on{transform:translate(-50%,0)}
+  .syncbar button{padding:5px 14px;border-radius:999px;background:var(--gold);color:#1c1a12;
+    font-size:var(--fs-1);font-weight:700}
+  .syncbar button+button{background:var(--s3);color:var(--dim);font-weight:400}
+  @media(max-width:1380px){
+    main{grid-template-columns:1fr;padding-bottom:96px}
+    .colleft{order:1} .mapwrap{order:2}
+  }
+
+  .panel{background:var(--s1);border-radius:var(--r);padding:18px}
+  .panel+.panel{margin-top:14px}
+  .panel h2{font-size:var(--fs-1);font-weight:600;letter-spacing:1.4px;color:var(--dim2);margin-bottom:14px;
+    display:flex;align-items:center;gap:7px}
+  .panel h2 em{font-style:normal;margin-left:auto;font-size:var(--fs-1);font-weight:400}
+
+  /* 首次使用引导 */
+  .guide{position:relative;border-radius:var(--r);padding:16px 34px 16px 18px;background:var(--s2);
+    background:var(--s2);margin-bottom:12px;font-size:var(--fs-2);color:var(--dim)}
+  .guide b{display:block;color:var(--text);font-size:var(--fs-2);margin-bottom:6px;font-weight:600}
+  .guide ol{margin:0;padding-left:15px;line-height:1.75}
+  .guide li{margin-bottom:1px}
+  .guide .gfoot{margin-top:9px;padding-top:9px;font-size:var(--fs-1);color:var(--dim2)}
+  .guide .gx{position:absolute;right:8px;top:8px;width:20px;height:20px;border-radius:5px;
+    color:var(--dim2);font-size:var(--fs-2);line-height:1}
+  .guide .gx:hover{color:var(--text);background:#1b2334}
+  .guide.hide{display:none}
+
+  /* ================= 玩法筛选 ================= */
+  .vibes{display:flex;flex-wrap:wrap;gap:7px}
+  .vibe{padding:7px 13px;border-radius:9px;background:var(--s2);
+    font-size:var(--fs-2);color:var(--dim);transition:.13s}
+  .vibe:hover{border-color:var(--s4);color:var(--text)}
+  .vibe.on{background:#1b2334;border-color:#3d556f;color:#cfdcef}
+  .hint{font-size:var(--fs-1);color:var(--dim2);margin-top:11px;line-height:1.7}
+
+  /* ================= 排行：提案卡 + 紧凑列表 ================= */
+  .rankhead{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+  .rankhead h2{margin:0;flex:1}
+  .rankhead em{font-style:normal;font-size:var(--fs-1);color:var(--dim2)}
+  .delta{font-size:var(--fs-1);color:var(--dim);padding:8px 11px;border-radius:10px;
+    background:var(--s2);margin-bottom:10px;line-height:1.7}
+  .delta b{color:var(--text)}
+  .delta .u{color:var(--ok);font-weight:700} .delta .d{color:#e08aa4;font-weight:700} .delta .n{color:var(--gold);font-weight:700}
+
+  .props{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+  .prop{position:relative;border-radius:var(--r);padding:15px 17px;background:var(--s2);
+    cursor:pointer;transition:background .15s,transform .1s}
+  .prop:hover{background:var(--s3)}
+  .prop:active{transform:scale(.985)}
+  .prop.sel{background:var(--s4)}
+  .prop .role{display:flex;align-items:center;gap:6px;font-size:var(--fs-1);color:var(--dim2);
+    letter-spacing:.4px;margin-bottom:10px}
+  .prop .role .bdg{background:var(--s3);color:var(--dim);padding:3px 9px;border-radius:7px;font-size:var(--fs-1)}
+  .prop .role .duo{margin-left:auto}
+  .prop .nm{font-size:var(--fs-4);font-weight:700;letter-spacing:-.3px;line-height:1.2}
+  .prop .vibe{font-size:var(--fs-2);color:var(--dim);margin-top:4px}
+  .prop .foot{display:flex;align-items:baseline;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .prop .foot .big{font-size:var(--fs-3);font-weight:700;color:var(--ok);letter-spacing:-.2px}
+  .prop .foot .meta{font-size:var(--fs-1);color:var(--dim2)}
+
+  .listhead{font-size:var(--fs-1);color:var(--dim2);letter-spacing:1.2px;margin:0 0 6px 3px}
+  .rows{display:flex;flex-direction:column;gap:2px}
+  .rows>.row{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:10px;
+    cursor:pointer;transition:background .13s}
+  .rows>.row:hover{background:var(--s2)}
+  .rows>.row.sel{background:var(--s3)}
+  .rows>.row.rejected,.prop.rejected{opacity:.45}
+  .rows>.row .rk{font-size:var(--fs-1);color:var(--dim2);min-width:14px;font-variant-numeric:tabular-nums}
+  .rows>.row .nm{font-size:var(--fs-2);font-weight:600;white-space:nowrap}
+  .rows>.row .t{font-size:var(--fs-1);color:var(--dim2);font-variant-numeric:tabular-nums;
+    margin-left:auto;white-space:nowrap}
+
+  /* 双人状态：两个圆点，取代原来一排彩色胶囊 */
+  .duo{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+  .av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:var(--fs-1);font-weight:700;background:var(--s3);color:var(--dim2);
+    transition:background .18s,color .18s;flex:0 0 auto}
+  .av.a{color:#8fb4e2} .av.b{color:#d19aae}
+  .av.on.a{background:var(--a);color:#0a0d14}
+  .av.on.b{background:var(--b);color:#0a0d14}
+  .av.no{background:#2a1a21;color:#c08498}
+  .rows>.row:hover .av,.prop:hover .av{background:var(--s4)}
+  .rows>.row:hover .av.on,.prop:hover .av.on{color:#0a0d14}
+  .rows>.row:hover .av.on.a,.prop:hover .av.on.a{background:var(--a)}
+  .rows>.row:hover .av.on.b,.prop:hover .av.on.b{background:var(--b)}
+
+  .tag{font-size:var(--fs-1);padding:3px 8px;border-radius:7px;background:var(--s3);color:var(--dim2)}
+  .tag.ok{color:#7fc9a6} .tag.hot{color:var(--gold)}
+  .tag.worn{color:#c08498} .tag.rain{color:#8bb4d8}
+  .expand{margin-top:10px;padding:10px 0;border-radius:10px;background:var(--s2);
+    font-size:var(--fs-2);color:var(--dim);transition:.13s;width:100%}
+  .expand:hover{background:var(--s3);color:var(--text)}
+  .hidden-note{font-size:var(--fs-1);color:var(--dim2);margin-top:10px;text-align:center;
+    cursor:pointer;padding:11px;border-radius:10px;background:var(--s2)}
+  .hidden-note:hover{color:var(--dim)}
+  .empty{font-size:var(--fs-2);color:var(--dim2);padding:12px 0;line-height:1.9}
+  /* ================= 地图 ================= */
+  .mapwrap{position:sticky;top:66px;width:100%;aspect-ratio:1000/660;
+    max-height:calc(100vh - 84px);min-height:380px;border-radius:var(--r);overflow:hidden;background:#090c13}
+  #amap{position:absolute;inset:0;display:none}
+  #amap.on{display:block}
+  #svgmap{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+  #svgmap.dragging{cursor:grabbing}
+  .mapbar{position:absolute;left:10px;top:10px;display:flex;gap:5px;flex-wrap:wrap;z-index:5}
+  .mapbar button{padding:4px 9px;border-radius:6px;font-size:var(--fs-1);color:var(--dim);
+    background:rgba(12,16,24,.9);transition:.13s}
+  .mapbar button:hover{color:var(--text);border-color:var(--s4)}
+  .mapbar button.off{opacity:.4}
+  .mapbar button:disabled{opacity:.26;cursor:not-allowed}
+  .legend{position:absolute;left:10px;bottom:10px;z-index:5;font-size:var(--fs-1);color:var(--dim2);
+    background:rgba(12,16,24,.9);border-radius:6px;padding:6px 10px;
+    display:flex;gap:12px;flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .legend i{display:inline-block;width:14px;height:2px;border-radius:1px}
+  .legend .pt{width:7px;height:7px;border-radius:50%}
+  #mapwrap.amapmode .legend{bottom:36px}
+  .tip{position:absolute;z-index:20;pointer-events:none;opacity:0;transition:opacity .12s;
+    background:rgba(8,11,18,.97);border-radius:6px;
+    padding:8px 11px;font-size:var(--fs-2);white-space:nowrap}
+  .tip.on{opacity:1}
+  .tip .t1{font-weight:600;margin-bottom:2px}
+  .tip .t2{color:var(--dim)}
+
+  .grat{stroke:#151d2e;stroke-width:.6;fill:none}
+  .river{fill:none;stroke:#20364f;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+  .corridor-casing{fill:none;stroke:#0f141e;stroke-width:7.5;stroke-linecap:round;stroke-linejoin:round}
+  .corridor{fill:none;stroke:#33415e;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .spur{fill:none;stroke:#29334a;stroke-width:1.6;stroke-dasharray:2 4;stroke-linecap:round}
+  .leg{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:5 4}
+  .leg.a{stroke:var(--a)} .leg.b{stroke:var(--b)}
+  .node{cursor:pointer}
+  .node .hit{fill:transparent}
+  .node .dot{stroke:#090c13;stroke-width:1.4}
+  .node .ring{fill:none;stroke:#d9b568;stroke-width:1.5}
+  .node .bothring{fill:none;stroke:#5fd39a;stroke-width:1.2;stroke-dasharray:2 3;opacity:.85}
+  .node .label{font-size:var(--fs-2);fill:#8d9bb4;paint-order:stroke;
+    stroke:#090c13;stroke-width:3.6px;stroke-linejoin:round;pointer-events:none}
+  .node.t3 .label{fill:#d3dcee}
+  .node.t1 .label{fill:#f0f4fc;font-weight:600}
+  .node.sel .label{fill:#fff;font-weight:600;font-size:var(--fs-2)}
+  .corlabel{font-size:var(--fs-1);fill:#3f4c66;letter-spacing:1.5px;paint-order:stroke;
+    stroke:#090c13;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
+  .home .label{font-size:var(--fs-2);font-weight:600}
+  .wicon{font-size:var(--fs-1);pointer-events:none}
+
+  /* ================= 详情抽屉 ================= */
+  .scrim{position:fixed;inset:0;z-index:90;background:rgba(4,6,10,.62);
+    opacity:0;pointer-events:none;transition:opacity .22s}
+  .scrim.on{opacity:1;pointer-events:auto}
+
+  .drawer{
+    position:fixed;left:50%;bottom:0;z-index:95;
+    width:min(640px,100%);max-height:84vh;
+    display:flex;flex-direction:column;
+    background:var(--s1);border-radius:22px 22px 0 0;
+    box-shadow:0 -20px 56px -14px rgba(0,0,0,.8);
+    transform:translate(-50%,101%);
+    transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  }
+  .drawer.open{transform:translate(-50%,0)}
+  .grab{width:40px;height:4px;border-radius:2px;background:var(--s4);margin:11px auto 2px;flex:0 0 auto}
+  .dscroll{flex:1;min-height:0;overflow:auto;padding:8px 24px 24px;overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch}
+  .dscroll::-webkit-scrollbar{width:6px}
+  .dscroll::-webkit-scrollbar-thumb{background:var(--s4);border-radius:3px}
+
+  /* 底部固定决策条 */
+  .dbar{flex:0 0 auto;display:flex;gap:10px;padding:14px 24px 24px;
+    box-shadow:0 -14px 26px -14px rgba(0,0,0,.9)}
+  .dbar button{border-radius:999px;padding:16px 0;font-size:var(--fs-3);font-weight:600;transition:.15s}
+  .dbar .no{flex:1;background:var(--s2);color:var(--dim)}
+  .dbar .no:hover{background:var(--s3);color:var(--text)}
+  .dbar .no.on{background:#7a4055;color:#ffe6ee}
+  .dbar .yes{flex:2;background:#1b3a2c;color:#8fdcb8}
+  .dbar .yes:hover{background:#22492f;color:#a9e0c6}
+  .dbar .yes.on{background:var(--ok);color:#08120d}
+
+  /* 抽屉内容 */
+  .dtop{padding:10px 0 18px}
+  .dtop .r1{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .dtop .nm{font-size:var(--fs-5);font-weight:700;letter-spacing:-1px;line-height:1.1}
+  .wnum{font-size:var(--fs-2);padding:4px 11px;border-radius:999px;background:var(--s2);color:var(--dim)}
+  .wnum.rain{background:#2a1d12;color:#e0b98f}
+  .dtop .sub{font-size:var(--fs-2);color:var(--dim);margin-top:6px}
+  .dtop .poi{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+
+  /* 双人对账单：左右对称，一眼看出是否公平 */
+  .board{background:var(--s2);border-radius:18px;padding:18px 20px;margin-top:16px}
+  .board .head{font-size:var(--fs-1);color:var(--dim2);letter-spacing:1px;margin-bottom:14px}
+  .versus{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:stretch}
+  .vs{width:1px;background:var(--s4);position:relative}
+  .vs::after{content:"VS";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:9px;color:var(--dim2);background:var(--s2);padding:5px 0;letter-spacing:0}
+  .side{display:flex;flex-direction:column;gap:5px}
+  .side .who{font-size:var(--fs-1);display:flex;align-items:center;gap:5px;margin-bottom:3px}
+  .side.a .who{color:var(--a)} .side.b .who{color:var(--b)}
+  .side .big{font-size:var(--fs-4);font-weight:700;letter-spacing:-.4px}
+  .side.a .big{color:var(--a)} .side.b .big{color:var(--b)}
+  .side .kv{font-size:var(--fs-1);color:var(--dim2);display:flex;gap:7px;white-space:nowrap}
+  .side .kv b{color:var(--dim);font-weight:600;font-variant-numeric:tabular-nums}
+  .side .railgo{margin-top:9px;font-size:var(--fs-1);color:#6f9ad0;align-self:flex-start}
+  .side .railgo:hover{color:#a8c8ec}
+  .side.a .kv b,.side.a .big{text-align:left}
+  .board .shared{display:flex;align-items:baseline;gap:10px;margin-top:16px;padding-top:14px;
+    border-top:1px solid var(--s3);font-size:var(--fs-2);color:var(--dim2)}
+  .board .shared .amt{margin-left:auto;font-size:var(--fs-4);font-weight:700;color:var(--gold)}
+
+  /* 结论 */
+  .lead{margin-top:16px;background:var(--s2);border-radius:16px;padding:16px 18px}
+  .lead .h{font-size:var(--fs-1);color:var(--dim2);margin-bottom:6px}
+  .lead .v{font-size:var(--fs-3);font-weight:700;color:var(--ok);letter-spacing:-.3px}
+  .lead .t{font-size:var(--fs-1);color:var(--dim);margin-top:8px;line-height:1.8}
+  .lead .t b{color:var(--text);font-weight:600}
+
+  .sec{font-size:var(--fs-1);color:var(--dim2);letter-spacing:1.2px;margin:22px 0 10px}
+  .warnbar{padding:13px 15px;font-size:var(--fs-1);line-height:1.8;border-radius:14px;margin-top:14px}
+  .warnbar.rain{background:#231a11;color:#e0c48f}
+
+  .wbox{border-radius:14px;overflow:hidden;background:var(--s2)}
+  .wbox .wrow{display:flex;align-items:center;gap:10px;padding:12px 15px;font-size:var(--fs-2);color:var(--dim)}
+  .wbox .wrow+.wrow{margin-top:1px}
+  .wbox .wrow .d{color:var(--dim2);font-size:var(--fs-1);min-width:78px}
+  .wbox .wrow .pop{color:var(--dim2);font-size:var(--fs-1)}
+  .wbox .wrow .tp{margin-left:auto;color:var(--text);font-weight:600}
+  .wbox .wrow.bad{background:#231a11}
+  .wbox .wrow.bad .tp{color:#e0a98c}
+
+  .tl{position:relative;padding-left:18px}
+  .tl::before{content:"";position:absolute;left:4px;top:8px;bottom:8px;width:1px;background:var(--s3)}
+  .tl .day{position:relative;font-size:var(--fs-1);color:var(--dim2);letter-spacing:.8px;margin:15px 0 7px}
+  .tl .day:first-child{margin-top:0}
+  .tl .it{position:relative;margin-bottom:6px;font-size:var(--fs-2);color:var(--dim)}
+  .tl .it::before{content:"";position:absolute;left:-18px;top:7px;width:7px;height:7px;border-radius:50%;background:var(--s4)}
+  .tl .it.merge{color:var(--ok)}
+  .tl .it.merge::before{background:var(--ok)}
+  .tl .it .tm{color:var(--dim2);margin-right:8px;font-weight:600;font-variant-numeric:tabular-nums}
+  .tl .it .tx b{color:var(--text)}
+
+  .dact{display:flex;gap:8px;margin-top:22px}
+  .dact button{flex:1;padding:11px 0;border-radius:12px;background:var(--s2);
+    font-size:var(--fs-2);color:var(--dim);transition:.15s}
+  .dact button:hover{background:var(--s3);color:var(--text)}
+  .dact button.on{color:var(--gold)}
+
+  @media(max-width:780px){
+    .drawer{max-height:90vh;border-radius:20px 20px 0 0}
+    .dscroll{padding:8px 18px 20px}
+    .dbar{padding:12px 18px 20px}
+    .board{padding:16px}
+    .versus{gap:10px}
+  }
+  /* ================= 调参折叠 ================= */
+  .fold{background:var(--s1);border-radius:var(--r);margin-top:14px;overflow:hidden}
+  .foldhead{display:flex;align-items:center;gap:8px;width:100%;padding:15px 18px;
+    font-size:var(--fs-2);color:var(--dim);text-align:left}
+  .foldhead em{font-style:normal;margin-left:auto;color:var(--dim2);font-size:var(--fs-1)}
+  .foldbody{max-height:0;overflow:hidden;transition:max-height .3s ease;border-top:1px solid transparent}
+  .fold.open .foldbody{max-height:1600px;border-top-color:var(--s2)}
+  .foldinner{padding:4px 18px 18px}
+  .sl{margin-bottom:11px}
+  .sl .slrow{display:flex;justify-content:space-between;font-size:var(--fs-2);margin-bottom:4px;color:var(--dim)}
+  .sl .slrow span{color:var(--dim2)}
+  input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:#1e2532;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:#8fa3c4;cursor:pointer;transition:.13s}
+  input[type=range]::-webkit-slider-thumb:hover{background:#c3cec2}
+  .presets{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+  .presets button{padding:3px 9px;border-radius:5px;
+    background:var(--s2);font-size:var(--fs-1);color:var(--dim)}
+  .presets button:hover{border-color:var(--s4);color:var(--text)}
+  .hlist{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;margin-top:4px}
+  .hrow{display:flex;align-items:center;gap:5px;font-size:var(--fs-1);color:var(--dim2)}
+  .hrow .mini{width:20px;height:20px;border-radius:4px;
+    background:var(--s2);font-size:var(--fs-1);color:var(--dim2);line-height:1}
+  .hrow .mini:hover{color:var(--text)}
+  .hrow .cnt{color:var(--text);min-width:10px;text-align:center}
+  .sub{font-size:var(--fs-1);color:var(--dim2);letter-spacing:1.2px;margin:20px 0 11px}
+  .swrow{display:flex;align-items:center;gap:9px;font-size:var(--fs-2);color:var(--dim);margin-top:8px}
+  .sw{width:36px;height:20px;border-radius:11px;background:var(--s3);position:relative;transition:.16s;flex:0 0 auto}
+  .sw::after{content:"";position:absolute;top:2.5px;left:2.5px;width:14px;height:14px;border-radius:50%;
+    background:#6f7d94;transition:.16s}
+  .sw.on{background:#2c5a45} .sw.on::after{left:17.5px;background:#9fe0c0}
+
+  /* ================= 对比条 ================= */
+  .cmpbar{position:fixed;left:50%;bottom:0;transform:translate(-50%,112%);z-index:80;
+    width:min(1000px,calc(100% - 28px));background:var(--s1);
+    border-bottom:none;border-radius:12px 12px 0 0;padding:11px 14px 12px;transition:transform .28s ease}
+  .cmpbar.on{transform:translate(-50%,0)}
+  .cmphead{display:flex;align-items:center;gap:9px;font-size:var(--fs-2);color:var(--dim);margin-bottom:9px}
+  .cmphead b{color:var(--gold)}
+  .cmphead .clr{margin-left:auto;font-size:var(--fs-1);color:var(--dim2);padding:3px 8px;border-radius:5px}
+  .cmps{display:grid;gap:8px}
+  .cmpcol{border-radius:var(--r);padding:13px 14px;background:var(--s2)}
+  .cmpcol.best{border-color:#1e4034}
+  .cmpcol h4{font-size:var(--fs-2);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .cmpcol h4 button{margin-left:auto;color:var(--dim2);font-size:var(--fs-2)}
+  .cmpcol h4 button:hover{color:var(--b)}
+  .cmpcol .r{display:flex;justify-content:space-between;font-size:var(--fs-1);padding:2px 0;color:var(--dim2)}
+  .cmpcol .r b{color:var(--text);font-weight:600}
+  .cmpcol .r.hl b{color:var(--ok)} .cmpcol .r.win b{color:var(--gold)}
+
+  /* ================= 弹层 ================= */
+  .modal{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;
+    background:rgba(5,7,11,.8);padding:20px}
+  .modal.on{display:flex}
+  .mbox{width:min(560px,100%);background:var(--s1);border-radius:12px;padding:19px;
+    max-height:86vh;overflow:auto}
+  .mbox h3{font-size:var(--fs-3);margin-bottom:7px}
+  .mbox p{font-size:var(--fs-2);color:var(--dim);margin-bottom:11px}
+  .mbox textarea,.mbox input[type=text]{border:1px solid var(--s3);width:100%;background:var(--bg);
+    border-radius:7px;padding:9px 10px;font-size:var(--fs-2)}
+  .mbox textarea{border:1px solid var(--s3);height:170px;font-family:ui-monospace,Consolas,monospace;font-size:var(--fs-1);resize:vertical}
+  .mbox input[type=text]{font-family:ui-monospace,Consolas,monospace;font-size:var(--fs-1)}
+  .mbox textarea:focus,.mbox input:focus{outline:none;border-color:var(--s4)}
+  .mact{display:flex;gap:7px;justify-content:flex-end;margin-top:11px}
+  .mact button{padding:6px 15px;border-radius:7px;font-size:var(--fs-2);
+    background:var(--s2);color:var(--dim)}
+  .mact .primary{background:var(--s4);color:#fff;font-weight:600}
+  .note{font-size:var(--fs-1);color:var(--dim2);margin-top:8px;line-height:1.7}
+  code{background:var(--s2);border-radius:5px;padding:1px 5px;font-size:var(--fs-1)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);z-index:130;
+    background:#13291f;color:#a8ddc6;padding:11px 18px;border-radius:11px;
+    font-size:var(--fs-2);opacity:0;pointer-events:none;transition:.22s;max-width:88vw;text-align:center}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+  .toast.err{background:#2a1620;color:#d9a3b6}
+
+  @media(max-width:1380px){
+    .mapwrap{position:relative;max-height:62vh;min-height:0}
+  }
+  @media(max-width:780px){
+    .hbar{padding:8px 11px;gap:6px;min-height:0}
+    .logo{width:100%;padding-right:0;border-right:none;font-size:var(--fs-2)}
+    .chip{font-size:var(--fs-1);padding:2px 7px} .spacer{display:none}
+    .iconbtn{padding:4px 9px;font-size:var(--fs-1)} .seg button{padding:4px 9px;font-size:var(--fs-1)}
+    #pSum{display:none}
+    .pdrawer.open{border-top:1px solid var(--s2);max-height:640px}
+    .pdrawer .inner{padding:11px}
+    .prow{gap:10px}
+    main{padding:10px 11px 100px;gap:10px}
+    .cmps{grid-template-columns:1fr !important}
+    .hlist{grid-template-columns:1fr 1fr}
+    .dtop .hero b{font-size:var(--fs-5)}
+    .wchip{min-width:56px;padding:5px 8px 4px}
+  }
+  /* ---------- 浅色主题：修掉几处硬编码的深色 ----------
+     地图（.mapwrap）和它上面的 SVG 描边保持深色不动，所以这里不用管那些。 */
+  html[data-theme="light"] .gate{
+    background:radial-gradient(900px 500px at 50% -10%,#dbe4f2,#f3f5f9 60%)
+  }
+  /* 「待定」状态原本是暖黑底 */
+  html[data-theme="light"] .hcard.pend,
+  html[data-theme="light"] .tripbar.pend{background:#fdf7e8}
+  html[data-theme="light"] .lockzone.pend{background:#fdf7e8;color:#8a6d1f}
+  html[data-theme="light"] .lockzone.pend b{color:#a8862f}
+  /* 头像上的文字：深色主题里是深色字，浅色主题下要换成白的 */
+  html[data-theme="light"] .av.on.a,
+  html[data-theme="light"] .av.on.b{color:#fff}
+  /* 浅色下阴影轻一点，不然发脏 */
+  html[data-theme="light"] .gatebox{box-shadow:0 18px 50px rgba(23,28,38,.13)}
+
+  /* ---------- 浅色主题：状态色 ----------
+     原样式表里有一批「深底 + 亮字」的状态色。深色主题下没问题，
+     浅色主题下会变成深色块，跟周围格格不入，所以逐个翻成「浅底 + 深字」。 */
+
+  /* 分段控件选中态 —— 原规则是 background:#1b2334; color:var(--text)，
+     浅色主题下 --text 是深色，会变成深字配深底，完全看不见。这条最要紧。 */
+  html[data-theme="light"] .seg button.on{background:var(--a);color:#fff}
+  html[data-theme="light"] .seg.who-seg button[data-who="a"].on{background:var(--a);color:#fff}
+  html[data-theme="light"] .seg.who-seg button[data-who="b"].on{background:var(--b);color:#fff}
+  html[data-theme="light"] .guide .gx:hover{color:var(--text);background:var(--s3)}
+  html[data-theme="light"] .vibe.on{background:var(--s3);border-color:var(--a);color:var(--text)}
+
+  /* 绿系：已定案 / 双方都想去 */
+  html[data-theme="light"] .wchip.both{background:#e2f2ea;color:#2b7a55}
+  html[data-theme="light"] .hcard.done,
+  html[data-theme="light"] .tripbar.locked{background:#e8f4ee}
+  html[data-theme="light"] .lockzone{background:#e2f2ea;color:#2b7a55}
+  html[data-theme="light"] .lockzone b{color:#1f6b48}
+  html[data-theme="light"] .lockzone.done{background:#e2f2ea;color:#1f6b48}
+  html[data-theme="light"] .toast{background:#e2f2ea;color:#1f6b48}
+  html[data-theme="light"] .dbar .yes{background:#dcefe5;color:#1f6b48}
+  html[data-theme="light"] .dbar .yes:hover{background:#cde8dc;color:#175238}
+  html[data-theme="light"] .sw.on{background:#2b8f61}
+  html[data-theme="light"] .sw.on::after{background:#fff}
+
+  /* 绿底按钮上的文字：浅色主题里 --ok 变深了，原来的近黑字要换白 */
+  html[data-theme="light"] .lockzone button,
+  html[data-theme="light"] .dbar .yes.on{color:#fff}
+
+  /* 红系：被划掉 / 已失效 */
+  html[data-theme="light"] .blchip.mine,
+  html[data-theme="light"] .av.no{background:#f9e5ec;color:#9a4a63}
+  html[data-theme="light"] .blchip.dead{background:#f1eef0;color:#8b8085}
+  html[data-theme="light"] .hdel:hover{background:#f9e5ec;color:#b8496b}
+  html[data-theme="light"] .dbar .no.on{background:#f9e5ec;color:#9a4a63}
+  html[data-theme="light"] .toast.err{background:#fbe6ec;color:#a83a5c}
+
+  /* 黄系：天气提醒。JS 里给 .warnbar.rain 写了内联样式，得用 !important 才压得住 */
+  html[data-theme="light"] .warnbar.rain,
+  html[data-theme="light"] .wbox .wrow.bad{background:#fdf3dd !important;color:#8a6520 !important}
+  html[data-theme="light"] .wnum.rain{background:#fdf3dd;color:#8a6520}
+  html[data-theme="light"] .hbadge.warn{background:#fdf3dd;color:#8a6520}
+
+  /* 同步提示条：原本是暖黑底 + 金字 */
+  html[data-theme="light"] .syncbar{
+    background:#fff8e6;color:#8a6520;
+    box-shadow:0 10px 30px -12px rgba(23,28,38,.22)
+  }
+  html[data-theme="light"] .syncbar button{background:#a8862f;color:#fff}
+
+  /* 表单控件 */
+  html[data-theme="light"] input[type=range]{background:var(--s3)}
+
+  /* ---------- 主题切换按钮 ---------- */
+  .themebtn{
+    width:32px;height:32px;flex:0 0 auto;display:grid;place-items:center;
+    border:1px solid var(--s3);border-radius:9px;background:var(--s2);
+    color:var(--dim);cursor:pointer;padding:0;
+    transition:background .16s,color .16s,border-color .16s,transform .1s
+  }
+  .themebtn:active{transform:scale(.93)}
+  .themebtn:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+  .themebtn svg{width:15px;height:15px}
+  @media (hover:hover){.themebtn:hover{background:var(--s3);color:var(--text)}}
+  html[data-theme="dark"] .themebtn .i-sun{display:none}
+  html[data-theme="light"] .themebtn .i-moon{display:none}
+
+  /* ---------- 大厅底部的次要操作（回工具箱 / 退出登录）---------- */
+  .hfsep{width:1px;height:13px;background:var(--s3);margin:0 5px;flex:0 0 auto}
+  .hlink{
+    border:none;background:transparent;color:var(--dim);font:inherit;
+    font-size:var(--fs-2);cursor:pointer;padding:4px 9px;border-radius:7px;
+    text-decoration:none;transition:background .15s,color .15s
+  }
+  .hlink:active{background:var(--s4)}
+  @media (hover:hover){.hlink:hover{background:var(--s3);color:var(--text)}}
+</style>
+</head>
+<body>
+
+<!-- 初始化出错时显示在这里。样式写内联，因为出错时样式表未必已生效 -->
+<div id="bootErr" style="display:none;position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:999;max-width:92vw;margin-top:12px;padding:11px 16px;border-radius:11px;background:#a83a2c;color:#fff;font:13px/1.55 -apple-system,'PingFang SC',sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.28)"></div>
+
+<!-- 登录门：部署后未登录时挡在最前面 -->
+<div id="gate" class="gate">
+  <div class="gatebox">
+    <h1>周末去哪见面</h1>
+    <p class="gatesub">两个人一起定，小圈子自用</p>
+
+    <div class="seg gatetabs" id="gateTabs">
+      <button data-m="login" class="on">登录</button>
+      <button data-m="register">申请账号</button>
+    </div>
+
+    <label class="gfield">账号 <input type="text" id="fUser" autocomplete="username" placeholder="用户名" /></label>
+    <label class="gfield">密码 <input type="password" id="fPass" autocomplete="current-password" placeholder="密码" /></label>
+    <label class="gfield" id="fSeat">申请席位
+      <span class="seg" id="seatSeg" style="margin-left:auto">
+        <button data-s="nj" class="on">南京方</button>
+        <button data-s="hs">黄石方</button>
+      </span>
+    </label>
+    <label class="gfield" id="fNote">说明（可选） <input type="text" id="fNoteText" placeholder="比如：我是谁谁的同学" /></label>
+
+    <button class="gsubmit" id="gateSubmit">登录</button>
+    <div class="gatemsg" id="gateMsg"></div>
+    <div class="gatehint" id="gateHint"></div>
+  </div>
+</div>
+
+<!-- 同步提示条：显式应用，不自动洗牌 -->
+<div id="syncBar" class="syncbar"></div>
+
+<header>
+  <div class="hbar">
+    <div class="logo">周末去哪见面 <i>· 双人版</i></div>
+    <div class="spacer"></div>
+    <div class="who">
+      <span>我是</span>
+      <span class="seg who-seg" id="whoSeg">
+        <button data-who="a" class="on">南京方</button>
+        <button data-who="b">黄石方</button>
+      </span>
+    </div>
+    <button class="iconbtn" id="pToggle">行程 · <span id="pSum">—</span> <span id="pCaret">▾</span></button>
+    <button class="iconbtn accent" id="inviteBtn">邀请 TA</button>
+    <div class="seg" id="baseSeg">
+      <button data-base="svg" class="on">示意图</button>
+      <button data-base="amap">高德</button>
+    </div>
+    <button class="iconbtn" id="impBtn">数据</button>
+    <button class="themebtn" id="theme-toggle" type="button" aria-label="切换深浅色" title="切换深浅色">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path class="i-moon" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        <g class="i-sun">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+        </g>
+      </svg>
+    </button>
+  </div>
+
+  <div class="pdrawer" id="pDrawer">
+    <div class="inner">
+      <div class="prow">
+        <label class="pf">最早出发 <input type="datetime-local" id="tStart" /></label>
+        <label class="pf">最晚返校 <input type="datetime-local" id="tEnd" /></label>
+        <span class="seg" id="presetSeg">
+          <button data-preset="sat">周六早→周日</button>
+          <button data-preset="fri">周五晚→周日</button>
+          <button data-preset="day">当日往返</button>
+        </span>
+      </div>
+      <div class="prow">
+        <label class="pf">校门→南京南 <input type="number" id="shutA" value="60" min="0" max="180" step="5" /> 分</label>
+        <label class="pf">校门→黄石站 <input type="number" id="shutB" value="25" min="0" max="180" step="5" /> 分</label>
+        <span class="pnote" id="winNote"></span>
+      </div>      <div class="sub" style="margin-top:8px">我们都有空的日子 · 点日期选中，点圆点标记自己有空</div>
+      <div class="freerow" id="freeRow"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 行程大厅 ============ -->
+<div id="hub" class="hub">
+  <div class="hubinner">
+    <div class="hubhead">
+      <h1>周末去哪见面</h1>
+      <p>每次行程的表态和权重互相隔离 —— 上一期把武汉标了不想去，这一期它是干净的</p>
+    </div>
+    <div id="hubActive"></div>
+    <div id="hubLocked"></div>
+    <div id="hubPast"></div>
+    <button class="newtrip" id="newTripBtn">＋ 新建行程</button>
+    <div class="hubfoot">
+      当前身份：<b id="hubWho">南京方</b>
+      <button class="hswitch" id="hubSwitch">切换</button>
+      <span class="hfsep"></span>
+      <a class="hlink" href="/">← 回工具箱</a>
+      <button class="hlink" id="hubLogout" type="button">退出登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 单个行程 ============ -->
+<div id="tripview" style="display:none">
+  <div class="tripbar" id="tripBar">
+    <button class="iconbtn" id="backHub">← 行程库</button>
+    <span class="tbname" id="tripTitle"></span>
+    <span class="tbmeta" id="tripMeta"></span>
+    <span class="spacer"></span>
+    <span class="tbact" id="tripAction"></span>
+  </div>
+<main>
+  <aside class="colleft">
+    <div class="guide" id="guide">
+      <button class="gx" id="guideX" title="收起">✕</button>
+      <b>两个人一起定</b>
+      <ol>
+        <li>点卡片右上角的两个圆点，标你们各自的想法</li>
+        <li>点开城市，看「谁坐多久、谁付多少」，一键跳 12306 查票</li>
+        <li>点顶部「邀请 TA」，把链接发过去</li>
+      </ol>
+      <div class="gfoot">结果会按你们的合意度重排 —— 两个都不想去的会自动消失</div>
+    </div>
+
+    <div class="panel">
+      <h2>想干嘛</h2>
+      <div class="vibes" id="vibes"></div>
+      <div class="hint" id="vibeHint">不选 = 全部城市参与排名</div>
+    </div>
+
+    <div class="panel">
+      <div class="rankhead"><h2>推荐排行</h2><em id="rankMeta"></em></div>
+      <div id="rankDelta"></div>
+      <div class="cards" id="cards"></div>
+    </div>
+
+    <div class="fold" id="foldW">
+      <button class="foldhead" id="foldWToggle">权重 · 容错 · 去过 <em id="foldWSum">默认</em></button>
+      <div class="foldbody"><div class="foldinner">
+        <div id="sliders"></div>
+        <div class="presets">
+          <button data-preset="fair">最公平</button>
+          <button data-preset="time">最省时</button>
+          <button data-preset="cheap">最省钱</button>
+          <button data-preset="new">最新鲜</button>
+          <button data-preset="reset">默认</button>
+        </div>
+        <div class="sub">开关</div>
+        <div class="swrow"><button class="sw on" id="swWeather"></button><span>下雨给户外城市扣分</span></div>
+        <div class="swrow"><button class="sw on" id="swHide"></button><span>隐藏两人都不想去的城市</span></div>
+        <div class="sub">绝对不去的城市（任一成员标了就全局排除）</div>
+        <div class="blwrap" id="blList"></div>
+        <div class="sub">去过次数（越多次越不推荐）</div>
+        <div class="hlist" id="history"></div>
+      </div></div>
+    </div>
+  </aside>
+
+  <section class="mapwrap" id="mapwrap">
+    <div id="amap"></div>
+    <svg id="svgmap" viewBox="0 0 1000 660" preserveAspectRatio="xMidYMid meet">
+      <g id="viewport">
+        <g id="gGrat"></g>
+        <path id="gRiver" class="river"></path>
+        <g id="gNet"></g>
+        <g id="gLegs"></g>
+        <g id="gNodes"></g>
+      </g>
+    </svg>
+    <div class="mapbar">
+      <button id="btnFit">复位</button>
+      <button id="btnTop5">只看前5名</button>
+      <button id="btnRiver">长江</button>
+      <button id="btnLabels">城市名</button>
+    </div>
+    <div class="legend">
+      <span><i style="background:#33415e"></i>高铁通道</span>
+      <span><i class="pt" style="background:#5fd39a"></i>评分前三</span>
+      <span><i class="pt" style="border:1px dashed #5fd39a;background:transparent"></i>两人都想去</span>
+      <span style="color:#47536a">选中城市后显示两段行程</span>
+    </div>
+    <div class="tip" id="tip"></div>
+  </section>
+
+  </main>
+</div>
+
+<!-- 详情抽屉 -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true">
+  <div class="grab"></div>
+  <div class="dscroll" id="dscroll"></div>
+  <div class="dbar" id="dbar">
+    <button class="no" id="btnNo">❌ 算了</button>
+    <button class="yes" id="btnYes">❤️ 我们去这</button>
+  </div>
+</aside>
+
+<div class="cmpbar" id="cmpbar">
+  <div class="cmphead">
+    <span>对比中 <b id="cmpN">0</b> 个（最多 3 个）</span>
+    <button class="clr" id="cmpClear">清空</button>
+  </div>
+  <div class="cmps" id="cmps"></div>
+</div>
+
+<!-- 邀请 -->
+<div class="modal" id="invModal">
+  <div class="mbox">
+    <h3>把方案发给 TA</h3>
+    <p>链接里包含了你现在的日期、天数、双方表态、空闲日和权重。TA 打开就是同一个视图，标记完再发回来。</p>
+    <input type="text" id="invUrl" readonly />
+    <div class="note">
+      双方各自的表态和空闲日都在链接里，<b>不需要服务器</b>。<br />
+      部署到 Cloudflare Pages 后直接可用；本地用 <code>file://</code> 打开也能生成链接。
+    </div>
+    <div class="mact">
+      <button id="invNative" style="display:none">用系统分享</button>
+      <button id="invCopy" class="primary">复制链接</button>
+      <button id="invClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 数据导入 -->
+<div class="modal" id="impModal">
+  <div class="mbox">
+    <h3>12306 真实班次</h3>
+    <p>内置的车程/票价是按公开运行图整理的估算值。如果你发现某条线路明显不准，在这里粘贴真实值覆盖它。</p>
+    <textarea id="impText"></textarea>
+    <div class="note">
+      <code>min</code> 车程分钟 · <code>price</code> 二等座票价 ·
+      <code>first/last</code> 首末班（06:30 = 390）· <code>n</code> 每日班次
+    </div>
+    <div class="mact"><button id="impCancel">取消</button><button class="primary" id="impSave">导入</button></div>
+  </div>
+</div>
+
+<!-- 新建行程 -->
+<div class="modal" id="ntModal">
+  <div class="mbox">
+    <h3>新建行程</h3>
+    <p>每次行程的表态、权重、去过记录都是独立的。</p>
+    <input type="text" id="ntTitle" placeholder="行程名字，比如「10月国庆特种兵」" />
+    <label class="pf" style="margin:6px 0 10px">最早出发 <input type="datetime-local" id="ntT0" /></label>
+    <label class="pf" style="margin:0 0 12px">最晚返校 <input type="datetime-local" id="ntT1" /></label>
+    <div class="swrow" style="margin-bottom:6px">
+      <button class="sw" id="ntInherit"></button>
+      <span id="ntInheritLabel">继承上一期的表态</span>
+    </div>
+    <div class="note">
+      不勾选 = 全新空白，所有城市都是未表态。<br />
+      勾选 = 把上一期的表态抄过来当初始底色，本次改动不影响上一期。<br />
+      全局黑名单里的城市任何行程都不会出现。
+    </div>
+    <div class="mact"><button id="ntCancel">取消</button><button class="primary" id="ntCreate">创建</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================================
+   1. 数据
+   ========================================================================= */
+const H=(h,m)=>h*60+m;
+
+const SEED = [
+  { id:'chuzhou', name:'滁州', station:'滁州', code:'CXH', lon:118.316, lat:32.301, rich:2, hotel:180,
+    vibe:'琅琊山 · 醉翁亭', v:['爬山登高','人文古刹'],
+    poi:['琅琊山','醉翁亭','丰乐亭','明中都(凤阳)'],
+    a:{min:18, price:25,  first:H(6,30), last:H(20,0), n:12},
+    b:{min:245,price:270, first:H(7,20), last:H(18,0), n:4} },
+  { id:'maanshan', name:'马鞍山', station:'马鞍山东', code:'OMH', lon:118.520, lat:31.700, rich:2, hotel:180,
+    vibe:'采石矶 · 江边', v:['江景湖景','人文古刹'],
+    poi:['采石矶','雨山湖','李白文化园','濮塘','大青山'],
+    a:{min:19, price:21,  first:H(6,40), last:H(21,0), n:16},
+    b:{min:205,price:225, first:H(7,10), last:H(18,30),n:5} },
+  { id:'wuhu', name:'芜湖', station:'芜湖', code:'WHH', lon:118.376, lat:31.326, rich:2, hotel:220,
+    vibe:'方特 · 鸠兹古镇', v:['游乐园','古镇老街','都市逛街'],
+    poi:['方特欢乐世界','鸠兹古镇','镜湖','中山路步行街','大浦乡村世界'],
+    a:{min:37, price:41,  first:H(6,20), last:H(21,30),n:28},
+    b:{min:185,price:200, first:H(7,0),  last:H(19,0), n:7} },
+  { id:'tongling', name:'铜陵', station:'铜陵', code:'TJH', lon:117.850, lat:30.960, rich:2, hotel:190,
+    vibe:'天井湖 · 大通古镇', v:['江景湖景','古镇老街','人文古刹'],
+    poi:['天井湖','大通古镇','凤凰山','铜官山1978'],
+    a:{min:62, price:73,  first:H(6,40), last:H(20,30),n:18},
+    b:{min:150,price:168, first:H(7,30), last:H(18,40),n:5} },
+  { id:'chizhou', name:'池州', station:'池州', code:'IYH', lon:117.489, lat:30.660, rich:3, hotel:210,
+    vibe:'九华山 · 平天湖', v:['爬山登高','江景湖景','人文古刹'],
+    poi:['九华山','杏花村','平天湖','牯牛降','蓬莱仙洞'],
+    a:{min:84, price:97,  first:H(7,0),  last:H(20,0), n:12},
+    b:{min:125,price:145, first:H(7,40), last:H(18,20),n:4} },
+  { id:'anqing', name:'安庆', station:'安庆', code:'AQH', lon:117.047, lat:30.524, rich:3, hotel:210,
+    vibe:'振风塔 · 倒扒狮街', v:['人文古刹','古镇老街','爬山登高'],
+    poi:['振风塔迎江寺','菱湖公园','倒扒狮街','巨石山','天柱山(1.5h)'],
+    a:{min:108,price:122, first:H(6,50), last:H(20,40),n:14},
+    b:{min:95, price:115, first:H(7,20), last:H(19,0), n:6} },
+  { id:'lushan', name:'庐山', station:'庐山', code:'LSG', lon:115.980, lat:29.550, rich:2, hotel:260,
+    vibe:'牯岭镇 · 三叠泉', v:['爬山登高'],
+    poi:['庐山风景区','含鄱口','三叠泉','牯岭镇','五老峰'],
+    a:{min:150,price:175, first:H(7,0),  last:H(19,40),n:9},
+    b:{min:32, price:30,  first:H(7,0),  last:H(20,20),n:11} },
+  { id:'jiujiang', name:'九江', station:'九江', code:'JJG', lon:116.001, lat:29.706, rich:3, hotel:230,
+    vibe:'浔阳楼 · 庐山门户', v:['江景湖景','都市逛街','人文古刹'],
+    poi:['浔阳楼','甘棠湖','石钟山','东林寺','烟水亭'],
+    a:{min:165,price:190, first:H(7,10), last:H(20,10),n:10},
+    b:{min:55, price:62,  first:H(6,50), last:H(20,30),n:14} },
+  { id:'jingdezhen', name:'景德镇', station:'景德镇北', code:'JDG', lon:117.178, lat:29.269, rich:3, hotel:260,
+    vibe:'陶溪川 · 三宝村', v:['文艺出片','古镇老街'],
+    poi:['陶阳里御窑厂','陶溪川文创街区','古窑民俗博览区','三宝国际瓷谷','瑶里古镇'],
+    a:{min:175,price:210, first:H(7,30), last:H(18,40),n:6},
+    b:{min:120,price:120, first:H(8,0),  last:H(18,10),n:5} },
+  { id:'hefei', name:'合肥', station:'合肥南', code:'ENH', lon:117.296, lat:31.821, rich:3, hotel:300,
+    vibe:'罍街 · 三河古镇', v:['游乐园','都市逛街','古镇老街'],
+    poi:['罍街','融创乐园','天鹅湖','三河古镇','安徽博物院','淮河路步行街','骆岗公园'],
+    a:{min:55, price:59,  first:H(6,10), last:H(21,40),n:45},
+    b:{min:155,price:235, first:H(7,0),  last:H(19,20),n:9} },
+  { id:'luan', name:'六安', station:'六安', code:'UAH', lon:116.508, lat:31.756, rich:2, hotel:190,
+    vibe:'天堂寨 · 大别山', v:['爬山登高'],
+    poi:['天堂寨','大别山主峰','万佛湖','皖西大裂谷'],
+    a:{min:87, price:114, first:H(6,40), last:H(20,20),n:16},
+    b:{min:190,price:270, first:H(7,30), last:H(18,30),n:4} },
+  { id:'wuhan', name:'武汉', station:'武汉', code:'WHN', lon:114.420, lat:30.610, rich:3, hotel:340,
+    vibe:'江汉路 · 东湖 · 光谷', v:['都市逛街','游乐园','江景湖景','人文古刹'],
+    poi:['江汉路','黄鹤楼','东湖绿道','光谷','户部巷','武汉天地','欢乐谷','昙华林'],
+    a:{min:178,price:248, first:H(6,20), last:H(21,0), n:30},
+    b:{min:40, price:32,  first:H(6,30), last:H(21,30),n:36} },
+  { id:'huanggang', name:'黄冈', station:'黄冈东', code:'KAN', lon:114.920, lat:30.470, rich:1, hotel:180,
+    vibe:'东坡赤壁 · 遗爱湖', v:['江景湖景','人文古刹'],
+    poi:['东坡赤壁','遗爱湖','李时珍纪念馆'],
+    a:{min:190,price:260, first:H(7,0),  last:H(19,40),n:8},
+    b:{min:32, price:30,  first:H(7,0),  last:H(20,0), n:10} },
+  { id:'ezhou', name:'鄂州', station:'鄂州', code:'ECN', lon:114.890, lat:30.396, rich:1, hotel:170,
+    vibe:'莲花山 · 梁子湖', v:['江景湖景'],
+    poi:['莲花山','梁子湖','吴王城'],
+    a:{min:205,price:270, first:H(7,10), last:H(19,30),n:6},
+    b:{min:17, price:14,  first:H(6,50), last:H(21,0), n:18} },
+];
+
+const VIBES = ['文艺出片','爬山登高','游乐园','江景湖景','古镇老街','都市逛街','人文古刹'];
+const OUTDOOR_V = new Set(['爬山登高','江景湖景','游乐园','古镇老街']);
+
+const NODE_A={ name:'南京理工大学紫金学院', short:'紫金学院', lon:118.927, lat:32.137 };
+const NODE_B={ name:'湖北理工学院', short:'湖北理工', lon:114.945, lat:30.155 };
+const HUB_A={ name:'南京南', code:'NKH', lon:118.797, lat:31.969 };
+const HUB_B={ name:'黄石站', code:'HSN', lon:114.940, lat:30.180 };
+
+const COR_N=['南京南','合肥南','六安','武汉','黄冈东','鄂州','黄石站'];
+const COR_S=['南京南','马鞍山东','芜湖','铜陵','池州','安庆','九江','庐山','黄石站'];
+const SPURS=[['南京南','滁州'],['九江','景德镇北']];
+const RIVER=[[114.30,30.58],[114.62,30.55],[114.85,30.42],[115.02,30.22],[115.55,29.95],
+  [116.00,29.72],[116.55,29.95],[117.02,30.50],[117.40,30.78],[117.80,30.95],[118.35,31.35],[118.75,32.05]];
+
+const LABEL_SIDE={
+  '南京南':'left','滁州':'up','合肥南':'up','六安':'up','武汉':'left','黄冈东':'up',
+  '鄂州':'right','黄石站':'right','马鞍山东':'right','芜湖':'right','铜陵':'left',
+  '池州':'up','安庆':'down','九江':'left','庐山':'right','景德镇北':'down'
+};
+const HOME_LBL={ A:{dx:14,dy:-7,anchor:'start'}, B:{dx:0,dy:21,anchor:'middle'} };
+const COR_LABEL=[
+  { name:'合宁 · 合武通道', at:['六安','武汉'], off:[0,-22] },
+  { name:'宁安 · 安九 · 武九通道', at:['铜陵','池州'], off:[6,30] }
+];
+
+/* 12306 深链：前端不做实时查询（CORS + 风控），但可以把精确的出发日、发到站、电报码
+   拼好直接跳过去 —— 零维护、100% 准确、直达下单页。 */
+const RAIL = {
+  web:(fromName, fromCode, toName, toCode, date)=>
+    'https://kyfw.12306.cn/otn/leftTicket/init'
+    + '?linktypeid=dc'
+    + '&fs=' + encodeURIComponent(fromName + ',' + fromCode)
+    + '&ts=' + encodeURIComponent(toName + ',' + toCode)
+    + '&date=' + date + '&flag=N,N,Y',
+  /* 手机端唤起 App 的 scheme，未安装会回落到网页版 */
+  app:(fromCode, toCode, date)=>
+    'https://kyfw.12306.cn/otn/leftTicket/init?linktypeid=dc&fs=,' + fromCode
+    + '&ts=,' + toCode + '&date=' + date,
+};
+function railLink(side, city, c){
+  const from = side === 'a' ? HUB_A : HUB_B;
+  return RAIL.web(from.name, from.code, city.station, city.code, c.date);
+}
+
+const AMAP_KEY='67b9fc8ca6031a48af45bad408b78b5c';
+
+/* 天气代码 → 图标 / 中文 */
+const WCODE={
+  0:['☀️','晴'],1:['🌤️','晴间多云'],2:['⛅','多云'],3:['☁️','阴'],
+  45:['🌫️','雾'],48:['🌫️','雾凇'],51:['🌦️','小毛雨'],53:['🌦️','毛毛雨'],55:['🌦️','大毛雨'],
+  56:['🌧️','冻毛雨'],57:['🌧️','冻毛雨'],61:['🌦️','小雨'],63:['🌧️','中雨'],65:['🌧️','大雨'],
+  66:['🌧️','冻雨'],67:['🌧️','冻雨'],71:['🌨️','小雪'],73:['🌨️','中雪'],75:['❄️','大雪'],
+  77:['🌨️','雪粒'],80:['🌦️','阵雨'],81:['🌧️','阵雨'],82:['⛈️','强阵雨'],
+  85:['🌨️','阵雪'],86:['❄️','强阵雪'],95:['⛈️','雷雨'],96:['⛈️','雷雨冰雹'],99:['⛈️','强雷雨']
+};
+const wmeta=c=>WCODE[c]||['❓','未知'];
+
+/* 唯一判据：这一天算不算"会毁掉户外行程"的天气。
+   不能把 code 51/53/55（小毛雨）当有雨 —— 那是概率 6% 的毛毛雨，
+   按它扣分会把整个排名带偏。中雨以上、雷雨、或降水概率过半才算。 */
+const HVY_CODE=new Set([63,65,66,67,73,75,77,81,82,86]);
+function isWetDay(d){
+  if(!d) return false;
+  const p=d.pop??0, c=d.code??0;
+  if(c>=95) return true;          // 雷雨
+  if(HVY_CODE.has(c)) return true; // 中雨以上 / 冻雨 / 强阵雨 / 中雪以上
+  return p>=50;                    // 概率过半就算
+}
+
+/* =========================================================================
+   2. 状态
+   ========================================================================= */
+const VOTE_META={
+  0:{t:'未表态', i:'·'}, 1:{t:'不想去', i:'✕'}, 2:{t:'都行', i:'~'}, 3:{t:'想去', i:'✓'}
+};
+
+const store = {
+  cities: JSON.parse(JSON.stringify(SEED)),
+  history:{}, compare:[], vibes:new Set(),
+  sel:null, base:'svg', days:2, date:'', expandAll:false,
+  me:'a',                                  // 当前使用者
+  votes:{ a:{}, b:{} },                    // cityId -> 0..3
+  free:{ a:new Set(), b:new Set() },       // 'YYYY-MM-DD'
+  weather:{}, weatherAt:0, weatherLoading:false,
+  useWeather:true, hideRejected:true, showHidden:false,
+  weights:{ fair:18, sync:8, buddy:18, rich:10, eco:11, nov:8, agree:15, robust:12 },
+  results:[], lastRank:null, delta:null, deltaReason:'',
+  showTop5:false, showRiver:true, showLabels:true,
+  amap:null, amapReady:false, amapFailed:false,
+};
+const W_DEF={ fair:18, sync:8, buddy:18, rich:10, eco:11, nov:8, agree:15, robust:12 };
+const W_LABEL={ fair:'车程公平', sync:'到达同步', buddy:'有效游玩时长', rich:'行程匹配度',
+                eco:'花费', nov:'新鲜度', agree:'双人合意度', robust:'容错度' };
+/* =========================================================================
+   行程库：多行程 + 数据隔离 + 偏好继承
+   ---------------------------------------------------------------------
+   行程级（每个 trip 独立）：votes / free / weights / vibes / history / 时间窗口
+   全局级（跨行程共享）：me / members(含全局黑名单) / base / UI 开关
+   ========================================================================= */
+const DBKEY='meet.db';
+const TRIP_FIELDS=['votes','free','weights','vibes','history'];
+
+const DB={
+  data:null,
+
+  load(){
+    try{ const raw=localStorage.getItem(DBKEY); if(raw) this.data=JSON.parse(raw); }catch(e){}
+    if(!this.data || this.data.version!==2){ this.data=this._migrate(); this.save(); }
+    if(!this.data.activeTripId || !this.data.trips.some(t=>t.id===this.data.activeTripId))
+      this.data.activeTripId=this.data.trips[0]?.id || null;
+    return this.data;
+  },
+  save(){
+    try{ localStorage.setItem(DBKEY,JSON.stringify(this.data)); }catch(e){}
+    /* 有后端时顺手推到云上（防抖，连续操作只发一次） */
+    if(typeof Cloud!=='undefined' && CLOUD.ok && CLOUD.user) Cloud.schedule();
+  },
+
+  /* 把上一版散装的 localStorage key 收拢成第一个行程 */
+  _migrate(){
+    const g=k=>{ try{ const v=localStorage.getItem('meet.'+k); return v==null?null:JSON.parse(v); }catch(e){ return null; } };
+    const ov=g('votes'), of=g('free'), ow=g('weights'), ovb=g('vibes'), oh=g('history');
+    const seed={
+      id:'t'+Date.now().toString(36),
+      title:'第一次讨论',
+      createdAt:Date.now(),
+      status:'planning',
+      t0:g('tStart')||null, t1:g('tEnd')||null,
+      votes:(ov&&ov.a)?ov:{a:{},b:{}},
+      free:(of&&of.a)?of:{a:[],b:[]},
+      weights:Object.assign({},W_DEF,ow||{}),
+      vibes:Array.isArray(ovb)?ovb:[],
+      history:oh||{},
+      lockedCity:null, lockedBy:null, lockedAt:null, inheritedFrom:null,
+    };
+    return {
+      version:2,
+      me:g('me')||'a',
+      members:{
+        a:{ name:'南京方', blacklist:g('blA')||[] },
+        b:{ name:'黄石方', blacklist:g('blB')||[] },
+      },
+      activeTripId:seed.id,
+      trips:[seed],
+      ui:{ base:g('base')||'svg', useWeather:g('useWeather')!==false,
+           hideRejected:g('hideRejected')!==false, guideDone:g('guideDone')||0 },
+    };
+  },
+
+  trip(){ return this.data.trips.find(t=>t.id===this.data.activeTripId) || this.data.trips[0] || null; },
+  get me(){ return this.data.me; },
+  set me(v){ this.data.me=v; this.save(); },
+  member(p){ return this.data.members[p] || {name:p,blacklist:[]}; },
+
+  /* store（运行时）→ 当前行程（持久化） */
+  saveTrip(){
+    const t=this.trip(); if(!t) return;
+    t.votes   = JSON.parse(JSON.stringify(store.votes));
+    t.free    = { a:[...store.free.a], b:[...store.free.b] };
+    t.weights = Object.assign({},store.weights);
+    t.vibes   = [...store.vibes];
+    t.history = Object.assign({},store.history);
+    const S=document.getElementById('tStart'), E=document.getElementById('tEnd');
+    if(S&&S.value) t.t0=S.value;
+    if(E&&E.value) t.t1=E.value;
+    t.updatedAt=Date.now();
+    this.save();
+  },
+
+  /* 当前行程（持久化）→ store（运行时） */
+  openTrip(id){
+    if(id) this.data.activeTripId=id;
+    const t=this.trip(); if(!t) return;
+    store.votes = JSON.parse(JSON.stringify(t.votes||{a:{},b:{}}));
+    if(!store.votes.a) store.votes={a:{},b:{}};
+    if(!store.votes.b) store.votes.b={};
+    const f=t.free||{a:[],b:[]};
+    store.free = { a:new Set(f.a||[]), b:new Set(f.b||[]) };
+    Object.assign(store.weights, W_DEF, t.weights||{});
+    store.vibes = new Set(t.vibes||[]);
+    store.history = Object.assign({},t.history||{});
+    const S=document.getElementById('tStart'), E=document.getElementById('tEnd');
+    if(S) S.value=t.t0||defaultWindow().t0;
+    if(E) E.value=t.t1||defaultWindow().t1;
+    store.sel=null; store.compare=[]; store.expandAll=false;
+    store.lastRank=null; store.delta=null;
+    this.save();
+  },
+
+  createTrip({title, inherit, t0, t1}){
+    const prev=this.trip();
+    const t={
+      id:'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+      title:title||('新行程 '+new Date().getMonth()+1+'/'+new Date().getDate()),
+      createdAt:Date.now(), status:'planning',
+      t0:t0||defaultWindow().t0, t1:t1||defaultWindow().t1,
+      /* 完全隔离：不继承就是全空白 */
+      votes: inherit&&prev ? JSON.parse(JSON.stringify(prev.votes)) : {a:{},b:{}},
+      free:  inherit&&prev ? JSON.parse(JSON.stringify(prev.free))  : {a:[],b:[]},
+      weights: Object.assign({}, W_DEF, inherit&&prev ? prev.weights : {}),
+      vibes:  inherit&&prev ? [...(prev.vibes||[])] : [],
+      history:inherit&&prev ? Object.assign({},prev.history) : {},
+      lockedCity:null, lockedBy:null, lockedAt:null,
+      inheritedFrom: inherit&&prev ? prev.id : null,
+    };
+    this.data.trips.unshift(t);
+    this.data.activeTripId=t.id;
+    this.save();
+    return t;
+  },
+
+  deleteTrip(id){
+    const i=this.data.trips.findIndex(t=>t.id===id);
+    if(i<0) return;
+    this.data.trips.splice(i,1);
+    if(this.data.activeTripId===id) this.data.activeTripId=this.data.trips[0]?.id||null;
+    this.save();
+  },
+
+  /* 锁定：一方发起 -> 等对方确认 -> 冻结 */
+  requestLock(cityId, by){
+    const t=this.trip(); if(!t) return;
+    t.lockedCity=cityId; t.lockedBy=by; t.status='pending'; t.lockedAt=Date.now();
+    this.save();
+  },
+  confirmLock(){
+    const t=this.trip(); if(!t) return;
+    t.status='locked'; t.lockedAt=Date.now();
+    this.save();
+  },
+  cancelLock(){
+    const t=this.trip(); if(!t) return;
+    t.lockedCity=null; t.lockedBy=null; t.status='planning';
+    this.save();
+  },
+
+  /* 全局黑名单：任一成员标了「绝对不去」就硬排除 */
+  blacklist(){ return [...new Set([...this.member('a').blacklist, ...this.member('b').blacklist])]; },
+  blacklistedBy(id){
+    const r=[];
+    if(this.member('a').blacklist.includes(id)) r.push('a');
+    if(this.member('b').blacklist.includes(id)) r.push('b');
+    return r;
+  },
+  toggleBlacklist(id, p){
+    const m=this.member(p); const i=m.blacklist.indexOf(id);
+    if(i>=0) m.blacklist.splice(i,1); else m.blacklist.push(id);
+    this.save();
+  },
+};
+
+const WHO={ a:{name:'南京方', short:'南京', cls:'ka', color:'var(--a)', emoji:'🔵'},
+            b:{name:'黄石方', short:'黄石', cls:'kb', color:'var(--b)', emoji:'🔴'} };
+
+const LS={
+  get(k,d){ try{ const v=localStorage.getItem('meet.'+k); return v==null?d:JSON.parse(v); }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem('meet.'+k, JSON.stringify(v)); }catch(e){} }
+};
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a)=>{ const n=document.createElementNS(NS,t); for(const k in a) n.setAttribute(k,a[k]); return n; };
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const byId=id=>store.cities.find(c=>c.id===id)||{name:id,station:'',poi:[]};
+
+/* =========================================================================
+   3. 日期工具
+   ========================================================================= */
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+function parseYmd(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function dateList(startStr, n){
+  const out=[]; const d=parseYmd(startStr);
+  for(let i=0;i<n;i++){ out.push(ymd(d)); d.setDate(d.getDate()+1); }
+  return out;
+}
+const shiftDate=(s,delta)=>{ const d=parseYmd(s); d.setDate(d.getDate()+delta); return ymd(d); };
+function nextWeekdays(n,dow){
+  const out=[]; const d=new Date(); d.setHours(0,0,0,0);
+  d.setDate(d.getDate()+((dow-d.getDay()+7)%7));
+  for(let i=0;i<n;i++){ out.push(ymd(d)); d.setDate(d.getDate()+7); }
+  return out;
+}
+const nextSaturdays=n=>nextWeekdays(n,6);
+const weekday=s=>'周'+WEEK[parseYmd(s).getDay()];
+/* 把这个日期前后挪到最近的周五/周六，并同步窗口起点（旧链接兼容用） */
+function snapWeekday(target){
+  const cur=cfg().date;
+  const d=parseYmd(cur);
+  const fwd=(target-d.getDay()+7)%7, back=fwd-7;
+  d.setDate(d.getDate()+(Math.abs(fwd)<=Math.abs(back)?fwd:back));
+  const ns=ymd(d)+'T'+document.getElementById('tStart').value.slice(11,16);
+  document.getElementById('tStart').value=ns; DB.saveTrip();
+}
+const WEEK=['日','一','二','三','四','五','六'];
+function dateLabel(s){
+  const d=parseYmd(s);
+  return `${d.getMonth()+1}/${d.getDate()} 周${WEEK[d.getDay()]}`;
+}
+const todayStr=()=>ymd(new Date());
+
+/* =========================================================================
+   4. 双人表态 / 合意度
+   ========================================================================= */
+function vote(pid,cid){ return store.votes[pid][cid]||0; }
+function setVote(pid,cid,v){
+  if(v) store.votes[pid][cid]=v; else delete store.votes[pid][cid];
+  DB.saveTrip();
+}
+function other(p){ return p==='a'?'b':'a'; }
+function myVote(cid){ return vote(store.me,cid); }
+function taVote(cid){ return vote(other(store.me),cid); }
+
+/* 双方都不想去的直接排除；未表态给中性分，不惩罚 */
+function pairScore(v1,v2){
+  if(!v1&&!v2) return 0.62;
+  if(!v1) return v2===1?0.32:0.72;
+  if(!v2) return v1===1?0.32:0.72;
+  const k=[v1,v2].sort().join('');
+  return { '33':1.00, '23':0.82, '22':0.60, '13':0.22, '12':0.15, '11':0 }[k] ?? 0.5;
+}
+const rejectedByBoth=cid=>vote('a',cid)===1&&vote('b',cid)===1;
+function agreeLabel(cid){
+  const a=vote('a',cid), b=vote('b',cid);
+  if(a===1&&b===1) return '都不想';
+  if(a===3&&b===3) return '都想去';
+  if((a===3&&b===2)||(a===2&&b===3)) return '一方想去';
+  if(a===3||b===3) return '有分歧';
+  if(a===1||b===1) return '有一方不想';
+  if(a===2&&b===2) return '都行';
+  return '待表态';
+}
+
+/* =========================================================================
+   5. 计算引擎
+   ========================================================================= */
+const hm=m=>{ m=Math.round(m); const h=Math.floor(m/60)%24, mm=((m%60)+60)%60; return pad(h)+':'+pad(mm); };
+/* 必须 Hh+Mm 拼接，不能用 Hh||Mm —— 后者在有小时时会把分钟吞掉 */
+const fmt=(m,cn)=>{ m=Math.round(m); if(m<0)m=0;
+  const d=Math.floor(m/1440), h=Math.floor(m%1440/60), mm=m%60;
+  const U=(v,u)=>v?v+u:'';
+  const s=(d?d+(cn?'天':'d'):'')+U(h,cn?'小时':'h')+U(mm,cn?'分':'m');
+  return s||(cn?'0分':'0m'); };
+const min2=m=>fmt(m,false), minCN=m=>fmt(m,true);
+
+/* 打分引擎不认识「星期几」，只认识一个时间窗口 [tStart, tEnd]。
+   日期是从窗口派生的，仅用于查天气和 12306 —— 请假、调休、说走就走的场景全通用。 */
+function cfg(){
+  const t0=$('#tStart').value, t1=$('#tEnd').value;
+  const today=todayStr();
+  const d0=t0?t0.slice(0,10):today,  c0=t0?t0.slice(11,16):'08:00';
+  const d1=t1?t1.slice(0,10):d0,     c1=t1?t1.slice(11,16):'21:00';
+  const days=clamp(Math.round((parseYmd(d1)-parseYmd(d0))/864e5)+1, 1, 7);
+  const p=s=>s.split(':').map(Number);
+  const [dh,dm]=p(c0), [ch,cm]=p(c1);
+  return { date:d0, endDate:d1, days,
+           depart:dh*60+dm, curfew:ch*60+cm,
+           windowMin:Math.max(0,(parseYmd(d1)-parseYmd(d0))/6e4 + (ch*60+cm)-(dh*60+dm)),
+           shutA:+$('#shutA').value||0, shutB:+$('#shutB').value||0 };
+}function nextDep(s,ready){
+  if(ready<=s.first) return s.first;
+  if(ready> s.last ) return null;
+  const gap=(s.last-s.first)/Math.max(1,s.n-1);
+  return Math.round(Math.min(s.last, s.first+Math.ceil((ready-s.first)/gap)*gap)/5)*5;
+}
+/* 行程这几天的天气；超出预报窗口返回 null */
+function tripWeather(cid,c){
+  const days=store.weather[cid];
+  if(!days) return null;
+  const ds=dateList(c.date,c.days);
+  const out=ds.map(d=>({ date:d, ...(days[d]||{}) }));
+  if(out.some(o=>o.code===undefined)) return null;
+  return out;
+}
+function weatherPenalty(cid,c){
+  if(!store.useWeather) return { k:1, rain:false };
+  const w=tripWeather(cid,c); if(!w) return { k:1, rain:false };
+  const outdoor=byId(cid).v.some(v=>OUTDOOR_V.has(v));
+  const wet=w.filter(isWetDay);
+  if(!outdoor||!wet.length) return { k:1, rain:false, days:w };
+  return { k: wet.length>=c.days?0.72:0.86, rain:true, days:w, wetDays:wet.length };
+}
+function evaluate(city,c){
+  const aDep=nextDep(city.a,c.depart+c.shutA), bDep=nextDep(city.b,c.depart+c.shutB);
+  const aArr=aDep==null?null:aDep+city.a.min, bArr=bDep==null?null:bDep+city.b.min;
+  const aRet=Math.min(city.a.last, c.curfew-c.shutA-city.a.min-20);
+  const bRet=Math.min(city.b.last, c.curfew-c.shutB-city.b.min-20);
+  const meetStart=(aArr==null||bArr==null)?null:Math.max(aArr,bArr);
+  const meetEndClock=Math.min(aRet,bRet);
+  /* 钳位必须在加上整天数之后：周五晚出发时会合点(21:23)晚于末日返程点(17:52)，
+     若先钳位，中间整整两天会被抹成 0 */
+  const nights=Math.max(0,c.days-1);
+  const together=(meetStart==null)?0:Math.max(0, (c.days-1)*1440 + meetEndClock - meetStart);
+  const awake=Math.max(0, together - nights*420);      // 扣掉每晚 7 小时睡觉
+  const aHome=aRet+city.a.min+c.shutA, bHome=bRet+city.b.min+c.shutB;
+
+  const transport=2*(city.a.price+city.b.price);
+  const lodging=nights*city.hotel;
+  const cost=transport+lodging;
+
+  const tmax=Math.max(city.a.min,city.b.min);
+  const fair=1-Math.abs(city.a.min-city.b.min)/tmax;
+  const sync=(aArr==null||bArr==null)?0:1-Math.min(1,Math.abs(aArr-bArr)/120);
+  const buddy=clamp(together/(c.days*1440*0.85),0,1);
+  /* 容错度：班次越密越能随时改签；离末班车越远越不会「赶不上就瘫痪」 */
+  const freq=clamp(Math.min(city.a.n,city.b.n)/16,0,1);
+  const slackA=(city.a.last-(c.curfew-c.shutA-city.a.min-20))/90;
+  const slackB=(city.b.last-(c.curfew-c.shutB-city.b.min-20))/90;
+  const margin=clamp(Math.min(slackA,slackB),0,1);
+  const robust=freq*0.5+margin*0.5;
+  const rich=clamp(city.rich/c.days,0,1);
+  const eco=1-Math.min(1,cost/(260*c.days));
+  const times=store.history[city.id]||0;
+  const nov=1/(1+1.6*times);
+  const agree=pairScore(vote('a',city.id),vote('b',city.id));
+
+  const W=store.weights, Wsum=Object.values(W).reduce((s,v)=>s+v,0)||1;
+  let score=100*(fair*W.fair+sync*W.sync+buddy*W.buddy+rich*W.rich+eco*W.eco+nov*W.nov+agree*W.agree)/Wsum;
+  const wx=weatherPenalty(city.id,c);
+  score*=wx.k;
+
+  const feasible=aDep!=null&&bDep!=null;
+  const missSide=aDep==null?"a":(bDep==null?"b":null);
+  const missLast=aDep==null?city.a.last:city.b.last;
+  return { city,feasible,missSide,missLast,aDep,bDep,aArr,bArr,meetStart,meetEnd:meetEndClock,together,awake,
+           aRet,bRet,aHome,bHome,nights,transport,lodging,cost,
+           score,fair,sync,buddy,rich,eco,nov,agree,robust,freq,margin,weather:wx,times };
+}
+function visibleCities(){
+  let list=store.cities.filter(c=>!isBlacklisted(c.id));   // 全局黑名单：硬排除
+  if(store.vibes.size) list=list.filter(c=>c.v.some(v=>store.vibes.has(v)));
+  return list;
+}
+function hiddenCount(){
+  if(!store.hideRejected||store.showHidden) return 0;
+  return visibleCities().filter(c=>rejectedByBoth(c.id)).length;
+}
+function recompute(){
+  const c=cfg();
+  let list=visibleCities();
+  if(store.hideRejected&&!store.showHidden) list=list.filter(ct=>!rejectedByBoth(ct.id));
+  store.results=list.map(ct=>evaluate(ct,c)).sort((x,y)=>{
+    /* 我标了「不想去」的沉到底，但不隐藏 —— 对方还可能想去，信息不能丢 */
+    const rx=vote(store.me,x.city.id)===1?1:0, ry=vote(store.me,y.city.id)===1?1:0;
+    if(rx!==ry) return rx-ry;
+    const fx=x.feasible?0:1, fy=y.feasible?0:1;
+    if(fx!==fy) return fx-fy;                       // 今天根本走不了的排最后
+    return y.score-x.score;
+  });
+  const now={}; store.results.forEach((r,i)=>now[r.city.id]=i);
+  if(store.lastRank){
+    const d={};
+    Object.keys(now).forEach(id=>{
+      const prev=store.lastRank[id];
+      if(prev==null) d[id]={type:'new',v:0};
+      else if(prev!==now[id]) d[id]={type:prev>now[id]?'up':'down',v:Math.abs(prev-now[id])};
+    });
+    store.delta=Object.keys(d).length?d:null;
+  }
+  store.lastRank=now;
+  if(store.sel && !store.results.some(r=>r.city.id===store.sel)) store.sel=store.results[0]?.city.id||null;
+}
+
+/* =========================================================================
+   6. 天气（Open-Meteo，一次请求拿全部城市 16 天）
+   ========================================================================= */
+async function loadWeather(force){
+  if(store.weatherLoading) return;
+  if(!force && Date.now()-store.weatherAt<30*60*1000 && Object.keys(store.weather).length) return;
+  store.weatherLoading=true; renderCards();
+  try{
+    const lat=store.cities.map(c=>c.lat.toFixed(3)).join(',');
+    const lon=store.cities.map(c=>c.lon.toFixed(3)).join(',');
+    const url='https://api.open-meteo.com/v1/forecast'
+      +`?latitude=${lat}&longitude=${lon}`
+      +'&daily=weather_code,precipitation_probability_max,temperature_2m_max,temperature_2m_min'
+      +'&timezone=Asia%2FShanghai&forecast_days=16';
+    const r=await fetch(url,{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    const arr=Array.isArray(j)?j:[j];
+    const w={};
+    arr.forEach((o,i)=>{
+      const c=store.cities[i]; if(!c||!o.daily) return;
+      const day={};
+      o.daily.time.forEach((d,k)=>{
+        day[d]={ code:o.daily.weather_code[k],
+                 pop:o.daily.precipitation_probability_max[k],
+                 tmax:o.daily.temperature_2m_max[k],
+                 tmin:o.daily.temperature_2m_min[k] };
+      });
+      w[c.id]=day;
+    });
+    store.weather=w; store.weatherAt=Date.now();
+  }catch(e){
+    store.weather={}; store.weatherAt=0;
+    toast('天气获取失败，已跳过天气评分', true);
+  }finally{
+    store.weatherLoading=false; refresh('天气载入');
+  }
+}
+
+/* =========================================================================
+   7. 地图
+   ========================================================================= */
+const LON0=114.05, LON1=119.30, LAT0=29.00, LAT1=32.55;
+const VW=1000, VH=660, PAD=44;
+const px=lon=>PAD+(lon-LON0)/(LON1-LON0)*(VW-2*PAD);
+const py=lat=>PAD+(LAT1-lat)/(LAT1-LAT0)*(VH-2*PAD);
+
+function anchor(name){
+  if(name==='南京南') return [px(HUB_A.lon),py(HUB_A.lat)];
+  if(name==='黄石站') return [px(HUB_B.lon),py(HUB_B.lat)];
+  const c=store.cities.find(x=>x.station===name);
+  return c?[px(c.lon),py(c.lat)]:null;
+}
+function smooth(pts){
+  if(!pts||pts.length<2) return '';
+  let d=`M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
+    const c1=[p1[0]+(p2[0]-p0[0])/6, p1[1]+(p2[1]-p0[1])/6];
+    const c2=[p2[0]-(p3[0]-p1[0])/6, p2[1]-(p3[1]-p1[1])/6];
+    d+=` C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+function arc(from,to,bow){
+  const mx=(from[0]+to[0])/2, my=(from[1]+to[1])/2;
+  const nx=-(to[1]-from[1]), ny=to[0]-from[0];
+  const L=Math.hypot(nx,ny)||1;
+  return `M${from[0].toFixed(1)} ${from[1].toFixed(1)} Q${(mx+nx/L*bow).toFixed(1)} ${(my+ny/L*bow).toFixed(1)} ${to[0].toFixed(1)} ${to[1].toFixed(1)}`;
+}
+const dotColor=(i,n)=>{
+  if(i===0) return '#5fd39a';
+  if(i<3) return '#cfd9ec';
+  if(i<n*0.6) return '#95a3bd';
+  return '#6d7893';
+};
+
+function drawStatic(){
+  const g=$('#gGrat'); g.innerHTML='';
+  for(let lon=114;lon<=119;lon++) g.appendChild(el('line',{class:'grat',x1:px(lon),y1:py(LAT1),x2:px(lon),y2:py(LAT0)}));
+  for(let lat=29;lat<=32.5;lat+=0.5) g.appendChild(el('line',{class:'grat',x1:px(LON0),y1:py(lat),x2:px(LON1),y2:py(lat)}));
+  $('#gRiver').setAttribute('d', RIVER.map((p,i)=>(i?'L':'M')+px(p[0]).toFixed(1)+' '+py(p[1]).toFixed(1)).join(' '));
+
+  const net=$('#gNet'); net.innerHTML='';
+  [COR_N,COR_S].forEach(cor=>{
+    const d=smooth(cor.map(anchor).filter(Boolean));
+    net.appendChild(el('path',{class:'corridor-casing',d}));
+    net.appendChild(el('path',{class:'corridor',d}));
+  });
+  SPURS.forEach(([x,y])=>{ const p1=anchor(x), p2=anchor(y); if(p1&&p2) net.appendChild(el('path',{class:'spur',d:smooth([p1,p2])})); });
+  COR_LABEL.forEach(cl=>{
+    const a=anchor(cl.at[0]), b=anchor(cl.at[1]); if(!a||!b) return;
+    const t=el('text',{x:((a[0]+b[0])/2+cl.off[0]).toFixed(1),y:((a[1]+b[1])/2+cl.off[1]).toFixed(1),
+      'text-anchor':'middle',class:'corlabel'});
+    t.textContent=cl.name; net.appendChild(t);
+  });
+}
+
+function drawMap(){
+  const res=store.results;
+  const shown = store.showTop5 ? res.slice(0,5) : res;
+  const maxSc=Math.max(...res.map(r=>r.score),1);
+
+  const gl=$('#gLegs'); gl.innerHTML='';
+  const r0=res.find(x=>x.city.id===store.sel);
+  if(r0){
+    const t=[px(r0.city.lon),py(r0.city.lat)];
+    gl.appendChild(el('path',{class:'leg a',d:arc([px(HUB_A.lon),py(HUB_A.lat)],t,34)}));
+    gl.appendChild(el('path',{class:'leg b',d:arc([px(HUB_B.lon),py(HUB_B.lat)],t,-34)}));
+  }
+
+  const gn=$('#gNodes'); gn.innerHTML='';
+  res.forEach((r,idx)=>{
+    const ct=r.city, isSel=store.sel===ct.id;
+    if(!shown.some(x=>x.city.id===ct.id)&&!isSel) return;
+    const w=r.score/maxSc, col=dotColor(idx,res.length);
+    const R=(idx===0?6.5:idx<3?5.5:4.5)+1.8*w;
+    const both=vote('a',ct.id)===3&&vote('b',ct.id)===3;
+    const g=el('g',{class:'node'+(idx<3?' t3':'')+(idx===0?' t1':'')+(isSel?' sel':'')+(r.times?' worn':''),'data-id':ct.id});
+    g.appendChild(el('circle',{class:'hit',cx:px(ct.lon),cy:py(ct.lat),r:R+11}));
+    if(both) g.appendChild(el('circle',{class:'bothring',cx:px(ct.lon),cy:py(ct.lat),r:R+5.5}));
+    if(isSel) g.appendChild(el('circle',{class:'ring',cx:px(ct.lon),cy:py(ct.lat),r:R+5}));
+    g.appendChild(el('circle',{class:'dot',cx:px(ct.lon),cy:py(ct.lat),r:R,fill:col}));
+
+    const side=LABEL_SIDE[ct.station]||'up';
+    const off={ up:[0,-(R+9),'middle'], down:[0,R+16,'middle'],
+                left:[-(R+7),4,'end'], right:[R+7,4,'start'] }[side];
+    const lab=el('text',{x:px(ct.lon)+off[0],y:py(ct.lat)+off[1],'text-anchor':off[2],class:'label'});
+    lab.textContent=ct.name+(r.times?` ·${r.times}次`:'');
+    if(store.showLabels) g.appendChild(lab);
+
+    /* 天气：只在有雨时标注，平时不画，避免地图重新变乱 */
+    const tw=store.useWeather&&store.showLabels?tripWeather(ct.id,cfg()):null;
+    if(tw){
+      const wet=tw.filter(isWetDay).length;
+      if(wet){
+        const ic=el('text',{x:px(ct.lon)+off[0]+(off[2]==='end'?-30:30),y:py(ct.lat)+off[1],
+          class:'wicon','text-anchor':'middle'});
+        ic.textContent='🌧️';
+        g.appendChild(ic);
+      }
+    }
+    gn.appendChild(g);
+  });
+
+  [[NODE_A,'#4d84c7',HOME_LBL.A],[NODE_B,'#a8607d',HOME_LBL.B]].forEach(([n,c,L])=>{
+    const g=el('g',{class:'node home'});
+    g.appendChild(el('circle',{cx:px(n.lon),cy:py(n.lat),r:9,fill:'none',stroke:c,'stroke-width':1.6}));
+    g.appendChild(el('circle',{cx:px(n.lon),cy:py(n.lat),r:2.6,fill:c}));
+    const t=el('text',{x:px(n.lon)+L.dx,y:py(n.lat)+L.dy,'text-anchor':L.anchor,class:'label',fill:c});
+    t.textContent=n.short;
+    if(store.showLabels) g.appendChild(t);
+    gn.appendChild(g);
+  });
+
+  [[HUB_A],[HUB_B]].forEach(([h])=>{
+    gn.appendChild(el('rect',{x:px(h.lon)-3,y:py(h.lat)-3,width:6,height:6,rx:1,
+      fill:'#090c13',stroke:'#4a5468','stroke-width':1.3}));
+  });
+}
+
+/* =========================================================================
+   8. 视图变换 / 底图
+   ========================================================================= */
+const view={x:0,y:0,k:1};
+const applyView=()=>$('#viewport').setAttribute('transform',
+  `translate(${view.x.toFixed(2)} ${view.y.toFixed(2)}) scale(${view.k.toFixed(4)})`);
+function animateView(target,ms=400){
+  const from={...view}, t0=performance.now();
+  (function step(t){
+    const p=clamp((t-t0)/ms,0,1), e=1-Math.pow(1-p,3);
+    view.x=from.x+(target.x-from.x)*e; view.y=from.y+(target.y-from.y)*e; view.k=from.k+(target.k-from.k)*e;
+    applyView(); if(p<1) requestAnimationFrame(step);
+  })(t0);
+}
+function centerOn(lon,lat,k){
+  if(store.base==='amap'&&store.amap){ store.amap.setZoomAndCenter(k>=1.6?9:8,[lon,lat]); return; }
+  const s=clamp(k,1,2.4);
+  animateView({k:s, x:VW/2-px(lon)*s, y:VH/2-py(lat)*s});
+}
+function fitView(){
+  if(store.base==='amap'&&store.amap){ applyBounds(); return; }
+  animateView({x:0,y:0,k:1},340);
+}
+(function initPanZoom(){
+  const svg=$('#svgmap'); let drag=null;
+  svg.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.node')) return;
+    drag={x:e.clientX,y:e.clientY,ox:view.x,oy:view.y}; svg.classList.add('dragging'); svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    const r=svg.getBoundingClientRect();
+    view.x=drag.ox+(e.clientX-drag.x)*(VW/r.width);
+    view.y=drag.oy+(e.clientY-drag.y)*(VH/r.height);
+    applyView();
+  });
+  ['pointerup','pointercancel'].forEach(ev=>svg.addEventListener(ev,()=>{drag=null;svg.classList.remove('dragging');}));
+  svg.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const r=svg.getBoundingClientRect(), cx=(e.clientX-r.left)/r.width*VW, cy=(e.clientY-r.top)/r.height*VH;
+    const nk=clamp(view.k*(e.deltaY<0?1.1:0.91),.7,3.2), sc=nk/view.k;
+    view.x=cx-(cx-view.x)*sc; view.y=cy-(cy-view.y)*sc; view.k=nk; applyView();
+  },{passive:false});
+})();
+
+$('#svgmap').addEventListener('pointerover',e=>{
+  const n=e.target.closest('.node'); const tip=$('#tip');
+  if(!n||!n.dataset.id){ tip.classList.remove('on'); return; }
+  const r=store.results.find(x=>x.city.id===n.dataset.id); if(!r) return;
+  const c=cfg(), tw=store.useWeather?tripWeather(r.city.id,c):null;
+  const wet=tw?tw.filter(d=>(d.pop??0)>=60).length:0;
+  tip.innerHTML=`<div class="t1">${r.city.name}</div>
+    <div class="t2">${c.days>1?c.days+'天：':''}在一起 ${minCN(r.together)}<br>
+    两人共 ¥${r.cost}（含${r.nights}晚住宿）<br>
+    ${agreeLabel(r.city.id)}${wet?` · ${wet}天有雨`:''}</div>`;
+  tip.classList.add('on');
+  const w=$('#mapwrap').getBoundingClientRect();
+  tip.style.left=Math.min(e.clientX-w.left+13,w.width-225)+'px';
+  tip.style.top=Math.min(e.clientY-w.top+13,w.height-96)+'px';
+});
+$('#svgmap').addEventListener('pointerout',()=>$('#tip').classList.remove('on'));
+$('#svgmap').addEventListener('click',e=>{
+  const n=e.target.closest('.node'); if(n&&n.dataset.id) select(n.dataset.id);
+});
+
+/* =========================================================================
+   9. 高德
+   ========================================================================= */
+function loadAMap(){
+  if(store.amapReady||store.amapFailed) return;
+  if(window.AMap){ store.amapReady=true; mountAMap(); return; }
+  window._AMapSecurityConfig={securityJsCode:''};
+  const s=document.createElement('script');
+  s.src=`https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}&plugin=AMap.Scale,AMap.ToolBar`;
+  s.onload=()=>{ store.amapReady=true; mountAMap(); };
+  s.onerror=()=>{ store.amapFailed=true; setBase('svg'); toast('高德底图加载失败，已切回示意图',true); };
+  document.head.appendChild(s);
+}
+function mountAMap(){
+  if(!window.AMap) return;
+  try{
+    if(!store.amap){
+      store.amap=new AMap.Map('amap',{zoom:7,center:[116.4,30.7],mapStyle:'amap://styles/darkblue',viewMode:'2D'});
+      store.amap.on('complete',()=>{ if(store.base==='amap') applyBounds(); });
+      try{ store.amap.addControl(new AMap.Scale()); }catch(e){}
+      try{ store.amap.addControl(new AMap.ToolBar({position:{right:'12px',bottom:'76px'}})); }catch(e){}
+    }
+    renderAMap();
+    $('#amap').classList.add('on'); $('#svgmap').style.display='none';
+  }catch(e){ store.amapFailed=true; setBase('svg'); toast('高德底图初始化失败，已切回示意图',true); }
+}
+function renderAMap(){
+  if(!store.amap||!store.amapReady) return;
+  const map=store.amap; map.clearMap();
+  const res=store.results, maxSc=Math.max(...res.map(r=>r.score),1);
+  const shown=store.showTop5?res.slice(0,5):res;
+  const c=cfg();
+  const mk=(lon,lat,col,label,r,id)=>{
+    const html=`<div style="position:relative;width:${r*2}px;height:${r*2}px">
+      <div style="position:absolute;inset:0;border-radius:50%;background:${col}"></div>
+      ${label?`<div style="position:absolute;left:50%;top:${-(r+7)}px;transform:translateX(-50%);white-space:nowrap;
+        color:#c3cee2;font-size:var(--fs-1);text-shadow:0 0 5px #05080e,0 0 3px #05080e">${label}</div>`:''}</div>`;
+    const m=new AMap.Marker({position:[lon,lat],content:html,offset:new AMap.Pixel(-r,-r),zIndex:10});
+    if(id) m.on('click',()=>select(id));
+    map.add(m); return m;
+  };
+  const line=(f,t,col,wt,op)=>{
+    const p=new AMap.Polyline({path:[f,t],strokeColor:col,strokeWeight:wt,strokeOpacity:op,lineJoin:'round'});
+    map.add(p);
+  };
+  shown.forEach((r,i)=>{
+    const col=i===0?'#5fd39a':i<3?'#cfd9ec':'#95a3bd';
+    const both=vote('a',r.city.id)===3&&vote('b',r.city.id)===3;
+    mk(r.city.lon,r.city.lat,col,(both?'✓ ':'')+r.city.name,i===0?6:i<3?5:4,r.city.id);
+  });
+  res.filter(r=>!shown.includes(r)).forEach(r=>mk(r.city.lon,r.city.lat,'#5b6580',null,3,r.city.id));
+  mk(NODE_A.lon,NODE_A.lat,'#4d84c7','紫金学院',7,null);
+  mk(NODE_B.lon,NODE_B.lat,'#a8607d','湖北理工',7,null);
+  line([HUB_A.lon,HUB_A.lat],[HUB_B.lon,HUB_B.lat],'#33415e',3,1);
+  const r0=res.find(x=>x.city.id===store.sel);
+  if(r0){
+    line([HUB_A.lon,HUB_A.lat],[r0.city.lon,r0.city.lat],'#4d84c7',2.4,.95);
+    line([HUB_B.lon,HUB_B.lat],[r0.city.lon,r0.city.lat],'#a8607d',2.4,.95);
+  }
+  applyBounds();
+}
+function applyBounds(){
+  if(!store.amap||!window.AMap) return;
+  try{ store.amap.setBounds(new AMap.Bounds([113.70,28.95],[119.40,32.75]),false); }
+  catch(e){ store.amap.setZoomAndCenter(7,[116.4,30.7]); }
+}
+function setBase(b){
+  store.base=b; DB.data.ui.base=b; DB.save();
+  $$('#baseSeg button').forEach(x=>x.classList.toggle('on',x.dataset.base===b));
+  ['btnRiver','btnLabels'].forEach(id=>{ document.getElementById(id).disabled=(b==='amap'); });
+  $('#mapwrap').classList.toggle('amapmode',b==='amap');
+  if(b==='amap'){
+    $('#amap').classList.add('on'); $('#svgmap').style.display='none';
+    if(store.amapReady) renderAMap(); else loadAMap();
+  }else{
+    $('#amap').classList.remove('on'); $('#svgmap').style.display='block';
+    drawMap();
+  }
+}
+
+/* =========================================================================
+   10. 渲染
+   ========================================================================= */
+function toast(m,err){
+  const t=$('#toast'); t.textContent=m; t.className='toast on'+(err?' err':'');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.className='toast'+(err?' err':''),2300);
+}
+
+function renderWho(){
+  $$('#whoSeg button').forEach(b=>b.classList.toggle('on',b.dataset.who===store.me));
+}
+function hideGuide(){
+  if($('#guide').classList.contains('hide')) return;
+  $('#guide').classList.add('hide'); LS.set('guideDone',1);
+}
+function renderDates(){
+  const box=$('#freeRow'); box.innerHTML='';
+  const sats=nextWeekdays(8, 6);
+  const c=cfg();
+  sats.forEach(s=>{
+    const d=parseYmd(s);
+    const a=store.free.a.has(s), b=store.free.b.has(s);
+    const both=a&&b;
+    const isSel=cfg().date===s;
+    const w=document.createElement('div');
+    w.className='wchip'+(isSel?' on':'')+(both?' both':'');
+    w.innerHTML=`<span class="dt">${d.getMonth()+1}/${d.getDate()} 周${WEEK[d.getDay()]}</span>
+      <span class="pips"><span class="pip a${a?' on':''}" data-p="a"></span><span class="pip b${b?' on':''}" data-p="b"></span></span>`;
+    w.addEventListener('click',ev=>{
+      const pip=ev.target.closest('.pip');
+      if(pip){
+        ev.stopPropagation();
+        const p=pip.dataset.p, set=store.free[p];
+        set.has(s)?set.delete(s):set.add(s);
+        DB.saveTrip();
+        renderDates(); refresh();
+        return;
+      }
+      /* 点周末 chip = 把这个周末设成时间窗口 */
+      document.getElementById('tStart').value=s+'T08:00';
+      document.getElementById('tEnd').value=dateList(s,2)[1]+'T21:00';
+      DB.saveTrip();
+      updPSum(); renderDates(); refresh();
+    });
+    box.appendChild(w);
+  });
+  /* 如果当前日期不在列表里但两人都标了空，提示一下 */
+  const bothSats=sats.filter(s=>store.free.a.has(s)&&store.free.b.has(s));
+  if(bothSats.length && !bothSats.includes(cfg().date)){
+    const tip=document.createElement('div');
+    tip.className='pnote'; tip.style.width='100%'; tip.style.marginTop='6px';
+    tip.innerHTML=`你们都有空：${bothSats.map(s=>dateLabel(s)).join('、')} —— 点一下就能选`;
+    box.appendChild(tip);
+  }
+}
+
+function renderVibes(){
+  const box=$('#vibes'); box.innerHTML='';
+  VIBES.forEach(v=>{
+    const b=document.createElement('button');
+    b.className='vibe'+(store.vibes.has(v)?' on':''); b.textContent=v;
+    b.addEventListener('click',()=>{ store.vibes.has(v)?store.vibes.delete(v):store.vibes.add(v);
+      DB.saveTrip(); renderVibes(); refresh(); });
+    box.appendChild(b);
+  });
+  const n=visibleCities().length;
+  $('#vibeHint').innerHTML = store.vibes.size
+    ? `筛选中，<b style="color:#c3cee2">${n}</b> 个城市符合`
+    : '不选 = 全部城市参与排名';
+}
+function renderSliders(){
+  const box=$('#sliders'); box.innerHTML='';
+  Object.keys(W_LABEL).forEach(k=>{
+    const d=document.createElement('div'); d.className='sl';
+    d.innerHTML=`<div class="slrow"><b>${W_LABEL[k]}</b><span id="v_${k}">${store.weights[k]}</span></div>
+      <input type="range" min="0" max="40" step="1" value="${store.weights[k]}" data-k="${k}">`;
+    box.appendChild(d);
+  });
+  box.querySelectorAll('input[type=range]').forEach(r=>{
+    r.addEventListener('input',()=>{
+      store.weights[r.dataset.k]=+r.value;
+      $('#v_'+r.dataset.k).textContent=r.value;
+      DB.saveTrip(); refresh();
+    });
+  });
+}
+function renderHistory(){
+  const box=$('#history'); box.innerHTML='';
+  store.cities.forEach(c=>{
+    const n=store.history[c.id]||0;
+    const row=document.createElement('div'); row.className='hrow';
+    row.innerHTML=`<span style="flex:1">${c.name}</span>
+      <button class="mini" data-d="-1">−</button><span class="cnt">${n}</span><button class="mini" data-d="1">+</button>`;
+    row.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      const v=clamp((store.history[c.id]||0)+(+b.dataset.d),0,9);
+      if(v) store.history[c.id]=v; else delete store.history[c.id];
+      DB.saveTrip(); renderHistory(); refresh();
+    }));
+    box.appendChild(row);
+  });
+  const n=Object.values(store.history).filter(v=>v>0).length;
+  const myN=Object.values(store.votes[store.me]).filter(v=>v>0).length;
+  $('#foldWSum').textContent = (n?`去过${n}城 · `:'') + `我已表态${myN}`;
+}
+
+/* 双人状态圆点：未表态是空环，想去/不想去点亮并显示符号 */
+function duoHtml(cid,interactive){
+  const sym={0:'',1:'✕',2:'~',3:'♥'};
+  return `<span class="duo">${['a','b'].map(pid=>{
+    const v=vote(pid,cid);
+    const cls='av '+pid+(v===3?' on':'')+(v===1?' no':'');
+    const tag=interactive?` data-pid="${pid}" data-cid="${cid}"`:'';
+    const title=`${WHO[pid].name}：${VOTE_META[v].t}`;
+    return `<span class="${cls}"${tag} title="${title}">${sym[v]}</span>`;
+  }).join('')}</span>`;
+}
+
+/* 三个提案：一项指标一个徽章，一个城市可以同时拿多个徽章。
+   这样不会出现"X 被前一个标签占用，于是把最省钱颁给更贵的 Y"这种假标签。 */
+function proposals(){
+  const all=store.results.filter(r=>r.feasible);
+  if(!all.length) return store.results.slice(0,3);
+  const badges={};
+  const add=(id,icon,label)=>{ (badges[id]=badges[id]||[]).push({icon,label}); };
+  const amin=f=>all.reduce((a,b)=>f(b)<f(a)?b:a);
+  const amax=f=>all.reduce((a,b)=>f(b)>f(a)?b:a);
+
+  add(all[0].city.id,'✨','综合最优');
+  add(amin(r=>r.city.a.min+r.city.b.min).city.id,'⚡','碰头最快');
+  add(amin(r=>r.cost).city.id,'💰','最省钱');
+  if(store.days>1) add(amax(r=>r.city.rich*10+r.awake/60).city.id,'🎈','最玩得开');
+  all.forEach(r=>{ if(vote('a',r.city.id)===3&&vote('b',r.city.id)===3) add(r.city.id,'💞','都想去'); });
+
+  const ranked=all.slice().sort((x,y)=>{
+    const bx=(badges[x.city.id]||[]).length, by=(badges[y.city.id]||[]).length;
+    return by-bx || y.score-x.score;
+  });
+  const picked=[all[0]];                       // 综合最优固定占一席
+  ranked.forEach(r=>{ if(picked.length<3 && !picked.some(p=>p.city.id===r.city.id)) picked.push(r); });
+  return picked.map(r=>({r, badges:badges[r.city.id]||[]}));
+}
+function renderCards(){
+  const box=$('#cards'); box.innerHTML='';
+  const res=store.results;
+  if(!res.length){
+    box.innerHTML='<div class="empty">这个条件下没有可选城市。<br>去掉一个玩法筛选，或把「隐藏两人都不想去的」关掉。</div>';
+    $('#rankMeta').textContent=''; $('#rankDelta').innerHTML=''; return;
+  }
+  const props=proposals();
+  const propIds=new Set(props.map(p=>p.r.city.id));
+  const rest=res.filter(r=>!propIds.has(r.city.id));
+  const tw=c=>store.useWeather?tripWeather(c,cfg()):null;
+  const rain=c=>{const w=tw(c); return w&&w.some(isWetDay);};
+
+  /* --- 三个提案卡 --- */
+  if(props.length){
+    const wrap=document.createElement('div'); wrap.className='props';
+    props.forEach(p=>{
+      const r=p.r, ct=r.city;
+      const d=document.createElement('div');
+      d.className='prop'+(store.sel===ct.id?' sel':'')+(vote(store.me,ct.id)===1?' rejected':'');
+      d.dataset.id=ct.id;
+      d.innerHTML=`
+        <div class="role">${p.badges.map(b=>`<span class="bdg">${b.icon} ${b.label}</span>`).join('')}${duoHtml(ct.id,true)}</div>
+        <div class="nm">${ct.name}</div>
+        <div class="vibe">${ct.vibe}</div>
+        <div class="foot">
+          ${r.feasible?`<span class="big num">${min2(r.together)}</span><span style="color:var(--dim2);font-size:var(--fs-1)">在一起</span>`:`<span class="big num" style="color:#c96a6a">赶不上</span><span style="color:var(--dim2);font-size:var(--fs-1)">末班 ${hm(r.missLast)}</span>`}
+          <span class="meta">南京 ${min2(ct.a.min)} · 黄石 ${min2(ct.b.min)} · 两人 ¥${r.cost}${rain(ct.id)?' · 🌧️':''}</span>
+        </div>`;
+      d.addEventListener('click',ev=>{
+        const av=ev.target.closest('.av');
+        if(av){ ev.stopPropagation(); quickVote(av.dataset.pid,av.dataset.cid); return; }
+        select(ct.id);
+      });
+      wrap.appendChild(d);
+    });
+    box.appendChild(wrap);
+  }
+
+  /* --- 其余城市：一行一个，只留必要信息 --- */
+  if(rest.length){
+    const h=document.createElement('div'); h.className='listhead'; h.textContent='其他候选';
+    box.appendChild(h);
+    const rows=document.createElement('div'); rows.className='rows';
+    rest.forEach(r=>{
+      const ct=r.city;
+      const d=document.createElement('div');
+      d.className='row'+(store.sel===ct.id?' sel':'')+(vote(store.me,ct.id)===1?' rejected':'');
+      d.dataset.id=ct.id;
+      d.innerHTML=`
+        <span class="rk">${res.indexOf(r)+1}</span>
+        <span class="nm">${ct.name}</span>
+        <span class="t">${r.feasible?min2(r.together)+" · ¥"+r.cost:"🚫 赶不上"}${rain(ct.id)?' · 🌧️':''}</span>
+        ${duoHtml(ct.id,true)}`;
+      d.addEventListener('click',ev=>{
+        const av=ev.target.closest('.av');
+        if(av){ ev.stopPropagation(); quickVote(av.dataset.pid,av.dataset.cid); return; }
+        select(ct.id);
+      });
+      rows.appendChild(d);
+    });
+    box.appendChild(rows);
+  }
+
+  const hn=hiddenCount();
+  if(hn){
+    const n=document.createElement('div'); n.className='hidden-note';
+    n.textContent=`已隐藏 ${hn} 个你们都不想去的城市 · 点击查看`;
+    n.addEventListener('click',()=>{ store.showHidden=true; refresh(); });
+    box.appendChild(n);
+  } else if(store.showHidden && store.hideRejected){
+    const n=document.createElement('div'); n.className='hidden-note';
+    n.textContent='正在显示全部城市 · 点击重新隐藏';
+    n.addEventListener('click',()=>{ store.showHidden=false; refresh(); });
+    box.appendChild(n);
+  }
+
+  const dbox=$('#rankDelta');
+  if(store.delta&&res.length){
+    const pick=(f,sym,cls)=>Object.entries(store.delta).filter(f).sort((a,b)=>b[1].v-a[1].v).slice(0,3)
+      .map(([id,v])=>`<span class="${cls}">${byId(id).name} ${sym}${v.v}</span>`).join(' · ');
+    const all=[
+      pick(([,v])=>v.type==='up','↑','u'),
+      pick(([,v])=>v.type==='down','↓','d'),
+      Object.entries(store.delta).filter(([,v])=>v.type==='new').slice(0,3)
+        .map(([id])=>`<span class="n">${byId(id).name} 新进榜</span>`).join(' · ')
+    ].filter(Boolean);
+    dbox.innerHTML=all.length
+      ? `<div class="delta">${store.deltaReason?store.deltaReason+'后':'刚刚'}：${all.join(' · ')}</div>` : '';
+  } else dbox.innerHTML='';
+
+  $('#rankMeta').textContent=`${res.length} 个候选`;
+}
+
+/* 列表里点圆点：未表态 → 想去 → 不想去 → 未表态（都行留给详情） */
+function quickVote(pid,cid){
+  const cur=vote(pid,cid);
+  setVote(pid,cid,{0:3,3:1,1:0}[cur]??0);
+  hideGuide(); refresh();
+}
+
+/* ============================ 详情抽屉 ============================ */
+let drawerOpen=false;
+
+function renderDrawer(){
+  const box=$('#dscroll');
+  const r=store.results.find(x=>x.city.id===store.sel) || evaluate(byId(store.sel),cfg());
+  if(!r||!r.city){ box.innerHTML=''; return; }
+  const ct=r.city, c=cfg();
+  const tripName=c.days===1?'当日往返':`${c.days}天${c.days-1}晚`;
+  const tw=store.useWeather?tripWeather(ct.id,c):null;
+
+  /* 天气胶囊：放在城市名旁边，先定基调 */
+  let wPill='';
+  if(tw){
+    const wet=tw.filter(isWetDay).length;
+    if(wet) wPill=`<span class="wnum rain">🌧️ 有雨</span>`;
+    else{
+      const tmax=Math.round(Math.max(...tw.map(d=>d.tmax)));
+      const tmin=Math.round(Math.min(...tw.map(d=>d.tmin)));
+      wPill=`<span class="wnum">${wmeta(tw[0].code)[0]} ${wmeta(tw[0].code)[1]} ${tmin}~${tmax}℃</span>`;
+    }
+  }else if(store.useWeather&&store.weatherLoading){
+    wPill=`<span class="wnum">天气加载中…</span>`;
+  }
+
+  /* 左右对称的双人对账单 */
+  const sideHtml=(p)=>{
+    const s=p==='a'?ct.a:ct.b;
+    return `<div class="side ${p}">
+      <div class="who">${WHO[p].emoji} ${WHO[p].name}${p===store.me?' · 你':''}</div>
+      <div class="big num">${minCN(s.min)}</div>
+      <div class="kv"><span>往返车票</span><b>¥${2*s.price}</b></div>
+      <div class="kv"><span>首班</span><b>${hm(s.first)}</b></div>
+      <div class="kv"><span>末班</span><b>${hm(s.last)}</b></div>
+      <a class="railgo" href="${railLink(p,ct,c)}" target="_blank" rel="noopener">查票 →</a>
+    </div>`;
+  };
+
+  const dayBlocks=[];
+  dayBlocks.push(`<div class="day">第 1 天 · ${weekday(c.date)} · 会合</div>
+    <div class="it"><span class="tm">${hm(r.aDep)}</span><span class="tx">南京南 → <b>${hm(r.aArr)}</b> 到 ${ct.station}</span></div>
+    <div class="it"><span class="tm">${hm(r.bDep)}</span><span class="tx">黄石站 → <b>${hm(r.bArr)}</b> 到 ${ct.station}</span></div>
+    <div class="it merge"><span class="tm">${hm(r.meetStart)}</span><span class="tx"><b>会合 ✓</b> ${c.days===1?'开始逛':'下午和晚上归你们'}</span></div>`);
+  if(c.days>=2) dayBlocks.push(`<div class="day">第 ${1} 天 · 夜</div>
+    <div class="it"><span class="tm">—</span><span class="tx">宿 ${ct.name} · ¥${ct.hotel}/晚</span></div>`);
+  if(c.days>=3) dayBlocks.push(`<div class="day">第 2 天 · ${weekday(dateList(c.date,c.days)[1]||c.date)}</div>
+    <div class="it"><span class="tm">—</span><span class="tx">全天自由安排，${ct.rich>=3?'景点够多，能玩满':'地方不大，建议安排周边'}</span></div>
+    <div class="it"><span class="tm">—</span><span class="tx">宿 ${ct.name} · ¥${ct.hotel}/晚</span></div>`);
+  dayBlocks.push(`<div class="day">第 ${c.days} 天 · ${weekday(dateList(c.date,c.days)[c.days-1]||c.date)} · 返程</div>
+    <div class="it"><span class="tm">${hm(r.aRet)}</span><span class="tx">南京方最晚发车</span></div>
+    <div class="it"><span class="tm">${hm(r.bRet)}</span><span class="tx">黄石方最晚发车</span></div>
+    <div class="it"><span class="tm">${hm(r.aHome)}</span><span class="tx">南京方回到学校</span></div>
+    <div class="it"><span class="tm">${hm(r.bHome)}</span><span class="tx">黄石方回到学校</span></div>`);
+
+  const taV=vote(other(store.me),ct.id);
+
+  box.innerHTML=`
+    <div class="dtop">
+      <div class="r1"><span class="nm">${ct.name}</span>${wPill}${duoHtml(ct.id,false)}</div>
+      <div class="sub">${ct.vibe} · ${ct.station}站</div>
+      <div class="poi">${ct.poi.map(p=>`<span class="tag">${p}</span>`).join('')}</div>
+    </div>
+
+    ${(c.days===2&&c.depart>=1080)?`<div class="warnbar rain" style="background:#1a1f2e;color:#9fb4d4">
+      💡 晚上出发但窗口只有 2 天，第二天就得返程 —— 把「最晚返校」往后推一天才能玩满整个周末。</div>`:""}
+    ${!r.feasible?`<div class="warnbar rain">🚫 <b>${WHO[r.missSide].name} 周五晚赶不上</b> —— ${ct.name} 方向末班 ${hm(r.missLast)} 就没了，你们赶不到。
+      要么别选这天走，要么换个城市。</div>`:""}
+    ${r.weather.rain?`<div class="warnbar rain">🌧️ 这 ${r.weather.wetDays} 天有雨，而 ${ct.name} 主要是户外玩法。
+      分数已下调 ${Math.round((1-r.weather.k)*100)}%。换个玩法筛选，或者选个不下雨的周末。</div>`:''}
+
+    <div class="board">
+      <div class="head">${tripName} · 谁付多少，谁坐多久</div>
+      <div class="versus">
+        ${sideHtml('a')}
+        <div class="vs"></div>
+        ${sideHtml('b')}
+      </div>
+      <div class="shared">
+        <span>${r.nights?`🏨 住宿 ${r.nights} 晚 · 一间 ¥${ct.hotel}`:'🍜 当日往返，无住宿'}
+          ${r.nights>1?`（共 ¥${r.lodging}）`:''}</span>
+        <span class="amt num">¥${r.cost}</span>
+      </div>
+    </div>
+
+    <div class="lead">
+      <div class="h">你们能在一起</div>
+      <div class="v num">${minCN(r.together)}${c.days>1?` <span style="font-size:var(--fs-1);color:var(--dim2);font-weight:400">（清醒 ${minCN(r.awake)}）</span>`:''}</div>
+      <div class="t">${verdict(r,c)}</div>
+    </div>
+
+    ${tw?`<div class="sec">那几天天气</div><div class="wbox">${tw.map(d=>{
+      const m=wmeta(d.code), bad=isWetDay(d);
+      return `<div class="wrow${bad?' bad':''}"><span class="d">${dateLabel(d.date)}</span>
+        <span>${m[0]} ${m[1]}</span><span class="pop">${d.pop??'—'}%</span>
+        <span class="tp num">${Math.round(d.tmin)}~${Math.round(d.tmax)}℃</span></div>`;
+    }).join('')}</div>`:''}
+
+    <div class="sec">逐日行程</div>
+    <div class="tl">${dayBlocks.join('')}</div>
+
+    <div class="dact">
+      <button id="copyPlan">复制行程</button>
+      <button id="focusMap">地图定位</button>
+      <button class="rail2" data-side="a">南京 → ${ct.name} 查票</button>
+      <button class="rail2" data-side="b">黄石 → ${ct.name} 查票</button>
+      <button id="addCmp" class="${store.compare.includes(ct.id)?'on':''}">${store.compare.includes(ct.id)?'已对比 ✓':'加入对比'}</button>
+    </div>
+    ${renderLockZone(r)}
+    <div class="vrow"><span style="flex:1">去过次数</span>
+      <button class="mini" data-d="-1">−</button><span class="cnt">${r.times}</span><button class="mini" data-d="1">+</button></div>
+    <div style="font-size:var(--fs-1);color:var(--dim2);margin-top:14px">
+      ${WHO[other(store.me)].name}：${VOTE_META[taV].t}</div>`;
+
+  /* 底部决策条状态 */
+  const myV=myVote(ct.id);
+  $('#btnYes').classList.toggle('on',myV===3);
+  $('#btnNo').classList.toggle('on',myV===1);
+  $('#btnYes').textContent = myV===3?'❤️ 已标记想去':'❤️ 我们去这';
+  $('#btnNo').textContent  = myV===1?'❌ 已标记算了':'❌ 算了';
+
+  bindLockZone();
+  box.querySelectorAll('.vrow button').forEach(b=>b.addEventListener('click',()=>{
+    const v=clamp((store.history[ct.id]||0)+(+b.dataset.d),0,9);
+    if(v) store.history[ct.id]=v; else delete store.history[ct.id];
+    DB.saveTrip(); renderHistory(); refresh();
+  }));
+  box.querySelector('#addCmp').addEventListener('click',()=>{ toggleCompare(ct.id); renderDrawer(); });
+  box.querySelector('#focusMap').addEventListener('click',()=>{
+    closeDrawer(); setTimeout(()=>centerOn(ct.lon,ct.lat,1.6),120);
+  });
+  box.querySelector('#copyPlan').addEventListener('click',()=>{
+    const t=`【${ct.name}】${ct.station}站 · ${tripName} · ${dateLabel(c.date)}出发
+南京方 ${hm(r.aDep)} 南京南 → ${hm(r.aArr)} 到，往返 ¥${2*ct.a.price}
+黄石方 ${hm(r.bDep)} 黄石站 → ${hm(r.bArr)} 到，往返 ¥${2*ct.b.price}
+${hm(r.meetStart)} 会合
+${c.days>1?`宿 ${ct.name} ${c.days-1} 晚，¥${ct.hotel}/晚\n`:''}第${c.days}天 ${hm(r.aRet)} 南京方最晚发车 ／ ${hm(r.bRet)} 黄石方最晚发车
+在一起 ${minCN(r.together)}（清醒 ${minCN(r.awake)}）
+两人合计 ¥${r.cost}
+${tw?tw.map(d=>dateLabel(d.date)+' '+wmeta(d.code)[1]+' '+Math.round(d.tmin)+'~'+Math.round(d.tmax)+'℃').join(' / ')+'\n':''}可玩：${ct.poi.join('、')}`;
+    navigator.clipboard?.writeText(t).then(()=>toast('行程已复制'),()=>toast('复制失败',true));
+  });
+}
+
+function openDrawer(id){
+  store.sel=id; drawerOpen=true;
+  renderDrawer();
+  $('#scrim').classList.add('on');
+  $('#drawer').classList.add('open');
+  document.body.style.overflow='hidden';
+  refresh();                                   // 让地图高亮跟上
+}
+function closeDrawer(){
+  drawerOpen=false;
+  $('#scrim').classList.remove('on');
+  $('#drawer').classList.remove('open');
+  document.body.style.overflow='';
+}
+function verdict(r,c){
+  const p=[];
+  const diff=Math.abs(r.city.a.min-r.city.b.min);
+  const far=r.city.a.min>r.city.b.min?'黄石':'南京';
+  p.push(diff<=20?'两边车程几乎一样':`<b>${far}方</b>要多坐 ${minCN(diff)}`);
+  const gap=Math.abs(r.aArr-r.bArr);
+  p.push(gap<=15?'到站时间基本同步':`${r.aArr<r.bArr?'南京':'黄石'}方要先等 ${minCN(gap)}`);
+  if(c.days>1) p.push(r.city.rich>=c.days?'够玩满整趟':`玩法偏少，${c.days}天会有点空`);
+  const av=vote('a',r.city.id), bv=vote('b',r.city.id);
+  if(av===3&&bv===3) p.push('你们俩都想去');
+  else if(av===1||bv===1) p.push('但有一方标了不想去');
+  if(r.times>=2) p.push(`已经去过 ${r.times} 次`);
+  return p.join('，')+'。';
+}
+
+function renderCompare(){
+  const bar=$('#cmpbar'), box=$('#cmps'), c=cfg();
+  $('#cmpN').textContent=store.compare.length;
+  bar.classList.toggle('on',store.compare.length>0);
+  if(!store.compare.length){ box.innerHTML=''; return; }
+  const rows=store.compare.map(id=>store.results.find(r=>r.city.id===id)).filter(Boolean);
+  if(!rows.length){ box.innerHTML=''; return; }
+  const bestScore=Math.max(...rows.map(r=>r.score)), bestCost=Math.min(...rows.map(r=>r.cost));
+  box.style.gridTemplateColumns=`repeat(${rows.length},minmax(0,1fr))`;
+  box.innerHTML=rows.map(r=>`
+    <div class="cmpcol${r.score===bestScore?' best':''}">
+      <h4>${r.city.name}${r.score===bestScore?' ★':''}<button data-x="${r.city.id}">✕</button></h4>
+      <div class="r hl"><span>在一起</span><b>${minCN(r.together)}</b></div>
+      <div class="r"><span>南京车上</span><b>${min2(r.city.a.min)}</b></div>
+      <div class="r"><span>黄石车上</span><b>${min2(r.city.b.min)}</b></div>
+      <div class="r ${r.cost===bestCost?'win':''}"><span>两人合计</span><b>¥${r.cost}</b></div>
+      <div class="r win"><span>综合分</span><b>${r.score.toFixed(1)}</b></div>
+      <div class="r"><span>表态</span><b>${agreeLabel(r.city.id)}</b></div>
+      <div class="r" style="display:block;color:var(--dim2);margin-top:3px">${r.city.poi.slice(0,3).join(' · ')}</div>
+    </div>`).join('');
+  box.querySelectorAll('button[data-x]').forEach(b=>b.addEventListener('click',()=>toggleCompare(b.dataset.x)));
+}
+
+/* =========================================================================
+   11. 刷新 / 选择 / 对比
+   ========================================================================= */
+function refresh(reason){
+  recompute();
+  store.deltaReason=reason||'';
+  if(store.base==='amap') renderAMap(); else drawMap();
+  renderCards(); if(drawerOpen) renderDrawer(); renderCompare(); renderHistory();
+}
+function select(id){
+  if(drawerOpen && store.sel===id){ closeDrawer(); return; }
+  openDrawer(id);
+  const ct=store.cities.find(x=>x.id===id);
+  if(ct) centerOn(ct.lon,ct.lat,1.55);
+}
+function toggleCompare(id){
+  const i=store.compare.indexOf(id);
+  if(i>=0) store.compare.splice(i,1);
+  else{ if(store.compare.length>=3){ toast('最多同时对比 3 个',true); return; } store.compare.push(id); }
+  renderCompare(); refresh();
+}
+
+/* =========================================================================
+   12. 分享链接（零后端，状态全编码）
+   ========================================================================= */
+function shareState(){
+  const s={
+    v:2, t0:document.getElementById('tStart').value, t1:document.getElementById('tEnd').value, me:store.me,
+    va:store.votes.a, vb:store.votes.b,
+    fa:[...store.free.a], fb:[...store.free.b],
+    w:store.weights, vi:[...store.vibes], uw:store.useWeather?1:0
+  };
+  return s;
+}
+function encodeShare(){
+  const j=JSON.stringify(shareState());
+  return btoa(unescape(encodeURIComponent(j))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function decodeShare(str){
+  try{
+    const b=str.replace(/-/g,'+').replace(/_/g,'/');
+    const j=decodeURIComponent(escape(atob(b)));
+    return JSON.parse(j);
+  }catch(e){ return null; }
+}
+function applyShare(s){
+  if(!s) return false;
+  if(s.d && !s.t0) document.getElementById('tStart').value=s.d+'T08:00';
+  if(s.n) store.days=s.n;
+  if(s.me) store.me=s.me;
+
+  if(s.va) store.votes.a=s.va;
+  if(s.vb) store.votes.b=s.vb;
+  if(Array.isArray(s.fa)) store.free.a=new Set(s.fa);
+  if(Array.isArray(s.fb)) store.free.b=new Set(s.fb);
+  if(s.w) Object.assign(store.weights,s.w);
+  if(Array.isArray(s.vi)) store.vibes=new Set(s.vi);
+  if(s.uw!=null) store.useWeather=!!s.uw;
+  return true;
+}
+function shareUrl(){
+  const u=new URL(location.href);
+  u.hash='s='+encodeShare();
+  return u.toString();
+}
+
+/* =========================================================================
+   13. 事件
+   ========================================================================= */
+$('#pToggle').addEventListener('click',()=>{
+  const d=$('#pDrawer'); d.classList.toggle('open');
+  $('#pCaret').textContent=d.classList.contains('open')?'▴':'▾';
+});
+function updPSum(){
+  const c=cfg();
+  const wd=c.date===c.endDate?'':weekday(c.date)+'→'+weekday(c.endDate)+' · ';
+  const label=c.days===1?'当日往返':c.days+'天'+(c.days-1)+'晚';
+  document.getElementById('pSum').textContent=wd+label;
+  const lim=document.getElementById('winNote');
+  if(lim){
+    const s0=document.getElementById('tStart').value.slice(11,16);
+    const s1=document.getElementById('tEnd').value.slice(11,16);
+    lim.textContent = c.windowMin>0
+      ? `可用时间 ${minCN(c.windowMin)}（${s0} → ${s1}，跨 ${c.days} 天）`
+      : '⚠️ 时间窗口无效：返校早于出发';
+    lim.style.color = c.windowMin>0 ? '' : '#c96a8a';
+  }
+}
+$$('#whoSeg button').forEach(b=>b.addEventListener('click',()=>{
+  store.me=b.dataset.who; DB.me=store.me;
+  renderWho(); renderHistory(); refresh();
+  toast(`现在是以「${WHO[store.me].name}」的身份操作`);
+}));
+/* 时间窗口：预设直接写窗口，不再有「星期几」这种状态 */
+function defaultWindow(){
+  const sat=nextWeekdays(1,6)[0];
+  return { t0:sat+'T08:00', t1:dateList(sat,2)[1]+'T21:00' };
+}
+function applyPreset(kind){
+  const sat=nextWeekdays(1,6)[0], fri=shiftDate(sat,-1), sun=dateList(sat,2)[1];
+  const map={
+    sat:{ t0:sat+'T08:00', t1:sun+'T21:00' },
+    fri:{ t0:fri+'T18:30', t1:sun+'T21:00' },
+    day:{ t0:sat+'T08:00', t1:sat+'T21:00' },
+  }[kind];
+  if(!map) return;
+  const S=document.getElementById('tStart'), E=document.getElementById('tEnd');
+  S.value=map.t0; E.value=map.t1;
+  DB.saveTrip();
+  updPSum(); renderDates(); refresh();
+  toast('已套用预设时间窗口');
+}
+$$('#presetSeg button').forEach(b=>b.addEventListener('click',()=>applyPreset(b.dataset.preset)));
+$('#tStart').addEventListener('change',()=>{ DB.saveTrip(); updPSum(); renderDates(); refresh(); });
+$('#tEnd').addEventListener('change',()=>{ DB.saveTrip(); updPSum(); renderDates(); refresh(); });
+/* 查票按钮是每次渲染详情时重新生成的，所以必须用事件委托。
+   直接对当前这批按钮 addEventListener 的话，下一批新按钮就没绑定了——
+   这就是"查票点不动"的原因。 */
+document.addEventListener('click', (e)=>{
+  const b = e.target.closest('.rail2');
+  if(!b) return;
+  const ct = byId(store.sel);
+  if(!ct || !ct.code){ toast('这个城市还没定车站，查不了票', true); return; }
+  let url = '';
+  try{ url = railLink(b.dataset.side, ct, cfg()); }catch(err){ url = ''; }
+  if(!url){ toast('生成查询链接失败', true); return; }
+  window.open(url, '_blank');
+});
+$('#foldWToggle').addEventListener('click',()=>$('#foldW').classList.toggle('open'));
+/* ---------- 行程库事件 ---------- */
+$('#backHub').addEventListener('click',openHub);
+$('#newTripBtn').addEventListener('click',newTripDialog);
+
+/* 退出登录：清掉服务端会话再刷新回登录门。本地数据不动。 */
+$('#hubLogout').addEventListener('click', async ()=>{
+  if(!confirm('退出登录？本地保存的行程会保留。')) return;
+  try{ await api('POST','/api/logout'); }catch(e){}
+  CLOUD.user = null;
+  location.reload();
+});
+$('#ntCancel').addEventListener('click',()=>$('#ntModal').classList.remove('on'));
+$('#ntInherit').addEventListener('click',()=>$('#ntInherit').classList.toggle('on'));
+$('#hubSwitch').addEventListener('click',()=>{
+  const n=other(DB.data.me);
+  DB.me=n;
+  $('#hubWho').textContent=WHO[n].name;
+  renderWho();
+  toast(`已切换到「${WHO[n].name}」，回到行程后生效`);
+});
+$('#ntCreate').addEventListener('click',()=>{
+  const title=$('#ntTitle').value.trim();
+  DB.createTrip({
+    title,
+    inherit:$('#ntInherit').classList.contains('on'),
+    t0:$('#ntT0').value, t1:$('#ntT1').value,
+  });
+  $('#ntModal').classList.remove('on');
+  openTripView();
+  toast('新行程已创建');
+});
+$('#swWeather').addEventListener('click',()=>{
+  store.useWeather=!store.useWeather; DB.data.ui.useWeather=store.useWeather; DB.save();
+  $('#swWeather').classList.toggle('on',store.useWeather);
+  if(store.useWeather) loadWeather(false);
+  refresh();
+});
+$('#swHide').addEventListener('click',()=>{
+  store.hideRejected=!store.hideRejected; DB.data.ui.hideRejected=store.hideRejected; DB.save();
+  $('#swHide').classList.toggle('on',store.hideRejected); refresh();
+});
+$$('.presets button').forEach(b=>b.addEventListener('click',()=>{
+  const sets={
+    fair :{fair:34,sync:14,buddy:16,rich:7,eco:5,nov:5,agree:11,robust:8},
+    time :{fair:11,sync:9,buddy:26,rich:10,eco:5,nov:0,agree:26,robust:13},
+    cheap:{fair:9,sync:7,buddy:14,rich:7,eco:34,nov:4,agree:13,robust:12},
+    new  :{fair:16,sync:7,buddy:16,rich:11,eco:5,nov:24,agree:11,robust:10},
+    reset:W_DEF,
+  }[b.dataset.preset];
+  if(!sets) return;
+  Object.assign(store.weights,sets); DB.saveTrip();
+  renderSliders(); refresh(); toast('已应用「'+b.textContent+'」');
+}));
+$('#btnFit').addEventListener('click',fitView);
+$('#btnTop5').addEventListener('click',e=>{
+  store.showTop5=!store.showTop5;
+  e.target.textContent=store.showTop5?'显示全部':'只看前5名';
+  refresh();
+});
+$('#btnRiver').addEventListener('click',e=>{
+  store.showRiver=!store.showRiver;
+  $('#gRiver').style.display=store.showRiver?'':'none';
+  e.target.classList.toggle('off',!store.showRiver);
+});
+$('#btnLabels').addEventListener('click',e=>{
+  store.showLabels=!store.showLabels;
+  e.target.classList.toggle('off',!store.showLabels);
+  drawMap();
+});
+$$('#baseSeg button').forEach(b=>b.addEventListener('click',()=>setBase(b.dataset.base)));
+$('#cmpClear').addEventListener('click',()=>{ store.compare=[]; renderCompare(); refresh(); });
+
+/* 邀请 */
+$('#guideX').addEventListener('click',hideGuide);
+$('#inviteBtn').addEventListener('click',()=>{
+  const u=shareUrl();
+  $('#invUrl').value=u;
+  $('#invModal').classList.add('on');
+  if(navigator.share) $('#invNative').style.display='';
+  setTimeout(()=>$('#invUrl').select(),80);
+});
+$('#invClose').addEventListener('click',()=>$('#invModal').classList.remove('on'));
+$('#invCopy').addEventListener('click',()=>{
+  const u=$('#invUrl').value;
+  navigator.clipboard?.writeText(u).then(()=>toast('链接已复制，发给 TA 吧'),()=>{
+    $('#invUrl').select(); document.execCommand?.('copy'); toast('已选中，手动复制一下');
+  });
+});
+$('#invNative').addEventListener('click',async()=>{
+  try{ await navigator.share({title:'周末去哪见面', text:'我在这个页面上标了我的想法，你看看', url:shareUrl()}); }
+  catch(e){}
+});
+
+/* 数据导入 */
+$('#impBtn').addEventListener('click',()=>{
+  $('#impText').value=JSON.stringify({
+    note:'12306 真实班次；部署到 Cloudflare 后可自动拉取',
+    routes:[
+      {id:'anqing',    a:{min:108,price:122,first:410,last:1240,n:14},
+                       b:{min:95, price:115,first:440,last:1140,n:6}},
+      {id:'jingdezhen',a:{min:172,price:208,first:450,last:1120,n:6},
+                       b:{min:118,price:118,first:480,last:1090,n:5}}
+    ]
+  },null,2);
+  $('#impModal').classList.add('on');
+});
+$('#impCancel').addEventListener('click',()=>$('#impModal').classList.remove('on'));
+$('#impSave').addEventListener('click',()=>{
+  try{
+    const j=JSON.parse($('#impText').value); let n=0;
+    (j.routes||[]).forEach(r=>{
+      const ct=store.cities.find(c=>c.id===r.id); if(!ct) return;
+      if(r.a) Object.assign(ct.a,r.a);
+      if(r.b) Object.assign(ct.b,r.b);
+      n++;
+    });
+    $('#impModal').classList.remove('on'); refresh(); toast(`已更新 ${n} 条线路`);
+  }catch(e){ toast('JSON 解析失败：'+e.message,true); }
+});
+$('#scrim').addEventListener('click',closeDrawer);
+$('#btnYes').addEventListener('click',()=>{ const cid=store.sel; if(!cid) return;
+  setVote(store.me,cid, myVote(cid)===3?0:3); hideGuide();
+  if(myVote(cid)===3){ closeDrawer(); toast('已标记「想去」❤️'); } else renderDrawer();
+  refresh(); });
+$('#btnNo').addEventListener('click',()=>{ const cid=store.sel; if(!cid) return;
+  setVote(store.me,cid, myVote(cid)===1?0:1); hideGuide();
+  if(myVote(cid)===1){ closeDrawer(); toast('已标记「算了」，可以之后改'); } else renderDrawer();
+  refresh(); });
+/* 抽屉顶部下滑关闭 */
+(function(){
+  const d=$('#drawer'); let sy=null;
+  d.addEventListener('touchstart',e=>{ if($('#dscroll').scrollTop<=0) sy=e.touches[0].clientY; },{passive:true});
+  d.addEventListener('touchmove',e=>{
+    if(sy===null) return;
+    const dy=e.touches[0].clientY-sy;
+    if(dy>90){ sy=null; closeDrawer(); }
+  },{passive:true});
+})();
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ $('#impModal').classList.remove('on'); $('#invModal').classList.remove('on'); closeDrawer(); }
+  if(e.target.matches('input,textarea')) return;
+  if(/^[1-9]$/.test(e.key)){ const r=store.results[+e.key-1]; if(r) select(r.city.id); }
+});
+
+/* =========================================================================
+   行程大厅 / 行程条 / 黑名单 / 锁定
+   ========================================================================= */
+function tripMeta(t){
+  const d0=(t.t0||'').slice(0,10), d1=(t.t1||'').slice(0,10);
+  let days=1;
+  try{ if(d0&&d1) days=clamp(Math.round((parseYmd(d1)-parseYmd(d0))/864e5)+1,1,7); }catch(e){}
+  const A=t.votes&&t.votes.a?t.votes.a:{}, B=t.votes&&t.votes.b?t.votes.b:{};
+  let both=0;
+  Object.keys(A).forEach(k=>{ if(A[k]===3 && B[k]===3) both++; });
+  return {
+    days, d0, d1,
+    va:Object.values(A).filter(v=>v>0).length,
+    vb:Object.values(B).filter(v=>v>0).length,
+    both,
+    label: days===1?'当日往返':days+'天'+(days-1)+'晚',
+    when: d0? (dateLabel(d0)+(d1&&d1!==d0?' → '+dateLabel(d1):'')) : '未设时间',
+  };
+}
+function tripCity(t){ return t.lockedCity ? byId(t.lockedCity) : null; }
+
+function openHub(){
+  closeDrawer();
+  try{ sessionStorage.removeItem('meet.view'); }catch(e){}
+  $('#tripview').style.display='none';
+  $('#hub').style.display='';
+  document.querySelector('header').style.display='none';   // 顶栏是行程级控件，大厅里不显示
+  const hw=document.getElementById('hubWho'); if(hw) hw.textContent=WHO[DB.data.me].name;
+  renderHub();
+}
+function openTripView(id){
+  /* id 可选：不传就载入当前 activeTripId。这里不能写 if(id)，
+     否则新建行程后 store 还停在上一个行程的内存里 */
+  DB.openTrip(id);
+  store.view='trip';
+  try{ sessionStorage.setItem('meet.view','trip'); }catch(e){}
+  $('#hub').style.display='none';
+  document.querySelector('header').style.display='';
+  $('#tripview').style.display='';
+  renderAll();
+  loadWeatherIfNeeded();
+}
+
+
+function renderHub(){
+  const trips=DB.data.trips.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const now=Date.now(), D30=30*864e5;
+  const active=trips.filter(t=>t.status!=='locked');
+  const locked=trips.filter(t=>t.status==='locked');
+  const recent=locked.filter(t=>now-(t.lockedAt||t.createdAt||0)<D30);
+  const past  =locked.filter(t=>now-(t.lockedAt||t.createdAt||0)>=D30);
+
+  const card=(t)=>{
+    const m=tripMeta(t), city=tripCity(t), me=DB.data.me;
+    const pending=t.status==='pending';
+    const badges=[];
+    if(pending) badges.push(`<span class="hbadge warn">等 ${WHO[other(t.lockedBy||'a')].name} 确认</span>`);
+    if(t.inheritedFrom) badges.push(`<span class="hbadge">继承自上一期</span>`);
+    const who=DB.member(me).name;
+    const myVotes = me==='a'?m.va:m.vb;
+    return `<div class="hcard${t.status==='locked'?' done':''}${pending?' pend':''}" data-tid="${t.id}">
+      <div class="hrow1">
+        <span class="hname">${city?city.name+' · ':''}${t.title}</span>
+        ${badges.join('')}
+      </div>
+      <div class="hmeta">${m.label} · ${m.when}</div>
+      <div class="hmeta2">
+        ${t.status==='locked'
+          ? `已定：${city?city.name:'—'} · 两人一起 ${m.both?m.both+' 个都想去的地方':''}`
+          : `我已表态 ${myVotes}/14 · ${WHO[other(me)].name} ${me==='a'?m.vb:m.va}/14`
+            + (m.both?` · <span style="color:var(--ok)">${m.both} 个都想去的</span>`:'')}
+      </div>
+      <div class="hact">
+        <button class="hgo" data-open="${t.id}">${t.status==='locked'?'查看行程':'继续讨论'} →</button>
+        <button class="hdel" data-del="${t.id}" title="删除">✕</button>
+      </div>
+    </div>`;
+  };
+  const sec=(title,list,empty)=>`<div class="hubsec">
+      <div class="sechead">${title}<em>${list.length}</em></div>
+      ${list.length?list.map(card).join(''):`<div class="hempty">${empty}</div>`}
+    </div>`;
+
+  $('#hubActive').innerHTML = sec('进行中', active, '还没有在讨论的行程').replace(/^<div class="hubsec">[\s\S]*?<\/div>/, m=>m);
+  $('#hubLocked').innerHTML = recent.length?`<div class="sechead">已落定<em>${recent.length}</em></div>`+recent.map(card).join(''):'';
+  $('#hubPast').innerHTML   = past.length?`<div class="sechead">历史归档<em>${past.length}</em></div>`+past.map(card).join(''):'';
+
+  $('#hub').querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation(); openTripView(b.dataset.open);
+  }));
+  $('#hub').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();
+    const t=DB.data.trips.find(x=>x.id===b.dataset.del);
+    if(!t) return;
+    if(DB.data.trips.length<=1){ toast('至少保留一个行程',true); return; }
+    if(!confirm(`删除「${t.title}」？里面的表态和权重都会没。`)) return;
+    DB.deleteTrip(b.dataset.del); renderHub();
+  }));
+}
+
+function renderTripBar(){
+  const t=DB.trip(); if(!t) return;
+  const m=tripMeta(t), city=tripCity(t);
+  const pend=t.status==='pending';
+  const me=DB.data.me;
+  $('#tripTitle').textContent=t.title;
+  $('#tripMeta').textContent = t.status==='locked'
+    ? `已定 · ${city?city.name:''}`
+    : `${m.label} · 我 ${me==='a'?m.va:m.vb}/14 · TA ${me==='a'?m.vb:m.va}/14`;
+  const bar=$('#tripBar');
+  bar.className='tripbar'+(t.status==='locked'?' locked':'')+(pend?' pend':'');
+  const act=$('#tripAction');
+  if(t.status==='locked'){
+    act.innerHTML=`<span class="tstat ok">🏁 已落定</span>`;
+  }else if(pend && t.lockedBy!==me){
+    act.innerHTML=`<button class="iconbtn accent" id="confirmLock">✓ 确认去 ${city?city.name:''}</button>`;
+    act.querySelector('#confirmLock').onclick=()=>{
+      DB.confirmLock(); toast('已确认，行程落定 🏁'); renderTripBar(); renderHub(); renderCards();
+    };
+  }else if(pend){
+    act.innerHTML=`<span class="tstat">等你俩确认</span>
+      <button class="iconbtn" id="cancelLock">撤销</button>`;
+    act.querySelector('#cancelLock').onclick=()=>{ DB.cancelLock(); renderTripBar(); renderCards(); };
+  }else{
+    act.innerHTML=`<span class="tstat">讨论中</span>`;
+  }
+}
+
+/* 全局黑名单：任一成员标了「绝对不去」就硬排除 */
+function isBlacklisted(id){ return DB.blacklistedBy(id).length>0; }
+function renderBlacklist(){
+  const box=$('#blList'); if(!box) return;
+  const me=DB.data.me;
+  box.innerHTML=store.cities.map(c=>{
+    const mine=DB.member(me).blacklist.includes(c.id);
+    const both=DB.blacklistedBy(c.id);
+    const cls='blchip'+(mine?' mine':'')+(both.length?' dead':'');
+    const tip=both.length?`${both.map(p=>WHO[p].name).join('、')} 绝对不去`:'点一下加入「绝对不去」';
+    return `<button class="${cls}" data-bl="${c.id}" title="${tip}">${c.name}</button>`;
+  }).join('');
+  box.querySelectorAll('[data-bl]').forEach(b=>b.addEventListener('click',()=>{
+    DB.toggleBlacklist(b.dataset.bl, DB.data.me);
+    renderBlacklist(); refresh();
+  }));
+}
+
+/* 抽屉底部的落定入口：只有两个人都标了「想去」才出现 */
+function renderLockZone(r){
+  const t=DB.trip(); if(!t) return '';
+  if(t.status==='locked'){
+    return `<div class="lockzone done">🏁 这个行程已经定在 <b>${byId(t.lockedCity).name}</b> 了</div>`;
+  }
+  if(t.status==='pending'){
+    const by=WHO[t.lockedBy||'a'].name;
+    return t.lockedBy===DB.data.me
+      ? `<div class="lockzone pend">已经发起「就定 ${byId(t.lockedCity).name}」，等 ${WHO[other(DB.data.me)].name} 确认</div>`
+      : `<div class="lockzone pend"><b>${by} 想定 ${byId(t.lockedCity).name}</b>
+           <button id="doConfirm">✓ 我同意</button>
+           <button id="doReject">再想想</button></div>`;
+  }
+  const both = vote('a',r.city.id)===3 && vote('b',r.city.id)===3;
+  if(!both) return '';
+  return `<div class="lockzone">你们俩都想去的这个地方
+      <button id="doLock">🏁 就定这里</button></div>`;
+}
+
+function bindLockZone(){
+  const box=$('#dscroll'); if(!box) return;
+  const dl=box.querySelector('#doLock');
+  if(dl) dl.onclick=()=>{ DB.requestLock(store.sel, DB.data.me); toast('已发起，等 TA 确认'); renderDrawer(); renderTripBar(); };
+  const dc=box.querySelector('#doConfirm');
+  if(dc) dc.onclick=()=>{ DB.confirmLock(); toast('双方确认，行程落定 🏁'); closeDrawer(); renderTripBar(); renderCards(); renderHub(); };
+  const dr=box.querySelector('#doReject');
+  if(dr) dr.onclick=()=>{ DB.cancelLock(); toast('已退回继续讨论'); renderDrawer(); renderTripBar(); };
+}
+
+/* 新建行程 */
+function newTripDialog(){
+  const trips=DB.data.trips.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const prev=trips[0];
+  const w=defaultWindow();
+  $('#ntTitle').value=`${new Date().getMonth()+1}月第${Math.ceil(new Date().getDate()/7)}周`;
+  $('#ntT0').value=prev?.t0||w.t0;
+  $('#ntT1').value=prev?.t1||w.t1;
+  $('#ntInherit').checked=false;
+  $('#ntInheritLabel').textContent = prev?`继承「${prev.title}」的表态（${Object.values(prev.votes?.a||{}).filter(v=>v>0).length+Object.values(prev.votes?.b||{}).filter(v=>v>0).length} 条）`:'没有可继承的行程';
+  $('#ntInherit').disabled=!prev;
+  $('#ntModal').classList.add('on');
+}
+
+/* =========================================================================
+   云端接入：登录 / 注册 / 行程同步
+   ---------------------------------------------------------------------
+   本地用 file:// 打开时 CLOUD.ok=false，一切照旧走 localStorage。
+   部署到 Pages 后自动切到服务端 + D1。
+   ========================================================================= */
+const CLOUD = {
+  ok: /^https?:$/.test(location.protocol),
+  user: null,
+  revs: {},            // tripId -> 服务端 rev
+  pushTimer: null,
+  polling: null,
+  lastSeen: 0,
+};
+
+async function api(method, path, body){
+  const r = await fetch(path, {
+    method,
+    credentials: 'same-origin',
+    headers: body ? { 'Content-Type':'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await r.text();
+  let data = null;
+  try{ data = JSON.parse(text); }catch(e){}
+  if(data === null){
+    /* 不是 JSON。多半是请求没打到后端——被静态资源接走了（比如本地
+       用 python -m http.server 打开、或者路径被缓存/拦截）。
+       把原始响应的开头带上，否则上层只会报 "reading 'xxx' of null"，
+       完全看不出是哪个请求出了什么问题。 */
+    const hint = text.trim().replace(/\s+/g,' ').slice(0,90);
+    throw new Error(`${method} ${path} 拿到非 JSON 响应（HTTP ${r.status}）${hint ? '：'+hint : '（空响应）'}`);
+  }
+  return { status:r.status, ok:r.ok, data };
+}
+
+/* ---------------- 登录门 ---------------- */
+const Auth = {
+  mode: 'login',
+
+  async check(){
+    if(!CLOUD.ok) return { local:true };
+    const r = await api('GET','/api/me');
+    if(r.status === 401) return { needLogin:true, seeded:r.data?.seeded };
+    if(!r.ok){
+      return { error: r.data?.error || `服务端异常 (${r.status})`, setup: r.data?.setup };
+    }
+    CLOUD.user = r.data.user;
+    return { user:r.data.user };
+  },
+
+  show(msg, kind){
+    const g=$('#gate');
+    g.classList.add('on');
+    $('#gateMsg').textContent = msg || '';
+    $('#gateMsg').className = 'gatemsg' + (kind ? ' '+kind : '');
+    Auth.render();
+  },
+
+  hide(){ $('#gate').classList.remove('on'); },
+
+  render(){
+    const isLogin = Auth.mode === 'login';
+    $$('#gateTabs button').forEach(b=>b.classList.toggle('on', b.dataset.m === Auth.mode));
+    $('#fSeat').style.display   = isLogin ? 'none' : '';
+    $('#fNote').style.display   = isLogin ? 'none' : '';
+    $('#gateSubmit').textContent = isLogin ? '登录' : '提交申请';
+    $('#gateHint').innerHTML = isLogin
+      ? '还没有账号？点上面的「申请账号」。<br>申请会发到你邮箱，确认后才生效。'
+      : '提交后管理员会收到邮件，通过了你才能登录。';
+  },
+};
+
+/* ---------------- 行程同步 ---------------- */
+const Cloud = {
+  /* 启动时拉一次：服务端有就以服务端为准，没有就把本地的推上去 */
+  async pull(){
+    const r = await api('GET','/api/trips');
+    if(!r.ok) return false;
+    const list = r.data.trips || [];
+    CLOUD.revs = {};
+    if(!list.length){
+      /* 服务端是空的：把本地已有的行程推上去（首次部署时用） */
+      for(const t of DB.data.trips) await Cloud.pushTrip(t, true);
+      return true;
+    }
+    DB.data.trips = [];
+    for(const meta of list){
+      const one = await api('GET','/api/trips?id='+encodeURIComponent(meta.id));
+      if(!one.ok || !one.data?.trip) continue;
+      const t = one.data.trip;
+      const st = t.state || {};
+      DB.data.trips.push({
+        id:t.id, title:t.title, status:t.status,
+        createdAt:t.created_at, updatedAt:t.updated_at,
+        t0:st.t0, t1:st.t1,
+        votes:st.votes || {a:{},b:{}},
+        free:st.free || {a:[],b:[]},
+        weights:Object.assign({},W_DEF,st.weights||{}),
+        vibes:st.vibes || [],
+        history:st.history || {},
+        lockedCity:st.lockedCity||null, lockedBy:st.lockedBy||null, lockedAt:st.lockedAt||null,
+        inheritedFrom:st.inheritedFrom||null,
+      });
+      CLOUD.revs[t.id] = t.rev;
+    }
+    DB.data.activeTripId = DB.data.trips[0]?.id || null;
+    try{ localStorage.setItem(DBKEY, JSON.stringify(DB.data)); }catch(e){}
+    return true;
+  },
+
+  stateOf(t){
+    return { t0:t.t0, t1:t.t1, votes:t.votes, free:t.free, weights:t.weights,
+             vibes:t.vibes, history:t.history,
+             lockedCity:t.lockedCity, lockedBy:t.lockedBy, lockedAt:t.lockedAt,
+             inheritedFrom:t.inheritedFrom };
+  },
+
+  async pushTrip(t, create){
+    const body = { id:t.id, title:t.title, status:t.status, rev:CLOUD.revs[t.id], state:Cloud.stateOf(t) };
+    if(create || CLOUD.revs[t.id] === undefined){
+      const r = await api('POST','/api/trips', body);
+      if(r.ok){ CLOUD.revs[t.id] = r.data.rev; t.id = r.data.id; }
+      return r.ok;
+    }
+    const r = await api('PUT','/api/trips?id='+encodeURIComponent(t.id), body);
+    if(r.ok){ CLOUD.revs[t.id] = r.data.rev; return true; }
+    if(r.status === 409){
+      /* 对方改过了：把服务端版本接过来，别硬覆盖 */
+      CLOUD.conflict = { id:t.id, state:r.data.state, rev:r.data.rev };
+      toast('对方刚改过这个行程，已在下方提示', true);
+      return false;
+    }
+    return false;
+  },
+
+  /* 防抖：连续操作只发一次 */
+  schedule(){
+    if(!CLOUD.ok || !CLOUD.user) return;
+    clearTimeout(CLOUD.pushTimer);
+    CLOUD.pushTimer = setTimeout(async ()=>{
+      const t = DB.trip(); if(!t) return;
+      await Cloud.pushTrip(t);
+      Cloud.banner();
+    }, 1200);
+  },
+
+  /* 轮询：对方改了没有 */
+  startPolling(){
+    if(!CLOUD.ok || !CLOUD.user || CLOUD.polling) return;
+    CLOUD.polling = setInterval(async ()=>{
+      const t = DB.trip(); if(!t || !CLOUD.revs[t.id]) return;
+      const r = await api('GET','/api/trips?id='+encodeURIComponent(t.id));
+      if(!r.ok) return;
+      if(r.data.trip.rev !== CLOUD.revs[t.id]){
+        CLOUD.remote = { rev:r.data.trip.rev, state:r.data.trip.state, by:r.data.trip.updated_by };
+        Cloud.banner();
+      }
+    }, 12000);
+  },
+
+  /* 显式应用，不自动洗牌 */
+  banner(){
+    const el = $('#syncBar'); if(!el) return;
+    if(CLOUD.remote){
+      const who = CLOUD.remote.by === CLOUD.user?.seat ? '你' : WHO[CLOUD.remote.by]?.name || '对方';
+      el.innerHTML = `<span>${who} 那边有更新</span>
+        <button id="syncApply">看看</button><button id="syncIgnore">忽略</button>`;
+      el.classList.add('on');
+      $('#syncApply').onclick = ()=>{ Cloud.applyRemote(); };
+      $('#syncIgnore').onclick = ()=>{ CLOUD.remote=null; el.classList.remove('on'); };
+    } else if(CLOUD.conflict){
+      el.innerHTML = `<span>有冲突：对方也改了</span>
+        <button id="syncApply">用对方的</button><button id="syncIgnore">保留我的</button>`;
+      el.classList.add('on');
+      $('#syncApply').onclick = ()=>{ Cloud.applyRemote(); };
+      $('#syncIgnore').onclick = ()=>{ CLOUD.revs[CLOUD.conflict.id]=CLOUD.conflict.rev; CLOUD.conflict=null; el.classList.remove('on'); Cloud.schedule(); };
+    } else {
+      el.classList.remove('on');
+    }
+  },
+
+  applyRemote(){
+    const src = CLOUD.remote || CLOUD.conflict;
+    if(!src) return;
+    const st = src.state || {};
+    const t = DB.trip();
+    if(t){
+      t.votes = st.votes || {a:{},b:{}};
+      t.free  = st.free  || {a:[],b:[]};
+      t.weights = Object.assign({}, W_DEF, st.weights||{});
+      t.vibes = st.vibes || [];
+      t.history = st.history || {};
+      t.t0 = st.t0; t.t1 = st.t1;
+      t.lockedCity = st.lockedCity; t.lockedBy = st.lockedBy; t.lockedAt = st.lockedAt;
+      t.status = src.status || t.status;
+    }
+    CLOUD.revs[t.id] = src.rev;
+    CLOUD.remote = null; CLOUD.conflict = null;
+    $('#syncBar').classList.remove('on');
+    DB.openTrip();
+    renderAll();
+    toast('已同步对方的最新版本');
+  },
+};
+
+/* ---------- 登录门交互 ---------- */
+$$('#gateTabs button').forEach(b=>b.addEventListener('click',()=>{
+  Auth.mode = b.dataset.m; Auth.render();
+  $('#gateMsg').textContent='';
+}));
+$$('#seatSeg button').forEach(b=>b.addEventListener('click',()=>{
+  $$('#seatSeg button').forEach(x=>x.classList.toggle('on', x===b));
+}));
+$('#gateSubmit').addEventListener('click', doAuthSubmit);
+['fUser','fPass','fNoteText'].forEach(id=>{
+  $('#'+id).addEventListener('keydown', e=>{ if(e.key==='Enter') doAuthSubmit(); });
+});
+
+async function doAuthSubmit(){
+  const username = $('#fUser').value.trim();
+  const password = $('#fPass').value;
+  if(!username || !password){ Auth.show('账号和密码都要填','bad'); return; }
+  const btn = $('#gateSubmit');
+  btn.disabled = true; btn.textContent = '…';
+  try{
+    if(Auth.mode === 'login'){
+      const r = await api('POST','/api/login',{ username, password });
+      if(!r.ok){ Auth.show(r.data?.error || '登录失败','bad'); return; }
+      CLOUD.user = r.data.user;
+      await afterLogin();
+    }else{
+      const seat = $('#seatSeg button.on')?.dataset.s || 'nj';
+      const r = await api('POST','/api/register',{
+        username, password, seat, note: $('#fNoteText').value.trim()
+      });
+      if(!r.ok){ Auth.show(r.data?.error || '提交失败','bad'); return; }
+      Auth.mode='login'; Auth.render();
+      Auth.show(r.data.message + (r.data.seatConflict ? `（${r.data.seatConflict} 正占着这个席位，管理员通过时会自动停用它）` : ''), 'ok');
+      $('#fPass').value='';
+    }
+  }catch(e){
+    Auth.show('连不上服务器：'+e.message, 'bad');
+  }finally{
+    btn.disabled = false; Auth.render();
+  }
+}
+
+/* 登录成功后：拉行程 -> 进大厅或直接进行程 */
+async function afterLogin(){
+  Auth.hide();
+  /* 防御：不管从哪条路径进来，先保证本地数据已加载。
+     少了这行，DB.data 会是 null，后面 DB.openTrip() 直接炸。 */
+  if(!DB.data) DB.load();
+  /* 云同步失败不能把后面的初始化也带崩——否则界面停在半初始化状态，
+     按钮全都点不动，而用户只看到一句"连不上服务器"。 */
+  try{
+    await Cloud.pull();
+  }catch(e){
+    console.warn('[cloud] 拉取失败，退回本地数据：', e.message);
+    try{ toast('云同步失败，先用本地数据', true); }catch(_){}
+  }
+  DB.openTrip();
+  const trips = DB.data.trips;
+  const blank = trips.length===1
+    && Object.keys(trips[0].votes?.a||{}).length===0
+    && Object.keys(trips[0].votes?.b||{}).length===0;
+  if(blank) openTripView(); else openHub();
+  Cloud.startPolling();
+}
+
+/* =========================================================================
+   14. 启动
+   ========================================================================= */
+(async function boot(){
+  /* 先把本地数据load进来。原代码只在 bootLocal()（file:// 模式）里 load，
+     云端模式一路走到 afterLogin() 时 DB.data 还是 null —— 于是
+     DB.openTrip() 和 newTripDialog() 都会炸在 "reading 'trips' of null"。 */
+  DB.load();
+
+  /* 本地打开（file://）没有后端，直接进工具 */
+  if(!CLOUD.ok){ bootLocal(); return; }
+
+  const a = await Auth.check();
+  if(a.needLogin){ Auth.show(a.seeded ? '测试账号：南京 / 111，黄石 / 222' : ''); return; }
+  if(a.error){
+    Auth.show(a.error + (a.setup ? '\n\n这通常是还没配置 SESSION_SECRET 或 D1 绑定。' : ''), 'bad');
+    return;
+  }
+  CLOUD.user = a.user;
+  await afterLogin();
+})();
+
+function bootLocal(){
+  /* URL hash 里可能带着别人分享的方案 */
+  const m=location.hash.match(/s=([A-Za-z0-9\-_]+)/);
+  const shared=m?decodeShare(m[1]):null;
+
+  DB.load();
+  store.base=DB.data.ui.base||'svg';
+  store.useWeather=DB.data.ui.useWeather!==false;
+  store.hideRejected=DB.data.ui.hideRejected!==false;
+  DB.openTrip();                       // 把当前行程灌进 store
+  store.me=CLOUD.user ? CLOUD.user.seat : DB.data.me;
+
+  if(shared && applyShare(shared)){
+    DB.saveTrip();
+    setTimeout(()=>toast('已载入对方分享的方案'),400);
+  }
+
+  $('#shutA').value=LS.get('shutA',60);
+  $('#shutB').value=LS.get('shutB',25);
+  $('#swWeather').classList.toggle('on',store.useWeather);
+  $('#swHide').classList.toggle('on',store.hideRejected);
+  if(DB.data.ui.guideDone) $('#guide').classList.add('hide');
+
+  /* 只有一次行程且还是空白 -> 直接进工具，别让人先看一个空大厅。
+     等真的有第二个行程了，大厅才出现。 */
+  const trips=DB.data.trips;
+  const blank = trips.length===1
+    && Object.keys(trips[0].votes?.a||{}).length===0
+    && Object.keys(trips[0].votes?.b||{}).length===0;
+  const remembered=(()=>{ try{ return sessionStorage.getItem('meet.view')==='trip'; }catch(e){ return false; } })();
+  if(shared || remembered || blank) openTripView(); else openHub();
+  const hw=document.getElementById('hubWho'); if(hw) hw.textContent=WHO[DB.data.me].name;
+}
+
+function loadWeatherIfNeeded(){
+  if(store.useWeather && cfg().date<=ymd(new Date(Date.now()+15*864e5))) loadWeather(false);
+}
+/* 一次把整个行程渲染出来 */
+function renderAll(){
+  renderWho(); updPSum(); renderVibes(); renderSliders(); renderHistory();
+  renderDates(); drawStatic(); renderBlacklist();
+  recompute();
+  if(store.sel && !store.results.some(r=>r.city.id===store.sel)) store.sel=null;
+  drawMap();
+  if(store.base==='amap') setBase('amap');
+  renderCards(); renderCompare(); renderHistory();
+  renderTripBar();
+}
+</script>
+<script>
+/* ---------- 主题切换 ----------
+   和工具箱共用 localStorage 的 a377theme 键，切一次两边都跟着变。 */
+(function () {
+  var KEY = "a377theme";
+  var root = document.documentElement;
+  var btn = document.getElementById("theme-toggle");
+  var meta = document.getElementById("theme-color");
+
+  function apply(t) {
+    root.dataset.theme = t;
+    if (meta) meta.setAttribute("content", t === "dark" ? "#0a0d14" : "#f3f5f9");
+    if (btn) btn.setAttribute("aria-label", t === "dark" ? "切换到浅色" : "切换到深色");
+  }
+
+  apply(root.dataset.theme === "light" ? "light" : "dark");
+
+  if (btn) {
+    btn.addEventListener("click", function () {
+      var next = root.dataset.theme === "dark" ? "light" : "dark";
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+      apply(next);
+    });
+  }
+
+  // 没手动选过就跟随系统
+  try {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (e) {
+      try { if (localStorage.getItem(KEY)) return; } catch (err) { return; }
+      apply(e.matches ? "dark" : "light");
+    });
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
