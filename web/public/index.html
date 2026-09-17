@@ -3,135 +3,344 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#faf9f5">
+<meta name="theme-color" content="#000000">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/tokens.css">
-<script src="/assets/theme.js"></script>
-<link rel="stylesheet" href="/assets/shell.css">
-<script src="/assets/shell.js" defer></script>
-<title>A377Tool · 个人在线工具箱</title>
+<title>A377Tool</title>
 <style>
+  :root{
+    --ink:#000;
+    --paper:#fff;
+    --copy:#836953;
+    --grey:#c8c8c8;
+    --hair:1px;
+    --serif:"Times New Roman",Times,"Songti SC","SimSun",serif;
+    --pixel:"Courier New","MS Gothic",Consolas,monospace;
+  }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  html,body{margin:0;padding:0;min-height:100%}
   body{
-    background:var(--ui-bg);color:var(--ui-ink);
-    font:15px/1.65 var(--ui-font);
-    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
+    background:var(--ink);
+    color:var(--ink);
+    font-family:var(--serif);
+    cursor:crosshair;
   }
-  .wrap{max-width:900px;margin:0 auto;padding:54px 22px 96px}
-  .eyebrow{
-    display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
-    letter-spacing:.06em;text-transform:uppercase;color:var(--ui-accent-ink);
-    background:var(--ui-accent-soft);padding:4px 10px;border-radius:var(--ui-r-full);margin-bottom:14px
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  .page{
+    min-height:100dvh;
+    display:grid;
+    grid-template-columns:repeat(12,minmax(0,1fr));
+    grid-auto-rows:auto;
+    gap:var(--hair);
+    padding:var(--hair);
+    background:var(--ink);
   }
-  .eyebrow svg{width:12px;height:12px;flex:none}
-  .hero h1{margin:0 0 10px;font-size:34px;line-height:1.15;letter-spacing:-.035em;font-weight:650}
-  .hero p{margin:0;color:var(--ui-ink-2);font-size:14.5px;max-width:62ch}
-  .hero .meta{margin-top:13px;display:flex;flex-wrap:wrap;gap:7px}
-  .pill{
-    font-size:11.5px;padding:4px 10px;border-radius:var(--ui-r-full);
-    background:var(--ui-sunken);border:1px solid var(--ui-line);color:var(--ui-ink-2)
+  .cell{
+    background:var(--paper);
+    min-width:0;
+    position:relative;
+    animation:cell-in .55s cubic-bezier(.2,.8,.2,1) both;
+    animation-delay:calc(var(--i,0) * 60ms);
   }
-
-  .grid{display:grid;gap:14px;margin-top:30px;grid-template-columns:repeat(auto-fit,minmax(245px,1fr))}
-  .card{
-    display:flex;flex-direction:column;min-height:210px;padding:20px 19px;
-    border-radius:var(--ui-r-lg);background:var(--ui-surface);border:1px solid var(--ui-line);
-    text-decoration:none;color:var(--ui-ink);box-shadow:var(--ui-shadow-1);
-    transition:border-color .18s var(--ui-ease),background .18s var(--ui-ease),transform .18s var(--ui-ease)
-  }
-  .card:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
-  .card .ico{
-    width:42px;height:42px;display:grid;place-items:center;flex:none;
-    border-radius:12px;background:var(--ui-accent-soft);color:var(--ui-accent)
-  }
-  .card .ico svg{width:21px;height:21px}
-  .card h2{margin:15px 0 6px;font-size:17px;font-weight:650;letter-spacing:-.015em}
-  .card p{margin:0;color:var(--ui-ink-3);font-size:13px;line-height:1.65}
-  .card .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px}
-  .card .tag{font-size:11px;padding:3px 8px;border-radius:var(--ui-r-full);background:var(--ui-sunken);color:var(--ui-ink-2)}
-  .card .go{margin-top:auto;padding-top:16px;font-size:13px;color:var(--ui-ink-3);display:flex;align-items:center;gap:5px}
-  @media (hover:hover){
-    .card:hover{border-color:var(--ui-accent);background:var(--ui-accent-soft);transform:translateY(-2px)}
-    .card:hover .go{color:var(--ui-accent);transform:translateX(3px)}
+  @keyframes cell-in{
+    from{opacity:0;transform:translateY(8px)}
+    to{opacity:1;transform:none}
   }
 
-  .note{
-    margin-top:22px;padding:15px 17px;border-radius:var(--ui-r-md);
-    background:var(--ui-sunken);border:1px solid var(--ui-line);color:var(--ui-ink-2);
-    font-size:12.5px;line-height:1.7
+  /* 01 · 巨大名字 */
+  .name{
+    grid-column:1 / -1;
+    min-height:42vh;
+    overflow:hidden;
+    display:grid;
+    place-items:center;
+    padding:0;
+    user-select:none;
   }
-  .note b{color:var(--ui-ink);font-weight:650}
-  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--ui-line);color:var(--ui-ink-3);font-size:12.5px}
+  .brand{
+    margin:0;
+    font-family:var(--pixel);
+    font-weight:700;
+    font-size:clamp(76px,17.2vw,270px);
+    line-height:.72;
+    letter-spacing:-.075em;
+    text-transform:uppercase;
+    white-space:nowrap;
+    color:var(--copy);
+    text-shadow:-1px 0 0 #fff,1px 0 0 #fff,0 -1px 0 #fff,0 1px 0 #fff,
+                -1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;
+    -webkit-font-smoothing:none;
+  }
+  .brand .l{
+    display:inline-block;
+    cursor:grab;
+    touch-action:none;
+    will-change:transform;
+  }
+  .brand .l:active{cursor:grabbing}
+  .name-hint{
+    position:absolute;right:10px;bottom:8px;
+    font:10px/1 var(--pixel);
+    color:var(--grey);
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+
+  /* 02 · 跑马灯 */
+  .ticker{
+    grid-column:1 / -1;
+    overflow:hidden;
+    padding:0;
+    display:flex;
+    align-items:center;
+    min-height:46px;
+    background:var(--paper);
+  }
+  .track{
+    display:flex;
+    align-items:center;
+    gap:0;
+    white-space:nowrap;
+    font:700 clamp(13px,1.25vw,20px)/1 var(--pixel);
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    animation:move 24s linear infinite;
+  }
+  .track span{padding:0 18px}
+  .track i{font-style:normal;color:var(--copy)}
+  @keyframes move{to{transform:translateX(-50%)}}
+
+  /* 03 · 简介 */
+  .intro{
+    grid-column:1 / -1;
+    padding:clamp(20px,3vw,42px);
+    display:grid;
+    grid-template-columns:1fr minmax(220px,360px);
+    gap:28px;
+    align-items:end;
+  }
+  .intro .kicker{
+    margin:0 0 10px;
+    font:700 11px/1 var(--pixel);
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--copy);
+  }
+  .intro .bio{
+    margin:0;
+    font:700 clamp(20px,3vw,48px)/1.05 var(--serif);
+    text-transform:uppercase;
+    letter-spacing:-.02em;
+    max-width:16ch;
+  }
+  .intro .side{
+    font:13px/1.65 var(--pixel);
+    color:var(--ink);
+    text-transform:uppercase;
+  }
+  .intro .side b{display:block;color:var(--copy);font-size:11px;letter-spacing:.12em;margin-bottom:7px}
+
+  /* 04 · 三个工具 */
+  .tools{
+    grid-column:1 / -1;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:var(--hair);
+    padding:0;
+    background:var(--ink);
+  }
+  .tool{
+    min-height:32vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    gap:22px;
+    padding:clamp(18px,2.4vw,34px);
+    background:var(--paper);
+    transition:background .16s ease,color .16s ease;
+  }
+  .tool .no{
+    font:700 11px/1 var(--pixel);
+    letter-spacing:.14em;
+    color:var(--copy);
+  }
+  .tool h2{
+    margin:0;
+    font:700 clamp(25px,3vw,52px)/.95 var(--serif);
+    text-transform:uppercase;
+    letter-spacing:-.04em;
+  }
+  .tool p{
+    margin:0;
+    font:12.5px/1.6 var(--pixel);
+    text-transform:uppercase;
+    color:#444;
+  }
+  .tool .go{
+    font:700 12px/1 var(--pixel);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+  .tool:hover,.tool:focus-visible{
+    background:var(--ink);
+    color:var(--paper);
+    outline:none;
+  }
+  .tool:hover .no,.tool:focus-visible .no{color:var(--copy)}
+  .tool:hover p,.tool:focus-visible p{color:var(--grey)}
+  .tool:hover .go,.tool:focus-visible .go{color:var(--copy)}
+
+  /* 05 · 底部 */
+  .foot{
+    grid-column:1 / -1;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    padding:14px 18px;
+    font:11px/1.4 var(--pixel);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:#333;
+  }
+  .foot .spacer{flex:1}
+  .foot a{border-bottom:1px dotted #333;padding-bottom:2px}
+  .foot a:hover{color:var(--copy);border-color:var(--copy)}
+
+  @media (max-width:760px){
+    .name{min-height:34vh}
+    .brand{font-size:18vw}
+    .intro{grid-template-columns:1fr}
+    .tools{grid-template-columns:1fr}
+    .tool{min-height:0}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  }
 </style>
 </head>
-<body data-nav="home">
-<div class="wrap">
-  <header class="hero">
-    <div class="eyebrow">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-      个人在线工具集合
+<body>
+<main class="page">
+
+  <section class="cell name" id="nameBlock" style="--i:0">
+    <h1 class="brand" id="brand" aria-label="A377Tool">A377TOOL</h1>
+    <span class="name-hint">drag the letters</span>
+  </section>
+
+  <div class="cell ticker" style="--i:1">
+    <div class="track">
+      <span>FILE TOOLBOX</span><i>✦</i><span>PDF → IMAGE</span><i>✦</i>
+      <span>REORDER</span><i>✦</i><span>MERGE / SPLIT</span><i>✦</i>
+      <span>NCM → AUDIO</span><i>✦</i><span>DRAW</span><i>✦</i>
+      <span>RIGHT CODE</span><i>✦</i><span>CODE0</span><i>✦</i>
+      <span>WEEKEND TRIPS</span><i>✦</i><span>NO UPLOADS</span><i>✦</i>
+      <span>FILE TOOLBOX</span><i>✦</i><span>PDF → IMAGE</span><i>✦</i>
+      <span>REORDER</span><i>✦</i><span>MERGE / SPLIT</span><i>✦</i>
+      <span>NCM → AUDIO</span><i>✦</i><span>DRAW</span><i>✦</i>
+      <span>RIGHT CODE</span><i>✦</i><span>CODE0</span><i>✦</i>
+      <span>WEEKEND TRIPS</span><i>✦</i><span>NO UPLOADS</span><i>✦</i>
     </div>
-    <h1>A377Tool</h1>
-    <p>文件处理、AI 生图、周末见面。尽量在浏览器里完成，能不上传的就不上传。</p>
-    <div class="meta">
-      <span class="pill">浅色 / 深色主题全站同步</span>
-      <span class="pill">移动端可用</span>
-      <span class="pill">无账号也能用文件工具箱</span>
-    </div>
-  </header>
-
-  <main class="grid">
-    <a class="card" href="/file/">
-      <span class="ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/>
-          <path d="M14 2v5h5"/><path d="M9 13h6M9 17h4"/>
-        </svg>
-      </span>
-      <h2>文件工具箱</h2>
-      <p>PDF 转图片、重排页面、合并、拆分，以及 ncm 转音频。文件不上传服务器。</p>
-      <div class="tags"><span class="tag">离线可用</span><span class="tag">PDF</span><span class="tag">ncm</span></div>
-      <span class="go">打开工具箱 <span aria-hidden="true">→</span></span>
-    </a>
-
-    <a class="card" href="/draw/">
-      <span class="ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="3"/>
-          <circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/>
-        </svg>
-      </span>
-      <h2>生图工作台</h2>
-      <p>Right Code 与 Code0 两个绘图工作台，支持文生图、图生图、批量与 4K。</p>
-      <div class="tags"><span class="tag">在线图片生成</span><span class="tag">批量</span></div>
-      <span class="go">进入生图 <span aria-hidden="true">→</span></span>
-    </a>
-
-    <a class="card" href="/trips/">
-      <span class="ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/>
-          <path d="M2 19h20M8 7h8M8 11h5"/>
-        </svg>
-      </span>
-      <h2>周末去哪见面</h2>
-      <p>两个人各自表态，算出对双方都合适的中间城市，附带高铁时长和地图。</p>
-      <div class="tags"><span class="tag">需要登录</span><span class="tag">邀请制</span><span class="tag">地图</span></div>
-      <span class="go">打开见面计划 <span aria-hidden="true">→</span></span>
-    </a>
-  </main>
-
-  <div class="note">
-    <b>一点说明：</b>文件工具箱和生图都尽量在浏览器里跑；见面工具需要登录，并且完全独立于文件数据。
-    浏览器会记住你的浅色 / 深色偏好，切换页面后保持一致。
   </div>
 
-  <footer>
-    A377Tool · 个人项目，按需使用。
+  <section class="cell intro" style="--i:2">
+    <div>
+      <p class="kicker">A377TOOL / PERSONAL ONLINE TOOLS</p>
+      <p class="bio">MAKE PDFS LESS ANNOYING. MAKE IMAGES. PLAN THE WEEKEND.</p>
+    </div>
+    <div class="side">
+      <b>WHAT IS THIS</b>
+      文件在浏览器里处理，不传服务器。生图直连或走代理。见面工具需要登录，地图和 12306 都在。
+    </div>
+  </section>
+
+  <section class="tools">
+    <a class="cell tool" href="/file/" style="--i:3">
+      <span class="no">01 / FILE</span>
+      <h2>文件<br>工具箱</h2>
+      <p>PDF 转图片 · 重排页面 · 合并 · 拆分 · ncm 转音频</p>
+      <span class="go">OPEN TOOLBOX →</span>
+    </a>
+    <a class="cell tool" href="/draw/" style="--i:4">
+      <span class="no">02 / DRAW</span>
+      <h2>生图<br>工作台</h2>
+      <p>Right Code · Code0 · 文生图 · 图生图 · 批量生成</p>
+      <span class="go">OPEN DRAW →</span>
+    </a>
+    <a class="cell tool" href="/trips/" style="--i:5">
+      <span class="no">03 / TRIPS</span>
+      <h2>周末<br>去哪见面</h2>
+      <p>选中间城市 · 高铁时长 · 地图 · 双人讨论</p>
+      <span class="go">OPEN TRIPS →</span>
+    </a>
+  </section>
+
+  <footer class="cell foot" style="--i:6">
+    <span>NO UPLOADS</span>
+    <span>/</span>
+    <span>NO NONSENSE</span>
+    <span class="spacer"></span>
+    <span id="clock">--:--:--</span>
+    <span>/</span>
+    <a href="/file/">FILE</a>
+    <a href="/draw/">DRAW</a>
+    <a href="/trips/">TRIPS</a>
   </footer>
-</div>
+
+</main>
+
+<script>
+(function(){
+  var brand = document.getElementById("brand");
+  if(!brand) return;
+  var text = brand.textContent;
+  brand.textContent = "";
+  var letters = [];
+  for(var i=0;i<text.length;i++){
+    var s = document.createElement("span");
+    s.className = "l";
+    s.textContent = text[i];
+    s.dataset.dx = "0";
+    s.dataset.dy = "0";
+    brand.appendChild(s);
+    letters.push(s);
+  }
+  var drag = null;
+  function move(e){
+    if(!drag) return;
+    var dx = e.clientX - drag.x;
+    var dy = e.clientY - drag.y;
+    var x = Number(drag.el.dataset.dx) + dx;
+    var y = Number(drag.el.dataset.dy) + dy;
+    drag.el.dataset.dx = x;
+    drag.el.dataset.dy = y;
+    drag.el.style.transform = "translate(" + x + "px," + y + "px) rotate(" + (x * 0.08) + "deg)";
+    e.preventDefault();
+  }
+  letters.forEach(function(el){
+    el.addEventListener("pointerdown", function(e){
+      drag = { el: el, x: e.clientX, y: e.clientY };
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", function(){ drag = null; });
+    el.addEventListener("pointercancel", function(){ drag = null; });
+    el.addEventListener("dblclick", function(){
+      el.dataset.dx = "0"; el.dataset.dy = "0";
+      el.style.transform = "";
+    });
+  });
+  document.getElementById("nameBlock").addEventListener("dblclick", function(){
+    letters.forEach(function(el){ el.dataset.dx = "0"; el.dataset.dy = "0"; el.style.transform = ""; });
+  });
+  function tick(){
+    var d = new Date();
+    var p = function(n){ return String(n).padStart(2,"0"); };
+    var el = document.getElementById("clock");
+    if(el) el.textContent = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
 </body>
 </html>
