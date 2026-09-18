@@ -808,7 +808,12 @@ check("拖进来的原图确实很大（否则后面压不压都测不出来）"
 await admin.waitForFunction((n) => {
   const b = [...document.querySelectorAll(".block")].find(
     (x) => x.querySelector(".block-head .kind")?.textContent === "gallery");
-  return b && b.querySelectorAll(".item").length > n;
+  if (!b || b.querySelectorAll(".item").length <= n) return false;
+  /* 不仅要列表多了一项，还要最后一项的缩略图加载完（naturalWidth > 0）——
+     否则后面 evaluate 拿到的是没加载完的图，thumbOk 假失败 */
+  const items = b.querySelectorAll(".item");
+  const img = items[items.length - 1].querySelector(".thumb-slot img");
+  return !!(img && img.naturalWidth > 0);
 }, { timeout: 30000 }, dropInfo.before).catch(() => {});
 
 const afterDrop = await admin.evaluate(() => {
