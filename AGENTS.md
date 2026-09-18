@@ -86,8 +86,13 @@ CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='5117ffc876a76ef7302775c45
 ### 部署后必须跑校验：`tools/verify-deploy.mjs`
 
 ```bash
-node tools/verify-deploy.mjs                  # 默认 https://a377.xyz
+node tools/verify-deploy.mjs                  # 默认 https://a377.xyz，12 项
+ADMIN_TOKEN='<口令>' node tools/verify-deploy.mjs   # 多 3 项（后台页面的 200 分支）
 ```
+
+不带口令只能证明**路由存在**（拿到的是 401 分支）。带上口令才能验到 200 分支 ——
+确认后台页面真的引用了视频管线模块、挂了自己的脚本。
+「文件传上去了但页面没挂上去」只有带口令才看得出来。
 
 **为什么不能只看状态码**：Pages 对不存在的路径会**回落到 `index.html` 并返回 200**。
 所以「某个文件 / 接口根本没部署上去」在 `curl -w "%{http_code}"` 眼里和正常一模一样 ——

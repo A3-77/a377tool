@@ -104,6 +104,38 @@ for (const [name, path] of [
     "缓存头是长 max-age，public/_headers 没生效 —— 部署后用户刷新会拿到旧版。");
 }
 
+/* ---- 带口令的后台页面（可选）----
+   上面那几条只证明了「路由存在」（拿到的是 401 分支）。
+   带上 ADMIN_TOKEN 才能验到 200 分支 —— 确认后台页面真的引用了视频管线，
+   而不只是文件传上去了但页面没挂上去。
+
+     ADMIN_TOKEN=xxx node tools/verify-deploy.mjs
+   ADMIN_TOKEN 是只写不可读的 secret，从密码管理器里取；
+   没设就跳过这组（不报失败）。 */
+const KEY = process.env.ADMIN_TOKEN || "";
+if (KEY) {
+  const admin = await check("后台页面能打开（带口令）",
+    "/api/site-admin?key=" + encodeURIComponent(KEY), null,
+    (r) => r.status === 200 && !/口令不对|未配置管理口令/.test(r.body),
+    "口令不对，或线上 ADMIN_TOKEN 和本地不一致（改完 secret 要重新部署才生效）。");
+
+  /* 页面本身没打开就别往下判了 —— 否则「Functions 是旧版」这种
+     原因会盖住真正的「口令不对」，把人带偏 */
+  if (admin && admin.status === 200) {
+    await check("后台页面挂了视频管线模块",
+      "/api/site-admin?key=" + encodeURIComponent(KEY), null,
+      (r) => /\/assets\/video-spec\.js/.test(r.body) && /\/assets\/video-prep\.js/.test(r.body),
+      "Functions 是旧版 —— 页面没引用视频管线。functions/ 改了要重新部署。");
+
+    await check("后台页面有上传入口",
+      "/api/site-admin?key=" + encodeURIComponent(KEY), null,
+      (r) => /site-admin\.js/.test(r.body) && /site-admin\.css/.test(r.body),
+      "后台页面没挂自己的脚本 / 样式。");
+  }
+} else {
+  console.log("  · 跳过 3 项「带口令的后台页面」检查（没设 ADMIN_TOKEN）");
+}
+
 /* ---- 报告 ---- */
 console.log("检查项".padEnd(22) + "结果");
 console.log("─".repeat(74));
