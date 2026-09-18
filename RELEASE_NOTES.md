@@ -68,6 +68,30 @@ CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='<账户ID>' bash tools/de
 CLI 那条路径有同一类缺陷（`Math.max(80, kbps * 0.85)`），一并改成**严格递减**。
 CLI 的重试本身是对的（x264 的 `-b:v` 是平均码率确实会小幅超出），只是下限不能高于上一次。
 
+## 新增：后台资源不缓存（`public/_headers`）
+
+服务端部署对了，用户也可能拿到旧版 —— Pages 默认给静态资源
+`max-age=14400`，后台脚本是「部署产物」，4 小时内刷新拿到的还是旧版。
+和服务端没部署是同一类故障，但更难查：`curl` 服务端是对的，只有那个浏览器是旧的。
+
+第一版写 `no-cache` **没生效**。实测挖出原因：
+
+| 源站给的 | `a377.xyz` | `*.pages.dev` |
+| --- | --- | --- |
+| `no-store` | 原样通过 ✅ | 原样 |
+| `no-cache` | **被改写成 `max-age=14400`** ❌ | 原样 |
+
+`a377.xyz` 的 zone 设置里 `browser_cache_ttl = 14400`（Cloudflare 默认 4 小时），
+会**覆盖源站 `Cache-Control` 的 max-age**，但 `no-store` 是「根本别存」，它尊重。
+`*.pages.dev` 没有这个 zone 设置，所以两种都通过 ——
+**只在 pages.dev 上测会得出错误结论，必须拿自定义域名测。**
+
+另一个坑：**改完 `_headers` 要清一次边缘缓存**。内容没变的资源 ETag 不变，
+边缘协商拿到 304 会**保留旧的响应头**，看起来像 `_headers` 没生效。
+
+代价：每次打开后台重下这四个文件（共约 85KB）。后台只有站主用，可以忽略。
+校验脚本相应加到 12 项（4 项缓存头检查）。
+
 ## 测试
 
 `tests/test_video_prep.mjs` 78 → **81 项**，新增：
@@ -77,6 +101,15 @@ CLI 的重试本身是对的（x264 的 `-b:v` 是平均码率确实会小幅超
 - 报的是「压不下去」的原因，不是假装成功
 
 两个套件全绿：`test_video_prep.mjs` 81 项、`test_showcase.mjs` 135 项。
+
+## 部署状态
+
+**线上 `a377.xyz` 已更新到本版**（此前停在 `633fcbe`，落后 4 个提交）。
+MEDIA KV 命名空间已创建并绑定，12 项校验全过。
+
+> 唯一没独立验证的一步：带口令的真实上传写 KV。
+> 上传接口要 `ADMIN_TOKEN`，而它是只写不可读的 secret。
+> 用 `ADMIN_TOKEN=xxx node tools/verify-deploy.mjs` 可以补验后台页面的 200 分支。
 
 ---
 
