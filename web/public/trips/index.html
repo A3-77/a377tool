@@ -357,7 +357,12 @@
     max-height:calc(100vh - 84px);min-height:380px;border-radius:var(--r);overflow:hidden;background:var(--map-bg)}
   #amap{position:absolute;inset:0;display:none}
   #amap.on{display:block}
-  #svgmap{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+  #svgmap{width:100%;height:100%;display:block;cursor:grab;touch-action:none;
+    /* SVG <text> 不写 font-family 时各浏览器继承行为不一致 —— 中文可能掉到
+       衬线或直接渲染成豆腐块。这里统一声明并跟正文字体族一致。
+       字号还是从 .label/.corlabel 等单独样式里拿（避免影响坐标计算）。 */
+    font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",system-ui,sans-serif}
+  #svgmap text{font-family:inherit}
   #svgmap.dragging{cursor:grabbing}
   .mapbar{position:absolute;left:10px;top:10px;display:flex;gap:5px;flex-wrap:wrap;z-index:5}
   .mapbar button{padding:4px 9px;border-radius:6px;font-size:var(--fs-1);color:var(--dim);
