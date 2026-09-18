@@ -708,3 +708,18 @@ curl -s https://a377.xyz/api/me                                     # 未登录 
 - `node --check` 通过（`assets/site-admin.js`）
 - 视频套件 `test_video_prep.mjs` 81 项全绿
 - 部署后 `tools/verify-deploy.mjs` 12 项全过，线上就是当前这份代码
+
+## 首页布局调整
+
+按用户要求：
+- **删掉 one 皮肤中间那段 hero**（"MAKE PDFS LESS ANNOYING..." 等 340px 高的白色文字块）—— 之前挡在 SHOWCASE 前面
+- **SHOWCASE 移到 footer 后面**，做成页面最后一个块（两个皮肤都改）
+
+整页 one 视图从 1493px → 1151px（约 -23%），SHOWCASE 直接接 ticker 后面，不被任何中间内容挡。
+
+## trips 地图 SVG label 字体修复
+
+之前 SVG `<text>` 元素（城市标签、走廊标签等）只设了 fill/font-size，**没设 font-family**，依赖继承。
+不同浏览器对 SVG text 的 font-family 继承行为不一致 —— 中文可能掉到默认 sans-serif，跨浏览器渲染不一致，深色地图底上尤其明显。
+
+`#svgmap` 上加 `font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",system-ui,sans-serif`，并同步到 `#svgmap text`。其他视觉属性（fill 颜色、字号、描边宽度）保持不变 —— 最小必要改动。
