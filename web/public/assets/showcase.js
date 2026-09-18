@@ -72,6 +72,42 @@
      ============================================================ */
   var CAM = 2.2;   // 相机距离 = 半径 × CAM
 
+  /* 卡片里的媒体可以是图也可以是视频（DialKit 那个画廊就是 22 个 mp4）。
+     判定顺序：item.type 显式指定 > 按扩展名猜。 */
+  var VIDEO_RE = /\.(mp4|m4v|webm|ogv|ogg|mov)(\?|#|$)/i;
+
+  function isVideo(item) {
+    if (item.type === "video") return true;
+    if (item.type === "image") return false;
+    return VIDEO_RE.test(item.src || "");
+  }
+
+  function mediaEl(item) {
+    if (!isVideo(item)) {
+      var img = document.createElement("img");
+      img.src = item.src;
+      img.alt = item.title || "";
+      img.loading = "lazy";
+      img.draggable = false;
+      return img;
+    }
+    var v = document.createElement("video");
+    /* muted 是自动播放的硬前提 —— 不静音浏览器直接拒绝 play() */
+    v.muted = true;
+    v.defaultMuted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.setAttribute("muted", "");
+    v.setAttribute("playsinline", "");
+    v.setAttribute("disablepictureinpicture", "");
+    v.setAttribute("tabindex", "-1");
+    v.draggable = false;
+    v.preload = item.preload || "metadata";
+    if (item.poster) v.poster = item.poster;
+    v.src = item.src;
+    return v;
+  }
+
   function gallerySection(cfg) {
     var items = (cfg.items || []).filter(function (it) { return it && it.src; });
 
@@ -82,6 +118,9 @@
     var dim = clamp(num(cfg.dim, 0.55), 0, 1);
     var pauseOnHover = cfg.pauseOnHover !== false;
     var canDrag = cfg.drag !== false;
+    var videoAutoplay = cfg.videoAutoplay !== false;
+    var maxPlaying = clamp(num(cfg.videoMaxPlaying, 4), 0, 16);
+    var preloadAll = cfg.videoPreload !== "none";
 
     var sec = el("section", "a377-showcase a377-showcase-bleed");
     sec.style.setProperty("--bg", cfg.bg || "#000");
@@ -91,7 +130,7 @@
 
     if (!items.length) {
       view.append(el("div", "a377-showcase-empty",
-        "还没有图片。到 管理页 → 展示组件 里加几张。"));
+        "还没有内容。到 管理页 → 展示组件 里加几张图片或视频。"));
       sec.append(view);
       return sec;
     }
@@ -103,21 +142,33 @@
 
     var ring = el("div", "a377-gal-ring");
     var cards = [];
+    var videos = [];   // 只放视频卡片，播放调度用
     for (var i = 0; i < count; i++) {
       var item = items[i % items.length];
       var angle = i * step;
 
       var fig = el("figure", "a377-gal-card");
-      var img = document.createElement("img");
-      img.src = item.src;
-      img.alt = item.title || "";
-      img.loading = "lazy";
-      img.draggable = false;
-      fig.append(img);
+      var node = mediaEl(item);
+      /* 环会把同一份素材复制多张卡。复制出来的那些大部分时间在背面
+         （.a377-gal-card 有 backface-visibility:hidden，背面根本不显示），
+         所以「不预加载」模式下让它们保持空白是安全的，等转到正面再加载。 */
+      var isDup = i >= items.length;
+      if (node.tagName === "VIDEO" && !preloadAll && isDup) {
+        node.preload = "none";
+        node.removeAttribute("src");
+        node.dataset.src = item.src;
+      }
+      fig.append(node);
       if (item.title) fig.append(el("figcaption", null, item.title));
 
+      var entry = null;
+      if (node.tagName === "VIDEO") {
+        entry = { node: node, d: 999, on: false, item: item };
+        videos.push(entry);
+      }
+
       ring.append(fig);
-      cards.push({ node: fig, angle: angle });
+      cards.push({ node: fig, angle: angle, video: entry });
     }
     view.append(ring);
     sec.append(view);
@@ -151,13 +202,58 @@
     var rot = 0, hovered = false, dragging = false, lastX = 0;
     var raf = 0, prev = 0, visible = true;
 
+    /* ---- 视频播放调度 ----
+       一圈 24 张卡，如果视频全播会把带宽和 CPU 一起吃掉。
+       策略：按「离正前方多远」排序，只播最近的 videoMaxPlaying 个；
+       整块展示带滚出视口时全部暂停（IntersectionObserver 已经在管 rAF，
+       这里跟着一起停）。
+       不在播放名单里的停在首帧 —— preload="metadata" 已经拿到首帧，
+       看着就是张静图，不会有「空白卡片」。 */
+    var syncRot = NaN, syncDirty = true;
+
+    function syncVideo() {
+      if (!videos.length) return;
+      /* 排序不便宜，环每转 0.5° 才重排一次
+         （默认 6°/s ≈ 每秒 12 次，而不是每帧 60 次） */
+      if (!syncDirty && Math.abs(rot - syncRot) < 0.5) return;
+      syncRot = rot;
+      syncDirty = false;
+
+      var order = videos.slice().sort(function (a, b) {
+        return Math.abs(a.d) - Math.abs(b.d);
+      });
+      /* REDUCE（系统开了「减少动态效果」）时一个都不播 —— 只留首帧 */
+      var budget = (videoAutoplay && visible && !REDUCE) ? maxPlaying : 0;
+
+      for (var i = 0; i < order.length; i++) {
+        var v = order[i];
+        var want = i < budget;
+        if (want === v.on) continue;
+        v.on = want;
+        if (want) {
+          /* 复制卡是懒加载的，轮到它播了才把 src 装上（同源，走缓存，不会重下） */
+          if (!v.node.getAttribute("src") && v.node.dataset.src) {
+            v.node.setAttribute("src", v.node.dataset.src);
+            v.node.preload = "auto";
+          }
+          var p = v.node.play();
+          /* 自动播放被浏览器拦下来是正常情况（省电模式、策略限制），不该炸 */
+          if (p && p.catch) p.catch(function () {});
+        } else {
+          v.node.pause();
+        }
+      }
+    }
+
     function paint() {
       ring.style.transform = "translateZ(" + (-radius).toFixed(1) + "px) rotateY(" + rot + "deg)";
       for (var k = 0; k < cards.length; k++) {
         var d = ((cards[k].angle + rot) % 360 + 360) % 360;
         if (d > 180) d -= 360;
         cards[k].node.style.opacity = (1 - dim * Math.min(1, Math.abs(d) / 180)).toFixed(3);
+        if (cards[k].video) cards[k].video.d = d;
       }
+      syncVideo();
     }
 
     function frame(now) {
@@ -198,6 +294,10 @@
         for (var i = 0; i < ents.length; i++) {
           visible = ents[i].isIntersecting;
           if (visible) start(); else stop();
+          /* rAF 停了 paint() 就不会再跑，视频得在这里显式停 ——
+             否则滚出视口后视频还在后台播，白白耗流量和电 */
+          syncDirty = true;
+          syncVideo();
         }
       }, { rootMargin: "160px" });
       io.observe(view);
@@ -233,145 +333,354 @@
     }
 
     cleanups.push(stop);
+    /* 组件被换掉时（切皮肤重渲染）把所有视频停下来 */
+    cleanups.push(function () {
+      for (var i = 0; i < videos.length; i++) {
+        try { videos[i].node.pause(); } catch (e) {}
+      }
+    });
     return sec;
   }
 
   /* ============================================================
      Photo Stack
+
+     照 DialKit 的 example/src/PhotoStack.tsx 对齐。原版用 React + motion，
+     这里没有动画库，所以按同一套状态机手写：
+
+       · 多张照片轮转（原版 4 张），点最上面那张 → 下一张
+       · 新片从背片位（offsetX/offsetY，scale×0.8）弹入
+       · 旧片向左滑出并淡出（x:-width, scale:1, opacity:0）
+       · 背片压暗是「从 shadowTint 到透明」的横向渐变，不是纯色 + 透明度
+       · 阴影是「整张照片的模糊副本」独立一层，不是 box-shadow ——
+         所以它会被照片自己的颜色染色，用 scale/blur/yOffset 三个参数调
+       · transformOrigin: bottom left —— 缩放时左下角不动，
+         背片因此和正片底边对齐、只往右上缩
+
+     原版是满屏 demo，尺寸写死 340×480 这类固定值。我们这里是个 section，
+     窄屏放不下，所以外面套一层按可用宽度算出来的缩放（--ps-k），
+     内部几何仍然全部按原版的固定 px 算 —— 缩放只发生在最外层，
+     弹簧、clip-path、错位量全都不用改。
      ============================================================ */
+  var PS_SHAPES = {
+    portrait:  { w: 340, h: 480 },
+    square:    { w: 400, h: 400 },
+    landscape: { w: 480, h: 320 }
+  };
+  var PS_VISIBLE = 2;          /* 原版就是 2：最上面一张 + 后面一张 */
+
   function stackSection(cfg) {
+    /* ---- 照片列表 ----
+       优先读 photos 数组；老配置只有正片/背片，就退化成两张，
+       免得已经存进库里的配置变成白板。 */
+    var photos = [];
+    if (Array.isArray(cfg.photos)) {
+      for (var pi = 0; pi < cfg.photos.length; pi++) {
+        var it = cfg.photos[pi];
+        if (it && it.src) photos.push({ src: it.src, color: it.color || "#1a1a2e" });
+      }
+    }
+    if (!photos.length) {
+      if (cfg.front) photos.push({ src: cfg.front, color: "#1a1a2e" });
+      if (cfg.back) photos.push({ src: cfg.back, color: "#1a1a2e" });
+    }
+    if (!photos.length) photos.push({ src: "", color: "#1a1a2e" });
+
     var sec = el("section", "a377-showcase");
     sec.style.setProperty("--bg", cfg.darkMode ? "#08090c" : "#101114");
 
     var ps = el("div", "a377-ps" + (cfg.darkMode ? " dark" : ""));
-    /* 照片宽度由 CSS 变量给到 grid 列，窄屏时 minmax 自动收窄 */
-    var boxW = clamp(num(cfg.width, 320), 120, 720);
-    ps.style.setProperty("--ps-w", boxW + "px");
 
-    var ox0 = num(cfg.offsetX, 0), oy0 = num(cfg.offsetY, 0);
-    var scale0 = clamp(num(cfg.scale, 0.9), 0.05, 4);
-
-    /* 背片会探出正片外侧，悬停时探得更远（spread 最大 1.7）。
-       这块空间必须提前留出来：不留的话背片会被容器裁掉（等于没有背片），
-       留少了则悬停时会溢到展示带外面。
-       offset 和 scale 都是后台可调的，所以只能算，不能写死。 */
-    var SPREAD_MAX = 1.7;
-    var boxH = boxW * ({ portrait: 4 / 3, landscape: 3 / 4, square: 1 }[cfg.shape] || 4 / 3);
-    var backScaleMax = scale0 * 1.06;
-    var peekX = ox0 * SPREAD_MAX - boxW * (1 - backScaleMax) / 2;
-    var peekY = oy0 * SPREAD_MAX - boxH * (1 - backScaleMax) / 2;
-    ps.style.setProperty("--ps-pad-r", Math.max(0, Math.round(peekX)) + "px");
-    ps.style.setProperty("--ps-pad-l", Math.max(0, Math.round(-peekX)) + "px");
-    ps.style.setProperty("--ps-pad-t", Math.max(0, Math.round(-peekY)) + "px");
-    ps.style.setProperty("--ps-pad-b", Math.max(0, Math.round(peekY)) + "px");
+    var shape = PS_SHAPES[cfg.shape] || PS_SHAPES.portrait;
+    /* 容器尺寸照原版：右边留 180 给背片错位、下面留 200 给阴影的模糊和下沉。
+       背片偏移默认 239 > 180，超出的部分靠 photoLayer 的 clip-path 放行。 */
+    var boxW = shape.w + 180, boxH = shape.h + 200;
+    /* 照片尺寸给 CSS —— 每个节点都要用，写在 CSS 变量里比逐个 setStyle 干净 */
+    ps.style.setProperty("--ps-sw", shape.w + "px");
+    ps.style.setProperty("--ps-sh", shape.h + "px");
 
     var inner = el("div", "a377-ps-inner");
-
     var meta = el("div", "a377-ps-meta");
     meta.append(el("h3", null, cfg.title || ""));
     meta.append(el("p", null, cfg.subtitle || ""));
-    meta.append(el("div", "a377-ps-hint", COARSE ? "点按展开" : "悬停展开"));
+    meta.append(el("div", "a377-ps-hint", "点一下换下一张"));
 
-    var stack = el("div", "a377-ps-stack");
-    var ratio = { portrait: "3 / 4", landscape: "4 / 3", square: "1 / 1" }[cfg.shape] || "3 / 4";
-    stack.style.setProperty("--ps-ratio", ratio);
-
-    var tint = cfg.shadowTint || "#000000";
-    var overlayOpacity = clamp(num(cfg.overlayOpacity, 0.58), 0, 1);
-
-    var back = el("div", "a377-ps-layer a377-ps-back");
-    var backImg = document.createElement("img");
-    backImg.src = cfg.back || "";
-    backImg.alt = "";
-    backImg.draggable = false;
-    var veil = el("div", "a377-ps-veil");
-    veil.style.background = tint;
-    back.append(backImg, veil);
-
-    var front = el("div", "a377-ps-layer a377-ps-front");
-    var frontImg = document.createElement("img");
-    frontImg.src = cfg.front || "";
-    frontImg.alt = cfg.title || "";
-    frontImg.draggable = false;
-    front.append(frontImg);
-
-    var shBlur = clamp(num(cfg.shadowBlur, 60), 0, 400);
-    var shOp = clamp(num(cfg.shadowOpacity, 0.45), 0, 1);
-    front.style.boxShadow = "0 " + Math.round(shBlur * 0.4) + "px " + shBlur + "px " + rgba(tint, shOp);
-
-    stack.append(back, front);
-    inner.append(meta, stack);
+    var fit = el("div", "a377-ps-fit");
+    var stage = el("div", "a377-ps-stage");
+    stage.style.width = boxW + "px";
+    stage.style.height = boxH + "px";
+    var shadowLayer = el("div", "a377-ps-shadow-layer");
+    var photoLayer = el("div", "a377-ps-photo-layer");
+    stage.append(shadowLayer, photoLayer);
+    fit.append(stage);
+    inner.append(meta, fit);
     ps.append(inner);
     sec.append(ps);
 
+    /* ---- 参数 ---- */
+    var tint = cfg.shadowTint || "#000000";
+    var ox = num(cfg.offsetX, 239), oy = num(cfg.offsetY, 0);
+    var sc = clamp(num(cfg.scale, 0.7), 0.2, 1.4);
+    var overlay = clamp(num(cfg.overlayOpacity, 0.6), 0, 1);
+    var shScale = clamp(num(cfg.shadowScale, 1.03), 0.5, 2);
+    var shOp = clamp(num(cfg.shadowOpacity, 0.25), 0, 1);
+    var shBlur = clamp(num(cfg.shadowBlur, 14), 0, 200);
+    var shY = num(cfg.shadowYOffset, 8);
+
     /* ---- 弹簧 ----
-       visualDuration + bounce 换算成「质量 1」的阻尼弹簧：
-         bounce 0   → 阻尼比 1（临界阻尼，不回弹）
-         bounce 1   → 阻尼比 0.15（明显回弹）
-       用半隐式欧拉积分，每帧切成小步长保证稳定。 */
+       换算跟原来一致：bounce 0 → 阻尼比 1（临界阻尼，不回弹），
+       bounce 1 → 0.15（明显回弹）。半隐式欧拉，每帧切小步长保证稳定。 */
     var S = cfg.spring || {};
     var dur = clamp(num(S.duration, 0.5), 0.05, 4);
-    var bounce = clamp(num(S.bounce, 0.41), 0, 1);
+    var bounce = clamp(num(S.bounce, 0.04), 0, 1);
     var zeta = 1 - 0.85 * bounce;
     var omega0 = 6 / dur;
-    var K = omega0 * omega0;
-    var C = 2 * zeta * omega0;
+    var KC = omega0 * omega0;
+    var CC = 2 * zeta * omega0;
 
-    var ox = ox0, oy = oy0, scale = scale0;
-
-    var st = { x: 0, v: 0, target: 0 };
-    var raf = 0, prev = 0;
-
-    function apply(t) {
-      /* 悬停时背片往外推、略微放大，压暗层明显变淡 —— 露出更多。
-         spread 上限必须和上面算预留空间用的 SPREAD_MAX 一致。 */
-      var spread = 1 + (SPREAD_MAX - 1) * t;
-      back.style.transform =
-        "translate3d(" + (ox * spread) + "px," + (oy * spread) + "px,0) scale(" + (scale * (1 + 0.06 * t)) + ")";
-      veil.style.opacity = (overlayOpacity * (1 - 0.55 * t)).toFixed(3);
-      front.style.transform = "translate3d(0," + (-4 * t).toFixed(2) + "px,0)";
+    function prop(v) { return { cur: v, vel: 0, target: v }; }
+    function stepProp(p, h) {
+      var a = -KC * (p.cur - p.target) - CC * p.vel;
+      p.vel += a * h;
+      p.cur += p.vel * h;
     }
+    function done(p) { return Math.abs(p.cur - p.target) < 0.002 && Math.abs(p.vel) < 0.002; }
+    function snap(p) { p.cur = p.target; p.vel = 0; }
+
+    var KT = 1;                 /* 窄屏缩放系数，layout() 里算 */
+    var stepIdx = 0;            /* 原版的 step */
+    var nodes = [];
+    var raf = 0, prev = 0, visible = true;
+    /* 原版给 AnimatePresence 传了 initial={false}：首帧直接落在终态，
+       不从背片位飞进来。不这么做的话页面一打开照片会自己抖一下。 */
+    var booted = false;
+
+    function findNode(key) {
+      for (var i = 0; i < nodes.length; i++) if (nodes[i].key === key) return nodes[i];
+      return null;
+    }
+
+    function apply(n) {
+      var t = "translate3d(" + n.x.cur.toFixed(2) + "px," + n.y.cur.toFixed(2) + "px,0)" +
+              " scale(" + n.s.cur.toFixed(4) + ")";
+      n.node.style.transform = t;
+      n.shadow.style.transform = t;
+      n.node.style.opacity = n.o.cur.toFixed(3);
+      n.shadow.style.opacity = n.o.cur.toFixed(3);
+      n.veil.style.opacity = n.ov.cur.toFixed(3);
+      /* 正片的阴影给满，背片减半 —— 原版就是这个比例 */
+      n.blur.style.opacity = (shOp * (n.stackIndex === 0 ? 1 : 0.5)).toFixed(3);
+      n.node.style.zIndex = String(n.z);
+    }
+    function settled(n) {
+      return done(n.x) && done(n.y) && done(n.s) && done(n.o) && done(n.ov);
+    }
+    function snapAll(n) {
+      snap(n.x); snap(n.y); snap(n.s); snap(n.o); snap(n.ov);
+    }
+    /* 首次布局时把所有节点直接摆到终态 —— 对应原版的 initial={false}。
+       只有第一次；之后的 rebuild 都要走弹簧。 */
+    function settleNow() {
+      for (var i = 0; i < nodes.length; i++) { snapAll(nodes[i]); apply(nodes[i]); }
+    }
+
+    function buildNode(w) {
+      /* 阴影层：整张照片的模糊副本。外面那层负责跟照片同步位移，
+         里面那层负责 blur/scale/yOffset 和透明度。 */
+      var shadow = el("div", "a377-ps-shadow");
+      var blur = el("div", "a377-ps-blur");
+      blur.style.background = w.photo.color;
+      blur.style.filter = "blur(" + shBlur + "px)";
+      blur.style.transform = "scale(" + shScale + ") translateY(" + shY + "px)";
+      blur.style.opacity = "0";
+      var simg = document.createElement("img");
+      simg.src = w.photo.src; simg.alt = ""; simg.draggable = false;
+      blur.append(simg);
+      shadow.append(blur);
+
+      var node = el("div", "a377-ps-photo");
+      var card = el("div", "a377-ps-card");
+      card.style.background = w.photo.color;
+      var img = document.createElement("img");
+      img.src = w.photo.src; img.alt = ""; img.draggable = false;
+      var veil = el("div", "a377-ps-veil");
+      veil.style.background = "linear-gradient(to right," + tint + " 0%,transparent 100%)";
+      card.append(img, veil);
+      node.append(card);
+
+      shadowLayer.append(shadow);
+      photoLayer.append(node);
+
+      var n = {
+        key: w.key, photo: w.photo, stackIndex: w.stackIndex, z: 1, exiting: false,
+        shadow: shadow, blur: blur, node: node, card: card, veil: veil,
+        /* 进场起点照原版：背片位，再小一圈 */
+        x: prop(ox * KT), y: prop(oy * KT), s: prop(sc * 0.8),
+        o: prop(1), ov: prop(overlay)
+      };
+      node.addEventListener("click", function () {
+        if (n.stackIndex === 0 && !n.exiting) next();
+      });
+      return n;
+    }
+
+    /* ---- 重建可见集合 ----
+       原版：currentIndex = step % N，可见 [currentIndex, currentIndex+1]，
+       key 带圈数（lap）以便绕一圈后当成新节点重新进场。 */
+    function rebuild() {
+      var idx = stepIdx % photos.length;
+      var want = [];
+      for (var i = 0; i < PS_VISIBLE; i++) {
+        var pIdx = (idx + i) % photos.length;
+        var lap = Math.floor((stepIdx + i) / photos.length);
+        want.push({ key: pIdx + "-" + lap, photo: photos[pIdx], stackIndex: i });
+      }
+      var keep = {};
+      for (var k = 0; k < want.length; k++) keep[want[k].key] = 1;
+
+      /* 掉出新一组 → 向左滑出 + 淡出 */
+      for (var a = 0; a < nodes.length; a++) {
+        var old = nodes[a];
+        if (keep[old.key] || old.exiting) continue;
+        old.exiting = true;
+        old.x.target = -shape.w * KT;
+        old.y.target = 0;
+        old.s.target = 1;
+        old.o.target = 0;
+        old.ov.target = 0;
+        old.z = PS_VISIBLE + 1;
+        old.node.classList.remove("is-top");
+        old.node.style.pointerEvents = "none";
+      }
+
+      for (var q = 0; q < want.length; q++) {
+        var w2 = want[q];
+        var nd = findNode(w2.key);
+        if (!nd) { nd = buildNode(w2); nodes.push(nd); }
+        /* 出场到一半又被要回来的情况（快速连点）：让它掉头回去 */
+        nd.exiting = false;
+        nd.stackIndex = w2.stackIndex;
+        nd.z = PS_VISIBLE - w2.stackIndex;
+        nd.x.target = w2.stackIndex * ox * KT;
+        nd.y.target = w2.stackIndex * oy * KT;
+        nd.s.target = w2.stackIndex === 0 ? 1 : sc;
+        nd.o.target = 1;
+        nd.ov.target = w2.stackIndex === 0 ? 0 : overlay;
+        nd.node.classList.toggle("is-top", w2.stackIndex === 0);
+        /* 只有最上面那张可点 —— 背片被压住，点了也没意义 */
+        nd.node.style.pointerEvents = w2.stackIndex === 0 ? "auto" : "none";
+      }
+
+      kick();
+    }
+
+    function next() { stepIdx++; rebuild(); }
+
+    function stop() { if (raf) cancelAnimationFrame(raf); raf = 0; prev = 0; }
 
     function tick(now) {
       var dt = prev ? Math.min(0.05, (now - prev) / 1000) : 0.016;
       prev = now;
-      var steps = Math.max(1, Math.ceil(dt / 0.008));
-      var h = dt / steps;
-      for (var i = 0; i < steps; i++) {
-        var a = -K * (st.x - st.target) - C * st.v;
-        st.v += a * h;
-        st.x += st.v * h;
+      var sub = Math.max(1, Math.ceil(dt / 0.008));
+      var h = dt / sub;
+      var busy = false;
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        for (var s = 0; s < sub; s++) {
+          stepProp(n.x, h); stepProp(n.y, h); stepProp(n.s, h);
+          stepProp(n.o, h); stepProp(n.ov, h);
+        }
+        if (settled(n)) snapAll(n); else busy = true;
+        apply(n);
       }
-      if (Math.abs(st.x - st.target) < 0.0015 && Math.abs(st.v) < 0.0015) {
-        st.x = st.target; st.v = 0;
-        apply(st.x);
-        raf = 0;
-        return;
+      /* 出场跑完的节点摘掉 —— 不摘会一直堆在 DOM 里 */
+      for (var j = nodes.length - 1; j >= 0; j--) {
+        if (nodes[j].exiting && settled(nodes[j])) {
+          nodes[j].node.remove();
+          nodes[j].shadow.remove();
+          nodes.splice(j, 1);
+        }
       }
-      apply(st.x);
-      raf = requestAnimationFrame(tick);
+      if (busy) raf = requestAnimationFrame(tick);
+      else { raf = 0; prev = 0; }
     }
 
-    function to(v) {
-      st.target = v;
+    function kick() {
+      if (REDUCE) {
+        /* 关掉动效的降级：直接落到终态，出场节点立刻摘掉 */
+        for (var i = nodes.length - 1; i >= 0; i--) {
+          var n = nodes[i];
+          snapAll(n); apply(n);
+          if (n.exiting) { n.node.remove(); n.shadow.remove(); nodes.splice(i, 1); }
+        }
+        return;
+      }
       if (!raf) { prev = 0; raf = requestAnimationFrame(tick); }
     }
 
-    if (COARSE) {
-      /* 触屏没有 hover，改成点一下切换 */
-      stack.addEventListener("click", function () { to(st.target > 0.5 ? 0 : 1); });
-    } else {
-      stack.addEventListener("pointerenter", function () { to(1); });
-      stack.addEventListener("pointerleave", function () { to(0); });
-      stack.addEventListener("focusin", function () { to(1); });
-      stack.addEventListener("focusout", function () { to(0); });
+    /* ---- 窄屏：整体等比缩小 ----
+       原版的固定 px 几何在窄屏放不下，但缩放只作用在最外层，
+       里面所有坐标、弹簧、clip-path 都不用跟着改。 */
+    function layout() {
+      /* 量内层而不是 .a377-ps：clientWidth 是「内容 + padding」，
+         拿它当可用宽度会多算左右两边的 padding，窄屏上正好溢出那么多。 */
+      var avail = inner.clientWidth;
+      if (!avail) return;
+      KT = clamp(avail / boxW, 0.35, 1);
+      fit.style.width = (boxW * KT).toFixed(1) + "px";
+      fit.style.height = (boxH * KT).toFixed(1) + "px";
+      stage.style.transform = KT >= 0.999 ? "none" : "scale(" + KT.toFixed(4) + ")";
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        if (n.exiting) continue;
+        n.x.target = n.stackIndex * ox * KT;
+        n.y.target = n.stackIndex * oy * KT;
+      }
+      /* 第一次拿到真实宽度时才落位，免得先按错的系数摆一次 */
+      if (!booted) { settleNow(); booted = true; return; }
+      kick();
     }
-    stack.tabIndex = 0;
-    stack.setAttribute("role", "img");
-    stack.setAttribute("aria-label", (cfg.title || "照片") + (cfg.subtitle ? "，" + cfg.subtitle : ""));
 
-    apply(0);
-    cleanups.push(function () { if (raf) cancelAnimationFrame(raf); raf = 0; });
+    /* ---- 无障碍：能点到就该能用键盘 ----
+       原版是靠面板里的 Next 按钮换片，我们只在前台点照片，
+       所以键盘也得有个入口。 */
+    stage.tabIndex = 0;
+    stage.setAttribute("role", "button");
+    stage.setAttribute("aria-label", "下一张：" + (cfg.title || "照片"));
+    stage.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        next();
+      }
+    });
+
+    rebuild();
+    layout();
+    /* 没走到 layout 的落位分支（比如节点还藏着，clientWidth 是 0）也要落一次，
+       否则页面打开的第一帧会停在背片位。 */
+    if (!booted) { settleNow(); booted = true; }
+
+    var ro = null, io = null;
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(layout);
+      ro.observe(ps);
+    } else {
+      window.addEventListener("resize", layout);
+    }
+    if (window.IntersectionObserver) {
+      io = new IntersectionObserver(function (ents) {
+        for (var i = 0; i < ents.length; i++) visible = ents[i].isIntersecting;
+        /* rAF 停了 tick 就不会再跑，滚回来要显式叫醒 */
+        if (visible) kick(); else stop();
+      }, { threshold: 0 });
+      io.observe(ps);
+    }
+
+    cleanups.push(function () {
+      stop();
+      if (ro) ro.disconnect(); else window.removeEventListener("resize", layout);
+      if (io) io.disconnect();
+    });
     return sec;
   }
 

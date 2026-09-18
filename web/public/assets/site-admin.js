@@ -20,13 +20,19 @@
   var SCHEMA = {
     gallery: {
       title: "弧形画廊",
-      note: "把图片弯成圆柱面横向滚动。拖拽可手动转，松手后按速度继续。",
+      note: "把图片或视频弯成圆柱面横向滚动。拖拽可手动转，松手后按速度继续。",
       list: {
         key: "items",
-        label: "展示图片",
+        label: "展示内容",
         fields: [
-          { key: "src", type: "text", placeholder: "图片 URL，例如 /assets/showcase/g1.svg" },
-          { key: "title", type: "text", placeholder: "说明文字（可选）" }
+          { key: "src", type: "text", placeholder: "URL，例如 /assets/showcase/g1.svg 或 xxx.mp4" },
+          { key: "title", type: "text", placeholder: "说明文字（可选）" },
+          { key: "type", type: "select", label: "类型", options: [
+            { value: "", label: "自动（按扩展名）" },
+            { value: "image", label: "图片" },
+            { value: "video", label: "视频" }
+          ] },
+          { key: "poster", type: "text", placeholder: "视频封面图（可选）" }
         ]
       },
       groups: [
@@ -38,6 +44,25 @@
           { key: "aspect",    type: "slider", label: "卡片宽高比", min: 0.8, max: 2.4, step: 0.05,
             hint: "1.5 ≈ 3:2，2.0 ≈ 16:8" },
           { key: "dim",       type: "slider", label: "边缘压暗", min: 0, max: 1, step: 0.01 }
+        ] },
+        { label: "视频", open: true, fields: [
+          /* 规格写在参数前面 —— 先知道该拿什么素材来，再谈怎么调 */
+          { key: "_videoSpec", type: "note", title: "视频规格要求", lines: [
+            ["格式", "mp4（H.264）最稳，webm 也可以。别用 mov / gif"],
+            ["分辨率", "720×480 就够。默认参数下卡片实测只有约 380×270，再高是白占体积"],
+            ["比例", "跟上面的「卡片宽高比」对齐（当前 1.5 ≈ 3:2）。不一致会被裁掉上下或左右"],
+            ["时长", "3–8 秒，首尾接得上 —— 画廊是循环播放的"],
+            ["体积", "单个 ≤ 1.5 MB，全部加起来 ≤ 10 MB"],
+            ["音轨", "去掉。画廊一律静音自动播，带音轨只是白占体积"]
+          ] },
+          { key: "videoAutoplay",   type: "toggle", label: "自动播放",
+            hint: "关掉就只显示视频首帧，当静图用" },
+          { key: "videoMaxPlaying", type: "slider", label: "最多同时播放", min: 0, max: 16, step: 1,
+            hint: "只播离正前方最近的这几个。一圈会复制成二十多张卡，全播会把带宽和 CPU 吃光" },
+          { key: "videoPreload", type: "select", label: "预加载", options: [
+            { value: "metadata", label: "拉首帧当封面（好看）" },
+            { value: "none",     label: "不预加载（省流量，建议配封面图）" }
+          ] }
         ] },
         { label: "运动", open: true, fields: [
           { key: "speed",        type: "slider", label: "自动旋转（度/秒）", min: 0, max: 60, step: 0.5, hint: "0 = 不自动转，只能手动拖" },
@@ -52,32 +77,46 @@
 
     photostack: {
       title: "Photo Stack",
-      note: "一张主照片，后面压一张错位的背片。悬停时按弹簧参数展开。",
+      note: "多张照片叠在一起，点最上面那张换下一张。后面的照片按弹簧参数错位展开。",
+      list: {
+        key: "photos",
+        label: "照片",
+        unit: "张",
+        newItem: { src: "", color: "#1a1a2e" },
+        fields: [
+          { key: "src", type: "text", placeholder: "URL，例如 /assets/showcase/ps1.svg" },
+          { key: "color", type: "color" }
+        ]
+      },
       groups: [
-        { label: "内容", open: true, fields: [
+        { label: "文字", open: true, fields: [
           { key: "title",    type: "text", label: "标题", placeholder: "Japan" },
-          { key: "subtitle", type: "text", label: "副标题", placeholder: "December 2025" },
-          { key: "front",    type: "image", label: "正片 URL" },
-          { key: "back",     type: "image", label: "背片 URL" }
+          { key: "subtitle", type: "text", label: "副标题", placeholder: "December 2025" }
         ] },
         { label: "外形", open: true, fields: [
-          { key: "width", type: "slider", label: "照片宽度 (px)", min: 160, max: 620, step: 4 },
           { key: "shape", type: "select", label: "照片形状", options: [
-            { value: "portrait",  label: "竖版 Portrait" },
-            { value: "landscape", label: "横版 Landscape" },
-            { value: "square",    label: "方形 Square" }
+            { value: "portrait",  label: "竖版 340×480" },
+            { value: "square",    label: "方形 400×400" },
+            { value: "landscape", label: "横版 480×320" }
           ] },
           { key: "shadowTint", type: "color", label: "阴影色调" }
         ] },
         { label: "背片 Back Photo", open: true, fields: [
-          { key: "offsetX",        type: "slider", label: "水平偏移", min: -400, max: 400, step: 1 },
-          { key: "offsetY",        type: "slider", label: "垂直偏移", min: -400, max: 400, step: 1 },
-          { key: "scale",          type: "slider", label: "缩放",     min: 0.4,  max: 1.6, step: 0.01 },
-          { key: "overlayOpacity", type: "slider", label: "压暗程度", min: 0, max: 1, step: 0.01 }
+          { key: "offsetX", type: "slider", label: "水平偏移", min: 0, max: 400, step: 1,
+            hint: "原版默认 239。改大背片露得更多" },
+          { key: "offsetY", type: "slider", label: "垂直偏移", min: 0, max: 150, step: 1 },
+          { key: "scale",   type: "slider", label: "缩放",     min: 0.5, max: 0.95, step: 0.01,
+            hint: "缩放原点是左下角，所以背片底边始终跟正片对齐、只往右上缩" },
+          { key: "overlayOpacity", type: "slider", label: "压暗程度", min: 0, max: 1, step: 0.01,
+            hint: "从左到右由阴影色调渐变到透明，不是整片纯色" }
         ] },
         { label: "阴影", open: false, fields: [
-          { key: "shadowBlur",    type: "slider", label: "模糊", min: 0, max: 160, step: 1 },
-          { key: "shadowOpacity", type: "slider", label: "不透明度", min: 0, max: 1, step: 0.01 }
+          { key: "shadowScale",   type: "slider", label: "缩放",   min: 1, max: 1.2, step: 0.005,
+            hint: "略大于 1，让阴影从照片边缘露出来一圈" },
+          { key: "shadowOpacity", type: "slider", label: "不透明度", min: 0, max: 1,  step: 0.01 },
+          { key: "shadowBlur",    type: "slider", label: "模糊",   min: 0, max: 60, step: 1 },
+          { key: "shadowYOffset", type: "slider", label: "下沉",   min: 0, max: 60, step: 1,
+            hint: "阴影是整张照片的模糊副本，所以会被照片的底色带出偏色" }
         ] },
         { label: "过渡弹簧 Transition Spring", open: true, fields: [
           { key: "spring.type",     type: "select", label: "类型", options: [
@@ -166,6 +205,22 @@
   /* ---------------- 字段渲染 ---------------- */
   function field(f, cfg) {
     var wrap = el("div", { class: "field" });
+
+    /* 纯说明块：不绑数据、不参与保存，只把「该按什么规格准备素材」写在手边。
+       放在这里而不是文档里，是因为改配置的人就在这个页面上，
+       规格不写在眼前等于没写。 */
+    if (f.type === "note") {
+      var box = el("div", { class: "spec" });
+      if (f.title) box.append(el("div", { class: "spec-title", text: f.title }));
+      (f.lines || []).forEach(function (ln) {
+        box.append(el("div", { class: "spec-line" },
+          el("span", { class: "k", text: ln[0] }),
+          el("span", { class: "v", text: ln[1] })));
+      });
+      wrap.append(box);
+      return wrap;
+    }
+
     var val = get(cfg, f.key);
     var id = "f_" + f.key.replace(/\./g, "_");
 
@@ -242,44 +297,121 @@
     return wrap;
   }
 
-  /* ---------------- 图片列表 ---------------- */
+  /* ---------------- 内容列表（图片 / 视频混排） ---------------- */
+
+  /* 和 assets/showcase.js 里的判定保持一致：显式 type 优先，否则按扩展名猜。
+     两边不一致的话，后台显示「视频」而前台渲染成图片，很难查。 */
+  var VIDEO_RE = /\.(mp4|m4v|webm|ogv|ogg|mov)(\?|#|$)/i;
+
+  function itemIsVideo(it) {
+    if (it.type === "video") return true;
+    if (it.type === "image") return false;
+    return VIDEO_RE.test(it.src || "");
+  }
+
+  /* 缩略图：视频用 <video> 取首帧。
+     src 加 #t=0.1 是必须的 —— 不加的话视频缩略图是一块黑，
+     浏览器不会自动解码第一帧给 <video> 当画面。 */
+  function makeThumb(it) {
+    var vid = itemIsVideo(it);
+    var node = document.createElement(vid ? "video" : "img");
+    node.className = "thumb";
+    if (vid) {
+      node.muted = true;
+      node.playsInline = true;
+      node.preload = "metadata";
+      node.setAttribute("muted", "");
+      node.setAttribute("playsinline", "");
+      node.setAttribute("tabindex", "-1");
+      if (it.src) node.src = it.src + (it.src.indexOf("#") < 0 ? "#t=0.1" : "");
+    } else {
+      node.alt = "";
+      if (it.src) node.src = it.src;
+    }
+    /* 坏链接别显示破图图标，直接藏起来（之前用 removeAttribute("src") 没用，
+       浏览器照样画破图） */
+    node.style.visibility = it.src ? "" : "hidden";
+    node.addEventListener("error", function () { node.style.visibility = "hidden"; });
+    node.addEventListener(vid ? "loadeddata" : "load", function () {
+      if (node.getAttribute("src")) node.style.visibility = "";
+    });
+    return node;
+  }
+
   function listEditor(spec, cfg) {
     var box = el("div", { class: "list" });
     var items = Array.isArray(cfg[spec.key]) ? cfg[spec.key] : (cfg[spec.key] = []);
+    var unit = spec.unit || "项";
 
     function redraw() {
       box.textContent = "";
       box.append(el("div", { class: "list-head" },
         el("b", { text: spec.label }),
-        el("span", { class: "count", text: items.length + " 张" }),
+        el("span", { class: "count", text: items.length + " " + unit }),
         el("span", { class: "sp" }),
         el("button", {
           class: "btn", type: "button",
-          onclick: function () { items.push({ src: "", title: "" }); redraw(); preview(); }
-        }, "+ 添加一张")));
+          onclick: function () {
+            /* 新增项的模板由 spec 给 —— 画廊要 title，照片列表要 color */
+            items.push(spec.newItem ? Object.assign({}, spec.newItem) : { src: "", title: "" });
+            redraw(); preview();
+          }
+        }, "+ 添加一" + unit)));
 
       if (!items.length) {
-        box.append(el("div", { class: "empty", text: "还没有图片。点「+ 添加一张」开始。" }));
+        box.append(el("div", { class: "empty", text: "还没有内容。点「+ 添加一" + unit + "」开始。" }));
         return;
       }
 
       items.forEach(function (it, i) {
-        var thumb = el("img", { class: "thumb", alt: "" });
-        thumb.src = it.src || "";
-        thumb.addEventListener("error", function () { thumb.removeAttribute("src"); });
+        /* 缩略图放在自己的槽里，改 src / type 时整个换掉 ——
+           图片和视频是两种元素，原地改 src 换不了元素类型 */
+        var slot = el("div", { class: "thumb-slot" });
+        var thumb = null;
+        function renderThumb() {
+          var next = makeThumb(it);
+          if (thumb) slot.replaceChild(next, thumb);
+          else slot.append(next);
+          thumb = next;
+          slot.setAttribute("data-kind", itemIsVideo(it) ? "video" : "image");
+        }
+        renderThumb();
 
         var grow = el("div", { class: "grow" });
         spec.fields.forEach(function (f) {
-          var inp = el("input", {
-            type: "text", value: it[f.key] == null ? "" : it[f.key],
-            placeholder: f.placeholder || f.key
-          });
-          inp.addEventListener("input", function () {
-            it[f.key] = inp.value;
-            if (f.key === "src") thumb.src = inp.value;
+          var field;
+          if (f.type === "select") {
+            field = el("select", { class: "mini" });
+            (f.options || []).forEach(function (o) {
+              var opt = el("option", { value: o.value, text: o.label });
+              if ((it[f.key] || "") === o.value) opt.selected = true;
+              field.append(opt);
+            });
+          } else if (f.type === "color") {
+            /* 底色是颜色，给个色板比让人手打十六进制顺手；
+               title 上挂着当前值，想看确切色号悬停即可 */
+            field = el("input", {
+              type: "color", class: "mini-color",
+              value: /^#[0-9a-f]{6}$/i.test(it[f.key] || "") ? it[f.key] : "#1a1a2e",
+              title: it[f.key] || ""
+            });
+          } else {
+            field = el("input", {
+              type: "text", value: it[f.key] == null ? "" : it[f.key],
+              placeholder: f.placeholder || f.key
+            });
+          }
+          field.addEventListener("input", function () {
+            it[f.key] = field.value;
+            if (f.key === "src" || f.key === "type") renderThumb();
             preview();
           });
-          grow.append(inp);
+          field.addEventListener("change", function () {
+            it[f.key] = field.value;
+            if (f.key === "src" || f.key === "type") renderThumb();
+            preview();
+          });
+          grow.append(field);
         });
 
         var ops = el("div", { class: "ops" },
@@ -296,7 +428,7 @@
             onclick: function () { items.splice(i, 1); redraw(); preview(); }
           }, "\u2715"));
 
-        box.append(el("div", { class: "item" }, thumb, grow, ops));
+        box.append(el("div", { class: "item" }, slot, grow, ops));
       });
     }
 

@@ -36,13 +36,18 @@
 
 | 组件 | 是什么 | 默认 |
 | --- | --- | --- |
-| 弧形画廊 | 一圈卡片绕圆柱面排开，自动旋转、可拖拽 | 开启 |
-| Photo Stack | 一张主照片 + 背后错位的一张，悬停按弹簧展开 | **关闭** |
+| 弧形画廊 | 一圈卡片绕圆柱面排开，自动旋转、可拖拽，图片 / 视频混排 | 开启 |
+| Photo Stack | 多张照片叠放，点最上面那张换下一张（弹簧错位展开） | **关闭** |
 
 图片和视觉参数都在后台改（`/api/site-admin?key=<ADMIN_TOKEN>`，管理页有「展示组件」入口），
 左侧是首页实时预览，改完点保存才写库。参数体系借了 [DialKit](https://www.dialkit.dev/) 的
 控件分类（slider / toggle / select / color / image / spring），但没引它的依赖 ——
 它是 React 库，而这里是纯静态页面，没有构建步骤。
+
+Photo Stack 的几何与动画是**对着 DialKit 原版源码**（`example/src/PhotoStack.tsx`）逐条对齐的，
+不是照着截图猜的：4 张轮转、点最上面那张换片、出场向左滑出、`transformOrigin: bottom left`、
+阴影是「整张照片的模糊副本」独立一层。视频 / 图片该按什么规格准备素材，
+后台面板里直接写着（`note` 类型的只读说明块）——改配置的人就在那个页面上，规格不写在眼前等于没写。
 
 版本更新记录见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
 

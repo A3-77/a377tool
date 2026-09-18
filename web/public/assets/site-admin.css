@@ -33,8 +33,18 @@ a:hover{text-decoration:underline}
 }
 .stage-bar b{color:var(--ink);font-weight:600}
 
-/* ---------- 面板 ---------- */
-.panel{overflow-y:auto;overscroll-behavior:contain}
+/* ---------- 面板 ----------
+   contain:paint 不是装饰，是修 bug 的：
+   这个面板是个滚动容器（内容 5000+px，视口只有 900px），但它的溢出会一路
+   传到文档层 —— 实测 body 只有 900px，documentElement.scrollHeight 却是 5088，
+   页面能往下滚 4188px 的空白。
+   于是鼠标停在左边预览上滚滚轮时，iframe 滚到底后滚动链传给父文档，
+   整个后台被滚出视口，满屏空白，按 End 也回不来。
+   overflow:hidden 治不了（根元素上的 hidden 只是禁掉用户滚动，
+   程序化仍可滚，而且窄屏布局本来就该整页滚）。
+   contain:paint 告诉引擎「这里面的东西不会影响外面」，实测两种宽度下
+   文档都不再能滚，面板自身滚动、sticky 顶栏、toast 都照常。 */
+.panel{overflow-y:auto;overscroll-behavior:contain;contain:paint}
 .panel::-webkit-scrollbar{width:10px}
 .panel::-webkit-scrollbar-thumb{background:#222b3d;border-radius:5px;border:2px solid var(--bg)}
 
@@ -125,7 +135,23 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
 .hex{flex:1;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
 .hint{font-size:11.5px;color:var(--faint);margin-top:5px}
 
-/* ---------- 列表（画廊图片）---------- */
+/* ---------- 规格说明块 ----------
+   只读信息，长得像控件但不可点，免得被误认为要填的字段。
+   左边一条竖线把它和真正的输入项区分开。 */
+.spec{
+  border-left:2px solid #2c4a6e;border-radius:0 8px 8px 0;
+  background:rgba(44,74,110,.13);padding:10px 12px;
+}
+.spec-title{
+  font-size:12px;font-weight:600;color:#9dc0e6;margin-bottom:7px;
+  letter-spacing:.01em;
+}
+.spec-line{display:grid;grid-template-columns:52px 1fr;gap:8px;margin-bottom:4px}
+.spec-line:last-child{margin-bottom:0}
+.spec-line .k{font-size:11.5px;color:var(--faint);white-space:nowrap}
+.spec-line .v{font-size:11.5px;color:var(--dim);line-height:1.55}
+
+/* ---------- 列表（画廊内容，图片 / 视频混排）---------- */
 .list{margin-top:12px}
 .list-head{display:flex;align-items:center;gap:10px;margin-bottom:9px}
 .list-head b{font-size:12.5px;font-weight:600}
@@ -140,9 +166,30 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
   width:52px;height:40px;border-radius:6px;object-fit:cover;background:#0d1320;
   border:1px solid var(--line);display:block;
 }
+/* 缩略图槽位：右下角挂一个 IMG / VID 角标，
+   一眼看出这一项会被前台当成图片还是视频渲染 */
+.item .thumb-slot{position:relative;width:52px;height:40px}
+.item .thumb-slot::after{
+  content:attr(data-kind);
+  position:absolute;right:-2px;bottom:-2px;
+  font:700 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 3px;border-radius:3px;
+  background:var(--panel);color:var(--faint);border:1px solid var(--line);
+}
+.item .thumb-slot[data-kind="video"]::after{color:#7fb0e8;border-color:#2c4a6e}
 .item .grow{min-width:0}
-.item .grow input{margin-bottom:6px}
-.item .grow input:last-child{margin-bottom:0}
+.item .grow input,.item .grow select{margin-bottom:6px}
+.item .grow > :last-child{margin-bottom:0}
+.item .grow select.mini{
+  width:100%;font-size:12px;padding:6px 8px;border-radius:6px;
+  background:var(--panel);color:var(--ink);border:1px solid var(--line);
+}
+/* 列表项里的颜色字段（照片底色）—— 跟文本输入同高，别把行撑歪 */
+.item .grow input.mini-color{
+  width:100%;height:33px;padding:2px;border-radius:6px;margin-bottom:6px;
+  background:var(--panel);border:1px solid var(--line);cursor:pointer;
+}
 .item .ops{display:flex;flex-direction:column;gap:4px}
 .iconbtn{
   width:26px;height:24px;border:1px solid var(--line);background:var(--panel);border-radius:6px;

@@ -66,9 +66,13 @@ export const DEFAULT_BLOCKS = {
       items: [
         { src: SHOWCASE + '/g1.svg', title: '文件工具箱' },
         { src: SHOWCASE + '/g2.svg', title: '生图工作台' },
+        /* 视频卡片：src 指向 mp4 就自动按视频渲染，不用额外标 type。
+           这两个占位视频由 tests/gen_showcase_video.sh 生成。 */
+        { src: SHOWCASE + '/v1.mp4', title: '动态预览' },
         { src: SHOWCASE + '/g3.svg', title: '周末去哪见面' },
         { src: SHOWCASE + '/g4.svg', title: '批量处理' },
         { src: SHOWCASE + '/g5.svg', title: '数据看板' },
+        { src: SHOWCASE + '/v2.mp4', title: '动效演示' },
         { src: SHOWCASE + '/g6.svg', title: '离线优先' },
         { src: SHOWCASE + '/g7.svg', title: '账户与席位' },
         { src: SHOWCASE + '/g8.svg', title: '主题系统' },
@@ -84,6 +88,12 @@ export const DEFAULT_BLOCKS = {
       bg: '#000000',
       drag: true,
       pauseOnHover: true,
+      /* 视频卡片（环形一圈会复制成 20 多张卡，全播会把带宽和 CPU 吃光）：
+         只播离正前方最近的 videoMaxPlaying 个，其余停在首帧；
+         整块滚出视口时全部暂停。 */
+      videoAutoplay: true,
+      videoMaxPlaying: 4,
+      videoPreload: 'metadata',  // metadata = 拉首帧当封面；none = 省流量但没封面
     },
   },
   photostack: {
@@ -91,20 +101,30 @@ export const DEFAULT_BLOCKS = {
     config: {
       title: 'Japan',
       subtitle: 'December 2025',
-      front: SHOWCASE + '/ps-front.svg',
-      back: SHOWCASE + '/ps-back.svg',
-      shape: 'portrait',   // portrait | landscape | square
+      /* 多张照片轮转，点最上面那张换下一张（对齐 DialKit 的 PhotoStack.tsx）。
+         color 是这张照片的底色：图没到之前先顶上，同时给阴影染色 ——
+         阴影层是「整张照片的模糊副本」，所以它会被这个颜色带出偏色。 */
+      photos: [
+        { src: SHOWCASE + '/ps1.svg', color: '#c41e3a' },
+        { src: SHOWCASE + '/ps2.svg', color: '#1a1a2e' },
+        { src: SHOWCASE + '/ps3.svg', color: '#e8d5b7' },
+        { src: SHOWCASE + '/ps4.svg', color: '#2d5a27' },
+      ],
+      shape: 'portrait',   // portrait | square | landscape
       shadowTint: '#000000',
-      width: 320,          // 照片宽度上限（px），窄屏自动缩
-      offsetX: 96,         // 背片错位量
+      /* 背片错位量 / 缩放 / 压暗 —— 默认值照原版给（239 / 0.70 / 0.60）。
+         我们之前是 96 / 0.90 / 0.32，背片几乎贴在正片后面，看不出是两张。 */
+      offsetX: 239,
       offsetY: 0,
-      scale: 0.9,          // 背片相对正片的缩放
-      /* 背片上的压暗层。给到 0.5 以上背片就基本看不出是张照片了，
-         0.3 左右既能拉开层次又能看清内容。 */
-      overlayOpacity: 0.32,
-      shadowBlur: 60,
-      shadowOpacity: 0.45,
-      spring: { type: 'time', duration: 0.5, bounce: 0.41 },
+      scale: 0.70,
+      overlayOpacity: 0.60,
+      /* 阴影：模糊的整张照片副本，不是 box-shadow。
+         scale 略大于 1 让它从照片边缘露出来一圈，yOffset 往下沉一点。 */
+      shadowScale: 1.03,
+      shadowOpacity: 0.25,
+      shadowBlur: 14,
+      shadowYOffset: 8,
+      spring: { type: 'time', duration: 0.5, bounce: 0.04 },
       darkMode: false,
     },
   },

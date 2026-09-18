@@ -131,11 +131,26 @@ GALLERY = [
     ("g8", "#e8e2d5", "#2b2620", "#836953", motif_grid),
 ]
 
-# Photo Stack 的正片 / 背片：做成风景照的样子
+# Photo Stack 的照片：做成风景照的样子。
+# 原版 DialKit 的 example/src/PhotoStack.tsx 里是 4 张（one..four.avif），
+# 每张带一个 color 当阴影底色 —— 这里照 4 张来，颜色对齐原版那四个值。
+# ps-front / ps-back 是第一版只有「正片+背片」时留下的，留着免得旧配置 404。
 PHOTO = [
+    ("ps1", "#f6b48a", "#7a2436", "#ffe0c2", "#c41e3a", 0.2),
+    ("ps2", "#2b3358", "#1a1a2e", "#dfe6ff", "#39426b", 0.6),
+    ("ps3", "#efe6d2", "#c9b48c", "#fff8ea", "#e8d5b7", 1.4),
+    ("ps4", "#cfe3d0", "#2d5a27", "#f2f7ec", "#4a7c42", 1.9),
     ("ps-front", "#8ec5e8", "#2f4a63", "#e8e2d5", "#3f6b52", 0.0),
     ("ps-back", "#f0c9a8", "#5a3a4a", "#f6ede0", "#7a4b3a", 1.0),
 ]
+
+# 照片对应的阴影底色（原版是 PHOTOS[i].color）
+PHOTO_COLORS = {
+    "ps1": "#c41e3a",
+    "ps2": "#1a1a2e",
+    "ps3": "#e8d5b7",
+    "ps4": "#2d5a27",
+}
 
 
 def photo(name, sky, deep, sun, hill, shift):

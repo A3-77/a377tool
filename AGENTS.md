@@ -28,7 +28,8 @@ web/
 │   ├── assets/             共享 tokens / theme / shell / ZIP
 │   │   ├── showcase.js     首页展示组件（画廊 / Photo Stack），读 /api/site
 │   │   ├── showcase.css    展示组件样式
-│   │   ├── showcase/       占位图（tests/gen_showcase_svg.py 生成）
+│   │   ├── showcase/       占位素材（图由 tests/gen_showcase_svg.py 生成，
+│   │   │                    视频由 tests/gen_showcase_video.sh 用 ffmpeg 生成）
 │   │   ├── site-admin.js   后台控制面板（控件定义 SCHEMA 在这里）
 │   │   └── site-admin.css
 │   ├── favicon.svg
@@ -248,13 +249,41 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 
 | kind | 组件 | 默认 |
 | --- | --- | --- |
-| `gallery` | 3D 弧形画廊（一圈卡片绕圆柱面自动旋转，可拖拽） | 开启 |
-| `photostack` | Photo Stack（一张主照片 + 背后错位的一张，悬停按弹簧展开） | **关闭** |
+| `gallery` | 3D 弧形画廊（一圈卡片绕圆柱面自动旋转，可拖拽，图片 / 视频混排） | 开启 |
+| `photostack` | Photo Stack（多张照片叠放，**点最上面那张换下一张**） | **关闭** |
 
 **参数体系照搬 DialKit**（`dialkit.dev`，MIT）。当初评估过直接装它，结论是装不了：
 dialkit 是 React 库，而这个项目是纯静态 HTML + Pages Functions，没有 React、没有构建步骤。
 所以只借它的**控件分类心智模型**（slider / toggle / text / select / color / image / spring / folder），
 自己实现一遍，参数落 D1。
+
+### Photo Stack 是对着原版源码对齐的
+
+原版实现在 **`github.com/joshpuckett/dialkit` → `example/src/PhotoStack.tsx`**。
+我们的 `stackSection()` 是按那份源码逐条对齐的，**改动前先去看源码，别照自己的口味改**。
+几个容易改错、又很难自己发现的地方：
+
+| 点 | 原版 | 踩过的错法 |
+| --- | --- | --- |
+| 照片 | `PHOTOS[]` 多张轮转，`visibleCount = 2` | 只做「正片 + 背片」两个 URL，换不了片 |
+| 换片 | 点**最上面那张** → `next()`（`step++`） | 做成悬停展开 |
+| 出场 | `x: -shape.width, scale: 1, opacity: 0`（向左滑出 + 淡出） | 直接删节点，没有过渡 |
+| 进场 | 从背片位 `(offsetX, offsetY, scale×0.8)` 弹入 | 从正面淡入 |
+| 首帧 | `AnimatePresence initial={false}` —— **首次挂载不播进场动画** | 页面一打开照片自己抖一下 |
+| 圆角 | `borderRadius: 2`（几乎是直角） | 用 16px 圆角卡片 |
+| 背片压暗 | `linear-gradient(to right, tint, transparent)` | 用纯色 + `opacity` |
+| 阴影 | **整张照片的模糊副本**，独立一层，`scale/blur/yOffset` | 用 `box-shadow` |
+| 缩放原点 | `transformOrigin: 'bottom left'` —— 背片底边与正片对齐 | 用默认 center，背片上下都缩 |
+| 布局 | 标题在照片**上方**（flex column + align-start） | 做成标题在左、照片在右两列 |
+
+原版是 React + `motion`，我们没动画库，所以按同一套状态机手写了多属性弹簧
+（`x / y / scale / opacity / 压暗` 各一个弹簧，共用一个 rAF）。
+`spring.duration + bounce` 的换算与原版一致：`bounce 0 → 阻尼比 1`，`bounce 1 → 0.15`。
+
+原版是满屏 demo，尺寸写死（竖版 340×480 / 方形 400×400 / 横版 480×320）。
+我们这里是个 section，窄屏放不下，所以**外面套一层按可用宽度算的 `scale()`**，
+内部几何仍然全部按原版的固定 px 算 —— 缩放只发生在最外层，
+弹簧、`clip-path`、错位量都不用跟着屏幕宽度改。
 
 ### 数据流
 
@@ -292,13 +321,20 @@ assets/showcase.js 读 /api/site → 渲染进当前皮肤视图里的 [data-sho
 
 `SCHEMA` 是唯一的字段定义处，加一个参数只要在对应 group 里加一行。
 字段类型：`slider`（range + number 双向同步）、`toggle`、`select`、`color`（色板 + hex 输入）、
-`text`、`image`（带缩略图）、`list`（图片增删 + 上下移）。点号路径（`spring.duration`）可写嵌套。
+`text`、`image`（带缩略图）、`list`（增删 + 上下移 + 缩略图）、`note`（只读说明块，不绑数据）。
+点号路径（`spring.duration`）可写嵌套。
+
+`list` 是通用的，靠 `spec.newItem` 决定新增项的模板、`spec.unit` 决定量词
+（画廊用「项」、照片用「张」）；列表项字段支持 `text` / `select` / `color`。
+
+**规格要求要写在面板里，不能只写在文档里** —— 改配置的人就在这个页面上。
+画廊的「视频」分组顶上就有一块 `note`：格式 / 分辨率 / 比例 / 时长 / 体积 / 音轨。
+里面的数字是实测的（卡片在默认参数下最大约 380×270），不是拍的。
 
 ### 几何不能写死 px
 
-画廊和 Photo Stack 都踩过同一个坑：**第一版把半径 / 卡片尺寸写成固定 px，
-换到 classic 的 900px 窄栏就崩了**（只有 ±1 张卡可见，卡片巨大且扁平）。
-现在一律「给比例，从容器宽度反解」：
+**画廊**踩过这个坑：第一版把半径 / 卡片尺寸写成固定 px，换到 classic 的 900px 窄栏就崩了
+（只有 ±1 张卡可见，卡片巨大且扁平）。现在一律「给比例，从容器宽度反解」：
 
 ```
 画廊： r = (W/2)·(CAM + 1 - cos θ)/(CAM · sin θ)     CAM = 2.2
@@ -308,18 +344,43 @@ assets/showcase.js 读 /api/site → 渲染进当前皮肤视图里的 [data-sho
 后台里的 `perView` / `angleStep` / `aspect` 是比例参数，不是 px。
 改 `assets/showcase.js` 的 `layout()` 之前先读那段推导注释。
 
+**Photo Stack 走另一条路**：原版几何就是固定 px，照搬才是「对齐原版」。
+所以它在最外层套了一个 `scale()`（系数由 `.a377-ps-inner` 的宽度算出，clamp 到 0.35–1），
+`.a377-ps-fit` 的宽高由 JS 按缩放后的尺寸写死 —— **光缩 `transform` 不改布局盒，
+会在页面上留一块空白**（这条有断言盯着）。
+量可用宽度要用 `inner.clientWidth` 而不是 `ps.clientWidth`：
+后者是「内容 + padding」，会把左右 padding 多算进去，窄屏上正好溢出那么多。
+
+### 画廊支持视频（图片 / 视频混排）
+
+原版 DialKit 画廊用的就是 22 个 `<video>`，所以我们这边也得支持。
+
+- **判定要两边一致**：显式 `type` 优先（`image` / `video`），否则按扩展名猜
+  （`mp4 / m4v / webm / ogv / ogg / mov`）。后台（`site-admin.js` 的 `itemIsVideo`）
+  和前台（`showcase.js` 的 `isVideo`）各有一份，不一致就会出现
+  「后台标着视频、前台渲染成图片」，很难查。
+- **播放预算**：一圈会复制成二十多张卡，视频全播会把带宽和 CPU 吃光。
+  策略是只播**离正前方最近的 `videoMaxPlaying` 个**，其余 `pause()` 停在首帧。
+  排序按环转角节流（转过 0.5° 才重排），不是每帧重排。
+- **`IntersectionObserver` 停掉 rAF 之后 `paint()` 就不会再跑** ——
+  视频必须在 observer 回调里**显式暂停**，否则滚出视口后还在后台播。
+- **复制卡懒加载**：`videoPreload !== "none"` 时副本也带 `src`；
+  设成 `"none"` 时让副本保持无 `src`（副本大部分时间在背面，
+  而 `.a377-gal-card` 有 `backface-visibility:hidden`，所以是安全的）。
+
 ### 出血带 vs 普通块
 
 `.a377-showcase` 是展示带的底（深色背景 + 上下 padding）。**它本身不裁切**。
 画廊额外挂 `.a377-showcase-bleed`（`overflow:hidden` + 左右渐隐），因为一圈 3D 卡片
 两侧本来就会飞出容器，必须裁。
 
-**Photo Stack 绝对不能挂 bleed** —— 它的背片就是要探出正片外侧，
+**Photo Stack 绝对不能挂 bleed** —— 背片要探出正片右缘（默认错位 239px，比容器预留的 180 还多），
 被裁掉就等于没有背片（这个 bug 真发生过：截图里背片整个消失，
 断言查不出来，因为 transform 和尺寸都对）。
 
-背片探出的空间由 JS 按 `offsetX / offsetY / scale` 算出，写成 `--ps-pad-l/r/t/b`，
-内层 `.a377-ps-inner` 自己加 padding。不留这块空间，背片要么被裁、要么溢到展示带外面。
+原版是靠 `clip-path: inset(-100px -200px 0 0)` 处理这个矛盾的：
+**照片层只在左边缘和下边缘裁**（出场动画往左滑出去要切干净），
+右侧放行 200px 给背片；阴影层则完全不裁（模糊本来就要溢出去）。
 
 ## 已知的坑（别重复踩）
 
@@ -339,6 +400,24 @@ assets/showcase.js 读 /api/site → 渲染进当前皮肤视图里的 [data-sho
   会让后续行错位，报出看不出根因的错。
 - **展示组件：`overflow:hidden` 不能无脑套** —— 画廊需要它（卡片飞出容器要裁），
   Photo Stack 需要它**不**生效（背片要探出去）。见上面「出血带 vs 普通块」。
+- **后台管理页的 `.panel` 必须带 `contain:paint`** —— 面板是个滚动容器
+  （内容 5000+px，视口 900px），但它的溢出会一路传到文档层：
+  实测 `body` 只有 900px，`documentElement.scrollHeight` 却是 5088，页面能往下滚
+  4188px 的**空白**。于是鼠标停在左侧预览 iframe 上滚滚轮时，iframe 滚到底后
+  滚动链传给父文档，整个后台被滚出视口、满屏空白，按 End 也回不来。
+  `overflow:hidden` 治不了（根元素上的 hidden 只禁用户滚动，程序化仍可滚，
+  而且窄屏布局本来就该整页滚）；`grid-template-rows:minmax(0,1fr)` 也没用。
+  实测只有 `contain:paint` 有效，且两种宽度下都正确。
+  **这类问题断言默认查不出来** —— 现在有两条断言盯着（程序化 + 真实滚轮）。
+- **`documentElement.scrollHeight` 和 `body.scrollHeight` 会不一致** ——
+  排查「页面为什么能滚出空白」时两个都要看，只看 `body` 会以为没问题。
+- **`ffmpeg` 是原生 Windows 程序，不认 Git Bash 的 `/c/...` 路径** ——
+  拿 `/c/Users/...` 当输出路径会报 `No such file or directory`（目录明明存在）。
+  脚本里要用 `cygpath -w` 转一下，见 `tests/gen_showcase_video.sh` 的 `winpath()`。
+- **视频缩略图的 `src` 要加 `#t=0.1`** —— 不加的话 `<video>` 不渲染首帧，
+  后台列表里视频项就是一块黑（图片没这个问题）。
+- **`<video>` 要自动播放必须 `muted`**，而且 `play()` 返回 Promise 会被策略拒绝，
+  一定要 `.catch()` 掉，否则控制台一堆 unhandled rejection。
 - **后台预览靠 `postMessage`，必须校验 `e.origin`**，否则任何嵌入页面都能改预览。
 - **`structuredClone` 在 Workers 里别用** —— 可用性不确定，用
   `JSON.parse(JSON.stringify(x))` 深拷贝。
@@ -404,12 +483,15 @@ cd web && npx wrangler pages dev public --d1=DB --persist-to .d1dev --port 8791 
 cd tests && node test_showcase.mjs http://127.0.0.1:8791 <ADMIN_TOKEN>
 ```
 
-覆盖 50 项：接口鉴权与结构、画廊渲染与 3D 几何、切皮肤后搬移、
-**响应式回归**（卡片尺寸必须随容器宽度等比变化，防止有人再写死 px）、
-Photo Stack 的弹簧收敛与背片可见性。跑完在 `tests/out_showcase/` 留三张截图。
+覆盖 87 项：接口鉴权与结构、画廊渲染与 3D 几何、视频播放调度、
+切皮肤后搬移、**响应式回归**（卡片尺寸必须随容器宽度等比变化，防止有人再写死 px）、
+Photo Stack 的几何与换片动画、后台面板（含「不能有幽灵滚动区」）。
+跑完在 `tests/out_showcase/` 留四张截图。
 
 > 断言查不出「好不好看」。改完视觉**一定要打开截图看**：
 > 画廊背片是否可见、Photo Stack 的背片有没有被裁掉，这两类问题断言全绿也会发生。
 > 截图前记得 `scrollIntoView()` —— Photo Stack 在首屏下方，
 > 不滚过去 `boundingBox()` 给的是视口外坐标，鼠标移上去什么都不会发生（踩过）。
+> 元素级截图用 `elementHandle.screenshot()`：`page.screenshot({clip})` 的 clip 是
+> **文档坐标**，而 `getBoundingClientRect()` 是视口坐标，直接拿来裁会裁错位置（踩过）。
 
