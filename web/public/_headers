@@ -1,0 +1,35 @@
+# 静态资源的缓存头。Pages 默认给 max-age=14400（4 小时），
+# 对图片、字体这类内容不变的资源是对的，但**后台自己的脚本不行**。
+#
+# 为什么：这几个文件是「部署产物」，改一次代码就变一次。默认的 4 小时意味着
+# 部署完用户在浏览器里刷新，拿到的还是旧版 —— 页面看着正常，功能就是不在。
+# 这和服务端「没部署」是同一类故障，但更难查：curl 服务端是对的，
+# 只有那个浏览器是旧的。
+#
+# ⚠️ 必须用 no-store，**不能用 no-cache**。实测（2026-09-18）：
+#   自定义域名 a377.xyz 的 zone 设置里 browser_cache_ttl = 14400（Cloudflare 默认），
+#   它会**覆盖**源站的 Cache-Control：
+#       no-cache  → 被改写成 max-age=14400   ← 白写
+#       no-store  → 原样通过                  ← 只有这个有效
+#   （*.pages.dev 没有这个 zone 设置，所以两种都能通过 ——
+#     只在 pages.dev 上测会得出错误结论。）
+#
+# 代价：每次加载后台都重新下这几个文件，不做 304 协商。
+# 后台只有站主一个人用，四个文件一共 85KB 左右，可以忽略。
+#
+# 如果哪天想省这点流量：把 zone 的 Browser Cache TTL 改成
+# 「Respect Existing Headers」（API: browser_cache_ttl = 0），
+# 那时 no-cache 就能生效了。但没必要为此动全局设置。
+
+/assets/site-admin.js
+  Cache-Control: no-store
+
+/assets/site-admin.css
+  Cache-Control: no-store
+
+# 视频管线的两个模块也只被后台加载（video-spec 定义档位、video-prep 做转码）
+/assets/video-spec.js
+  Cache-Control: no-store
+
+/assets/video-prep.js
+  Cache-Control: no-store

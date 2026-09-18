@@ -543,6 +543,13 @@ node tools/video-prep/cli.mjs fix   <文件> --upload --base <站点> --token <�
   `/api/media` 返回的是首页 HTML、`/assets/video-prep.js` 也不存在。
   **改完 `public/` 或 `functions/` 就重新部署，然后用 `node tools/verify-deploy.mjs`
   验**（查 Content-Type 和内容特征，不查状态码）。
+- **`_headers` 里必须写 `no-store`，写 `no-cache` 会被静默改掉** ——
+  `a377.xyz` 的 zone 设置 `browser_cache_ttl = 14400` 会覆盖源站 `Cache-Control`
+  的 max-age，但尊重 `no-store`。实测：`no-cache` → 被改写成 `max-age=14400`；
+  `no-store` → 原样通过。**`*.pages.dev` 没有这个 zone 设置，两种都通过 ——
+  只在 pages.dev 上测会得出错误结论，必须拿自定义域名测。**
+  这是「服务端部署对了、用户刷新还是旧版」那一层的坑，比服务端没部署更难查。
+  改了 `_headers` 要清一次边缘缓存（ETag 没变时协商会拿到 304、保留旧响应头）。
 - **PDF 渲染必须配 `standardFontDataUrl`** —— 用标准字体又没嵌入的 PDF，不给这个
   参数**文字会静默消失**（图形正常，只有字不见）。
 - **Resend 免费版只能发给注册邮箱** —— 要发给别人得先在 Resend 验证 `a377.xyz` 域名。

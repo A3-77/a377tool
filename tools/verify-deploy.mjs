@@ -24,6 +24,7 @@ async function get(path) {
   return {
     status: res.status,
     type: (res.headers.get("content-type") || "").toLowerCase(),
+    cache: (res.headers.get("cache-control") || "").toLowerCase(),
     body,
   };
 }
@@ -86,6 +87,22 @@ await check("网页端转码引擎已部署", "/assets/video-prep.js", null,
 await check("后台上传入口已部署", "/assets/site-admin.js", null,
   (r) => r.status === 200 && !isHtml(r) && /pickFiles/.test(r.body),
   "后台脚本是旧版（缩略图只是个 div，点了没反应）。重新部署 public/。");
+
+/* ---- 缓存头：这组是「部署了但用户拿不到新版」的判据 ----
+   Pages 默认给静态资源 max-age=14400（4 小时）。后台脚本是部署产物，
+   改了就该立刻生效；默认值会让用户刷新后还是旧版 —— 服务端是对的，
+   只有那个浏览器是旧的，比服务端没部署更难查。
+   靠 public/_headers 压成 no-cache（用之前先协商，没变就 304）。 */
+for (const [name, path] of [
+  ["后台脚本", "/assets/site-admin.js"],
+  ["后台样式", "/assets/site-admin.css"],
+  ["视频档位模块", "/assets/video-spec.js"],
+  ["转码引擎", "/assets/video-prep.js"],
+]) {
+  await check(name + "不缓存（部署后刷新即生效）", path, null,
+    (r) => /no-cache|no-store|max-age=0/.test(r.cache),
+    "缓存头是长 max-age，public/_headers 没生效 —— 部署后用户刷新会拿到旧版。");
+}
 
 /* ---- 报告 ---- */
 console.log("检查项".padEnd(22) + "结果");
