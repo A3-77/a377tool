@@ -30,7 +30,7 @@ web/
 │   │   ├── showcase.css    展示组件样式
 │   │   ├── showcase/       占位素材（图由 tests/gen_showcase_svg.py 生成，
 │   │   │                    视频由 tests/gen_showcase_video.sh 用 ffmpeg 生成）
-│   │   ├── site-admin.js   后台控制面板（控件定义 SCHEMA 在这里）
+│   │   ├── site-admin.js   后台控制面板（控件定义 SCHEMA + 上传/压缩逻辑在这里）
 │   │   └── site-admin.css
 │   ├── favicon.svg
 │   ├── trips/index.html    周末去哪见面
@@ -38,10 +38,12 @@ web/
 │   └── vendor/             pdf.js、pdf-lib、标准字体（本地副本，不依赖 CDN）
 ├── functions/api/*.js      后端接口，自动映射成 /api/*
 │   ├── _ddl.js             建表 + 展示组件的默认配置（DEFAULT_BLOCKS）
+│   ├── _media.js           素材上传的共用逻辑（白名单 / 体积上限 / key 生成）
 │   ├── site.js             GET /api/site（公开，只吐启用的组件）
-│   └── site-admin.js       /api/site-admin（ADMIN_TOKEN 鉴权，控制面板 + 保存）
+│   ├── site-admin.js       /api/site-admin（ADMIN_TOKEN 鉴权，控制面板 + 保存）
+│   └── media/[[key]].js    /api/media（上传 / 读取 / 删除，存 KV）
 ├── schema.sql              D1 建表语句
-└── wrangler.toml           D1 绑定配置（database_id 在这里）
+└── wrangler.toml           D1 + KV 绑定配置（database_id / namespace id 在这里）
 ```
 
 `pdf2img/` 是本地版 PDF 工具（Python），`tests/` 是测试脚本。
@@ -61,12 +63,19 @@ CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='5117ffc876a76ef7302775c45
 
 > **不要用 curl 直接调 Pages 上传 API** —— 那是两段式的，会返回 success 但访问 500。
 
-本地预览要跑 Functions 和 D1，**必须用 wrangler**：
+本地预览要跑 Functions、D1 和 KV，**必须用 wrangler**：
 
 ```bash
 cd web
-npx wrangler pages dev public --d1=DB --persist-to .d1dev --port 8789
+npx wrangler pages dev public --d1=DB --kv=MEDIA --persist-to .d1dev --port 8789
 ```
+
+`--d1=DB --kv=MEDIA` **都不能省** —— `wrangler.toml` 里那两段绑定只管**部署**，
+本地 dev 的绑定是靠命令行标志给进去的。少了 `--kv=MEDIA` 时 `env.MEDIA` 是 `undefined`，
+启动日志的绑定列表里也不会出现它（看那行列表就能确认），上传返回 503。
+
+KV 命名空间只建一次（`npx wrangler kv namespace create MEDIA`），
+把 id 填进 `wrangler.toml`，然后重新部署才在线上生效。
 
 只看工具箱静态页面的话 `python -m http.server` 也行。
 
@@ -317,6 +326,46 @@ assets/showcase.js 读 /api/site → 渲染进当前皮肤视图里的 [data-sho
 - POST 可以**只传 `{ enabled }`** 来只翻开关、不动配置 —— 否则改个开关要回传整份配置，
   漏一个字段就把设置冲掉了。
 
+### 素材上传（`functions/api/media/[[key]].js` + `assets/site-admin.js` 的上传部分）
+
+后台「＋ 上传」传的图片 / 视频存 **KV**（绑定名 `MEDIA`），不是 R2。
+
+**为什么不是 R2**：R2 免费额度更大（10GB 存储、无出口费），但**激活必须绑付款方式**。
+KV 免费额度是 1GB 总量 / 单值 25MiB / 每天 1000 次写 / 每天 10 万次读，
+不要付款方式，放几十张图和几秒的短视频绰绰有余。**用户是学生，别为了 10GB 让他去绑卡。**
+
+```
+POST   /api/media?key=<ADMIN_TOKEN>   multipart/form-data，字段名 file（可重复）
+GET    /api/media/m/<日期>-<随机>.<扩展名>   公开，可长缓存
+DELETE /api/media/m/<...>?key=<ADMIN_TOKEN>
+```
+
+- **`--kv=MEDIA` 本地开发必须显式加**。`wrangler.toml` 里的 `[[kv_namespaces]]`
+  只管**部署**；本地 dev 的绑定是靠命令行标志给进去的（D1 也是同理，一直传着 `--d1=DB`）。
+  少了它 `env.MEDIA` 是 `undefined`，上传返回 503。
+- **`[[key]]` 捕获到的是数组**（`["m","20260918-xxx.png"]`），不是字符串。
+  直接当字符串用会得到 `"m,20260918-xxx.png"`，读回来永远 404。见 `_media.js` 的 `keyFromPath`。
+- **不要拆成 `media.js` + `media/[[key]].js` 两个文件**。`[[key]]` 这个 catch-all
+  连 `/api/media`（零段）也会匹配，于是同一个路径被两个文件抢，Pages 按
+  「先匹配到的路由没有这个方法就往后找」来兜 —— POST 落到 `media.js`、GET 落到 `[[key]].js`。
+  能跑，但依赖的是没写进文档的路由顺序。合成一个文件就没这个问题。
+- **白名单按 Content-Type 判，不按扩展名**。扩展名是上传方随便写的。
+  名单里**故意没有 SVG** —— 它能内嵌脚本，而素材是同源的。
+- 单文件上限 图片 10MB / 视频 20MB（KV 单值 25MiB 留余量）。这是**防呆**，
+  不是「推荐规格」；推荐体积（图 ≤800KB、视频 ≤1.5MB）写在后台的规格块里。
+- **浏览器里先压一遍再传**：长边压到 1600px、jpeg q0.86。手机直出 4032×3024 的
+  11.4MB 照片 → 1600×1200 的 612KB（实测 0.5 秒）。压完比原图大就不压（已经压过的高质量图很常见）。
+  GIF 不碰（canvas 重编码会把动图压成静图）。
+- **平均色**：`drawImage(img,0,0,1,1)` 到 1×1 canvas 再读那个像素，等价于求平均色。
+  `imageSmoothingQuality` 必须给 `"high"` —— `low` 是抽样不是平均，取出来会明显偏一边。
+  Photo Stack 的每张照片靠这个自动填阴影底色。
+- **Cache API 必须显式用**：Pages Functions 的响应默认不进边缘缓存，光写 `Cache-Control`
+  只是告诉浏览器。而每次读 KV 都算一次「读」，首页一轮画廊 + Photo Stack 就是十几次读，
+  10 万次/天的免费额度撑不住几千次访问。所以 `caches.default` 手动缓存，
+  写缓存走 `waitUntil` 别挡响应。
+- key 里带**随机段**（`crypto.getRandomValues`，不是 `Math.random`），
+  所以「换素材 = 换 key」成立，`immutable` 长缓存才站得住，也不会被人猜出文件名。
+
 ### 控件（`assets/site-admin.js` 的 `SCHEMA`）
 
 `SCHEMA` 是唯一的字段定义处，加一个参数只要在对应 group 里加一行。
@@ -327,9 +376,17 @@ assets/showcase.js 读 /api/site → 渲染进当前皮肤视图里的 [data-sho
 `list` 是通用的，靠 `spec.newItem` 决定新增项的模板、`spec.unit` 决定量词
 （画廊用「项」、照片用「张」）；列表项字段支持 `text` / `select` / `color`。
 
+`list` 自带上传：列表头有「＋ 上传」（多选），整个列表是拖放区（拖文件进来就传），
+每项的缩略图本身是个 `<button>`，点它只换那一项。上传后：
+`src` 一定填，`title` 取文件名（只有这个列表声明了 `title` 才填），
+`color` 取图的平均色（同理，只有 `newItem` 里有 `color` 才填）。
+**替换**某项时，`color` 只在它还是 `newItem.color` 默认值时才覆盖 ——
+不然上传一张新照片会把用户调好的阴影色调冲掉。
+
 **规格要求要写在面板里，不能只写在文档里** —— 改配置的人就在这个页面上。
 画廊的「视频」分组顶上就有一块 `note`：格式 / 分辨率 / 比例 / 时长 / 体积 / 音轨。
 里面的数字是实测的（卡片在默认参数下最大约 380×270），不是拍的。
+上传的硬上限（图 10MB / 视频 20MB）是**防呆**，跟这个「推荐规格」不是一回事，别混。
 
 ### 几何不能写死 px
 
@@ -409,6 +466,20 @@ assets/showcase.js 读 /api/site → 渲染进当前皮肤视图里的 [data-sho
   而且窄屏布局本来就该整页滚）；`grid-template-rows:minmax(0,1fr)` 也没用。
   实测只有 `contain:paint` 有效，且两种宽度下都正确。
   **这类问题断言默认查不出来** —— 现在有两条断言盯着（程序化 + 真实滚轮）。
+- **`_lib.js` 的 `json()` 是 `(data, init)`，不是 `(data, status)`** ——
+  写 `json(x, 404)` 会把 404 当成 `init` 展开（数字展开成空对象），**状态码静默变成 200**。
+  错误一律走 `fail(msg, code)`。这个坑在 `media/[[key]].js` 上真踩过一次，
+  表现是「所有错误都返回 200」，测试里一眼能看出，但肉眼扫代码看不出来。
+- **`[[key]]` 这类 catch-all 参数是数组**，不是字符串。见上面「素材上传」。
+- **`wrangler pages dev` 的绑定靠命令行标志，不靠 wrangler.toml** ——
+  本地起服务要 `--d1=DB --kv=MEDIA`；少了 `--kv=MEDIA` 时 `env.MEDIA` 是 `undefined`，
+  启动日志的绑定列表里也不会有它（**看那行列表就能确认**），上传返回 503。
+- **同一个端口起了两个 wrangler 会留下两个 `workerd` 一起监听** ——
+  `netstat` 里能看到两行同一个端口，请求时通时不通，`npx` 的父进程被杀掉后
+  `workerd` 仍活着。要清就按进程树清（先找 `npx wrangler` 的 PID，再往下杀
+  `workerd.exe`），或者直接换端口。
+- **`gh` 是原生 Windows 程序，不认 Git Bash 的 `/tmp/...` 路径** ——
+  `--notes-file /tmp/x.md` 会报「找不到文件」，要 `cygpath -w` 转一下。
 - **`documentElement.scrollHeight` 和 `body.scrollHeight` 会不一致** ——
   排查「页面为什么能滚出空白」时两个都要看，只看 `body` 会以为没问题。
 - **`ffmpeg` 是原生 Windows 程序，不认 Git Bash 的 `/c/...` 路径** ——
@@ -479,14 +550,19 @@ cd tests && node skin-compare/gen.mjs
 它需要先起本地服务（展示组件依赖 D1，静态服务器不够）：
 
 ```bash
-cd web && npx wrangler pages dev public --d1=DB --persist-to .d1dev --port 8791 &
+cd web && npx wrangler pages dev public --d1=DB --kv=MEDIA --persist-to .d1dev --port 8791 &
 cd tests && node test_showcase.mjs http://127.0.0.1:8791 <ADMIN_TOKEN>
 ```
 
-覆盖 87 项：接口鉴权与结构、画廊渲染与 3D 几何、视频播放调度、
+覆盖 116 项：接口鉴权与结构、画廊渲染与 3D 几何、视频播放调度、
 切皮肤后搬移、**响应式回归**（卡片尺寸必须随容器宽度等比变化，防止有人再写死 px）、
-Photo Stack 的几何与换片动画、后台面板（含「不能有幽灵滚动区」）。
+Photo Stack 的几何与换片动画、**素材上传**（类型/体积/空文件/路径穿越都挡住、
+读回来字节一致、后台拖图真上传且压缩真跑了）、后台面板（含「不能有幽灵滚动区」）。
 跑完在 `tests/out_showcase/` 留四张截图。
+
+上传那几条断言是**在浏览器里现场造图**再拖进去的（2400×1600 的噪点 JPEG）——
+用噪点不用纯色是有意的：纯色 jpeg 会压到几 KB，「压缩到底跑没跑」就测不出来了。
+测试结束会把 photostack 恢复成默认关闭、并删掉自己上传的素材，所以可以反复跑。
 
 > 断言查不出「好不好看」。改完视觉**一定要打开截图看**：
 > 画廊背片是否可见、Photo Stack 的背片有没有被裁掉，这两类问题断言全绿也会发生。

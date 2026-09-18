@@ -20,12 +20,12 @@
   var SCHEMA = {
     gallery: {
       title: "弧形画廊",
-      note: "把图片或视频弯成圆柱面横向滚动。拖拽可手动转，松手后按速度继续。",
+      note: "把图片或视频弯成圆柱面横向滚动。拖拽可手动转，松手后按速度继续。素材点「＋ 上传」选文件，或直接把图片 / 视频拖进列表。",
       list: {
         key: "items",
         label: "展示内容",
         fields: [
-          { key: "src", type: "text", placeholder: "URL，例如 /assets/showcase/g1.svg 或 xxx.mp4" },
+          { key: "src", type: "text", placeholder: "点缩略图上传，或直接填 URL / 路径" },
           { key: "title", type: "text", placeholder: "说明文字（可选）" },
           { key: "type", type: "select", label: "类型", options: [
             { value: "", label: "自动（按扩展名）" },
@@ -77,14 +77,14 @@
 
     photostack: {
       title: "Photo Stack",
-      note: "多张照片叠在一起，点最上面那张换下一张。后面的照片按弹簧参数错位展开。",
+      note: "多张照片叠在一起，点最上面那张换下一张。后面的照片按弹簧参数错位展开。素材点「＋ 上传」选文件，或直接把照片拖进列表 —— 每张照片的底色会自动取图里的平均色。",
       list: {
         key: "photos",
         label: "照片",
         unit: "张",
         newItem: { src: "", color: "#1a1a2e" },
         fields: [
-          { key: "src", type: "text", placeholder: "URL，例如 /assets/showcase/ps1.svg" },
+          { key: "src", type: "text", placeholder: "点缩略图上传，或直接填 URL / 路径" },
           { key: "color", type: "color" }
         ]
       },
@@ -297,6 +297,149 @@
     return wrap;
   }
 
+  /* ---------------- 上传 ----------------
+     为什么要在浏览器里先压一遍：
+       手机直出的一张照片是 3-5MB / 4000×3000，而画廊卡片实测只有约 380×270
+       （2x 屏也就 760）。不压的话一张图就吃掉 KV 免费额度（总共 1GB）的一大块，
+       而且上传还慢。让用户自己先去找工具压是不现实的，所以在这里做掉。
+
+     顺便取一个平均色：Photo Stack 每张照片都要一个 color 当阴影底色
+       （原版是手填的），这里从图里算出来当默认值，省一步。 */
+  var MAX_EDGE = 1600;                 /* 长边上限。够 2x 屏，再多是白占体积 */
+  var RECOMPRESS_OVER = 700 * 1024;    /* 小于这个就不折腾，原图直传 */
+
+  function fmtSize(n) {
+    if (n < 1024) return n + " B";
+    if (n < 1048576) return Math.round(n / 1024) + " KB";
+    return (n / 1048576).toFixed(1) + " MB";
+  }
+
+  function baseName(name) {
+    return String(name || "file")
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^\w\u4e00-\u9fa5.-]+/g, "-")
+      .slice(0, 60) || "file";
+  }
+
+  function loadImage(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () { resolve({ img: img, url: url }); };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("读不出这张图")); };
+      img.src = url;
+    });
+  }
+
+  function toBlob(canvas, type, q) {
+    return new Promise(function (resolve) { canvas.toBlob(resolve, type, q); });
+  }
+
+  /* 把整张图画到 1×1 的 canvas 上再读那个像素 —— 等价于求平均色，
+     比逐像素遍历快几个数量级，当占位色完全够。
+     imageSmoothingQuality 要给 high：low 的话是抽样不是平均，
+     取出来会明显偏某一边的颜色。 */
+  function averageColor(img) {
+    try {
+      var cv = document.createElement("canvas");
+      cv.width = cv.height = 1;
+      var ctx = cv.getContext("2d");
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, 1, 1);
+      var d = ctx.getImageData(0, 0, 1, 1).data;
+      return "#" + [d[0], d[1], d[2]].map(function (n) {
+        return ("0" + n.toString(16)).slice(-2);
+      }).join("");
+    } catch (e) {
+      return "";   /* 跨域图会污染 canvas，取不到就算了，不是致命错误 */
+    }
+  }
+
+  function recompress(img) {
+    var w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) return Promise.resolve(null);
+    var k = Math.min(1, MAX_EDGE / Math.max(w, h));
+    var cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(w * k));
+    cv.height = Math.max(1, Math.round(h * k));
+    var ctx = cv.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    /* 不指定 alpha 的话统一走 jpeg（编码快、兼容性最好）；
+       png/webp/avif 可能是带透明度的，转 webp 保住 alpha。 */
+    return toBlob(cv, "image/jpeg", 0.86);
+  }
+
+  /* 返回 { file, color, note }；note 是给用户看的「压了多少」 */
+  function prepare(file) {
+    /* gif 是动图，canvas 重编码会把动画压成一张静图 —— 别碰它 */
+    if (!/^image\//.test(file.type) || file.type === "image/gif") {
+      return Promise.resolve({ file: file, color: "", note: "" });
+    }
+    return loadImage(file).then(function (r) {
+      var color = averageColor(r.img);
+      var big = file.size > RECOMPRESS_OVER ||
+        Math.max(r.img.naturalWidth, r.img.naturalHeight) > MAX_EDGE;
+      if (!big) {
+        URL.revokeObjectURL(r.url);
+        return { file: file, color: color, note: "" };
+      }
+      /* 统一出 jpeg：上传的图会当卡片背景，没有 alpha 需求 */
+      return recompress(r.img).then(function (blob) {
+        URL.revokeObjectURL(r.url);
+        /* 压完反而更大就别压 —— 已经是高质量小图的情况很常见 */
+        if (!blob || blob.size >= file.size) return { file: file, color: color, note: "" };
+        return {
+          file: new File([blob], baseName(file.name) + ".jpg", { type: "image/jpeg" }),
+          color: color,
+          note: fmtSize(file.size) + " → " + fmtSize(blob.size),
+        };
+      });
+    }).catch(function () {
+      /* 解不出来（少见格式 / 文件损坏）就原样传，让服务端按 Content-Type 判 */
+      return { file: file, color: "", note: "" };
+    });
+  }
+
+  /* 上传。onProgress 是给状态行用的，压缩是一张张串行的 ——
+     并行压十几张 4000×3000 会把主线程卡住，界面看着像死了。 */
+  function uploadFiles(files, onProgress) {
+    var list = Array.prototype.slice.call(files);
+    if (!list.length) return Promise.resolve({ files: [] });
+
+    var items = [];
+    return list.reduce(function (chain, f, i) {
+      return chain.then(function () {
+        if (onProgress) onProgress("处理 " + (i + 1) + "/" + list.length + "：" + f.name);
+        return prepare(f).then(function (r) {
+          items.push({ file: r.file, color: r.color, note: r.note, original: f.name });
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      var fd = new FormData();
+      items.forEach(function (it) { fd.append("file", it.file); });
+      if (onProgress) onProgress("上传 " + items.length + " 个文件…");
+      return fetch("/api/media?key=" + encodeURIComponent(KEY), { method: "POST", body: fd });
+    }).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (data) {
+        if (!res.ok || !data || !data.ok) {
+          var msg = (data && data.error) || ("HTTP " + res.status);
+          if (res.status === 503) msg = "还没绑定素材存储。" + msg;
+          throw new Error(msg);
+        }
+        /* 服务端按提交顺序返回，用下标把颜色和压缩说明对回来 */
+        data.files = data.files.map(function (f, i) {
+          var it = items[i] || {};
+          f.color = it.color || "";
+          f.original = it.original || f.name;
+          f.note = it.note || "";
+          return f;
+        });
+        return data;
+      });
+    });
+  }
+
   /* ---------------- 内容列表（图片 / 视频混排） ---------------- */
 
   /* 和 assets/showcase.js 里的判定保持一致：显式 type 优先，否则按扩展名猜。
@@ -342,13 +485,107 @@
     var box = el("div", { class: "list" });
     var items = Array.isArray(cfg[spec.key]) ? cfg[spec.key] : (cfg[spec.key] = []);
     var unit = spec.unit || "项";
+    /* 新增项的默认色（Photo Stack 的底色）。上传替换时靠它判断
+       「用户有没有自己挑过颜色」—— 还是默认值就说明没挑过，可以自动填。 */
+    var defColor = spec.newItem ? spec.newItem.color : null;
+
+    /* 上传进度行。box 是常驻的（redraw 只清子节点），
+       所以 statusEl 建一次、每次 redraw 重新 append 回去就行。 */
+    var statusEl = el("span", { class: "upstatus" });
+    function setStatus(msg, on) {
+      statusEl.textContent = msg || "";
+      box.classList.toggle("busy", !!on);
+    }
+
+    /* 上传完造一项。title / color 只有这个列表声明了才填 ——
+       画廊要 title（拿文件名当说明文字），Photo Stack 要 color（拿平均色当底色）。 */
+    function itemFrom(f) {
+      var it = spec.newItem ? Object.assign({}, spec.newItem) : { src: "", title: "" };
+      it.src = f.url;
+      if ("title" in it && !it.title) it.title = baseName(f.original);
+      if ("color" in it && f.color) it.color = f.color;
+      return it;
+    }
+
+    function replaceAt(index, f) {
+      var it = items[index];
+      if (!it) return;
+      it.src = f.url;
+      /* 底色跟着新图走，但只在用户没自己挑过的时候 ——
+         不然上传一张新照片会把调好的阴影色调冲掉。 */
+      if ("color" in it && f.color && (!it.color || it.color === defColor)) it.color = f.color;
+    }
+
+    function pickFiles(index) {
+      var inp = document.createElement("input");
+      inp.type = "file";
+      inp.accept = "image/*,video/*";
+      inp.multiple = index == null;     /* 替换是「换掉这一项」，只收一个 */
+      inp.addEventListener("change", function () {
+        if (inp.files && inp.files.length) runUpload(inp.files, index);
+      });
+      inp.click();
+    }
+
+    function runUpload(fileList, index) {
+      var replace = index != null;
+      setStatus("准备上传…", true);
+      uploadFiles(fileList, function (msg) { setStatus(msg, true); }).then(function (data) {
+        var notes = [];
+        data.files.forEach(function (f, i) {
+          if (!replace) items.push(itemFrom(f));
+          else if (i === 0) replaceAt(index, f);
+          if (f.note) notes.push(f.original + "：" + f.note);
+        });
+        setStatus("", false);
+        redraw(); preview();
+        /* 压缩结果要说出来 —— 不然用户不知道图被改过，
+           也不知道 4MB 是怎么变成 300KB 的 */
+        var msg = (replace ? "已替换素材" : "已上传 " + data.files.length + " 个") + "，记得点保存";
+        toast(notes.length ? msg + "（已压缩 " + notes.join("；") + "）" : msg, "ok");
+      }).catch(function (e) {
+        setStatus("", false);
+        toast("上传失败：" + e.message, "bad");
+      });
+    }
+
+    /* 拖进来就传 —— 这是「上传」最自然的动作，
+       比先点按钮再在文件对话框里翻目录快得多。
+       dragover 必须 preventDefault，否则浏览器根本不会派发 drop。 */
+    function hasFiles(e) {
+      var t = e.dataTransfer && e.dataTransfer.types;
+      return !!t && Array.prototype.indexOf.call(t, "Files") >= 0;
+    }
+    box.addEventListener("dragenter", function (e) { if (hasFiles(e)) e.preventDefault(); });
+    box.addEventListener("dragover", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      box.classList.add("dropping");
+    });
+    box.addEventListener("dragleave", function (e) {
+      /* 移到子元素上也会触发 dragleave，不判断 relatedTarget 的话高亮会闪 */
+      if (!box.contains(e.relatedTarget)) box.classList.remove("dropping");
+    });
+    box.addEventListener("drop", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      box.classList.remove("dropping");
+      runUpload(e.dataTransfer.files, null);
+    });
 
     function redraw() {
       box.textContent = "";
       box.append(el("div", { class: "list-head" },
         el("b", { text: spec.label }),
         el("span", { class: "count", text: items.length + " " + unit }),
+        statusEl,
         el("span", { class: "sp" }),
+        el("button", {
+          class: "btn", type: "button",
+          title: "从电脑里选图片或视频，可多选；也可以直接把文件拖到这里",
+          onclick: function () { pickFiles(null); }
+        }, "＋ 上传"),
         el("button", {
           class: "btn", type: "button",
           onclick: function () {
@@ -359,20 +596,25 @@
         }, "+ 添加一" + unit)));
 
       if (!items.length) {
-        box.append(el("div", { class: "empty", text: "还没有内容。点「+ 添加一" + unit + "」开始。" }));
+        box.append(el("div", { class: "empty", text: "还没有内容。点「＋ 上传」选文件，或直接把图片 / 视频拖到这里。" }));
         return;
       }
 
       items.forEach(function (it, i) {
-        /* 缩略图放在自己的槽里，改 src / type 时整个换掉 ——
-           图片和视频是两种元素，原地改 src 换不了元素类型 */
-        var slot = el("div", { class: "thumb-slot" });
-        var thumb = null;
+        /* 缩略图槽既是预览也是上传入口 —— 点它就能把这一项换成电脑里的文件。
+           做成 <button> 而不是加个「上传」小按钮，是因为 52×40 的格子里
+           再塞一个按钮太挤，而「点缩略图换图」本来就是直觉动作。
+           thumbBox 单独一层：改 src / type 时只换它里面的元素，
+           图片和视频是两种元素类型，原地改 src 换不了。 */
+        var thumbBox = el("div", { class: "thumb-box" });
+        var slot = el("button", {
+          class: "thumb-slot", type: "button",
+          title: "点这里上传，替换这一项的素材",
+          onclick: function () { pickFiles(i); }
+        }, thumbBox);
         function renderThumb() {
-          var next = makeThumb(it);
-          if (thumb) slot.replaceChild(next, thumb);
-          else slot.append(next);
-          thumb = next;
+          thumbBox.textContent = "";
+          thumbBox.append(makeThumb(it));
           slot.setAttribute("data-kind", itemIsVideo(it) ? "video" : "image");
         }
         renderThumb();

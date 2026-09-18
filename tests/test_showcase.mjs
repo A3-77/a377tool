@@ -1,18 +1,23 @@
 /**
  * 首页展示组件（弧形画廊 / Photo Stack）的端到端测试
  * ---------------------------------------------------------------------------
- * 需要先起带 D1 的 wrangler dev：
- *   cd web && npx wrangler pages dev public --d1=DB --persist-to .d1dev --port 8791
+ * 需要先起带 D1 和 KV 的 wrangler dev：
+ *   cd web && npx wrangler pages dev public --d1=DB --kv=MEDIA --persist-to .d1dev --port 8791
+ *   （--kv=MEDIA 不能省：wrangler.toml 里那条 [[kv_namespaces]] 只管部署，
+ *     本地开发时绑定是靠命令行标志给进去的，少了它 env.MEDIA 是 undefined，
+ *     上传会返回 503）
  * 然后：
  *   cd tests && node test_showcase.mjs http://127.0.0.1:8791 localdevtoken
  *
- * 覆盖三类事：
+ * 覆盖：
  *   1. 接口：/api/site 只吐启用的组件；/api/site-admin 的鉴权、保存、恢复默认
  *   2. 渲染：画廊真的建出来了、卡片按角度分布、边缘压暗生效、切皮肤后还在
- *   3. 交互：Photo Stack 悬停后背片真的动了（弹簧解算在跑），不是静态的
- *
- * 覆盖：接口 / 画廊渲染 / 视频播放调度 / Photo Stack / 后台面板。
- * 测试结束会把 photostack 恢复成默认关闭，保证可重复跑。
+ *   3. 交互：Photo Stack 点最上面那张真的换片（弹簧解算在跑），不是静态的
+ *   4. 素材上传：类型/体积/空文件/路径穿越都被挡住；读回来字节一致；
+ *      后台拖图真的上传、上传前压缩真的跑了
+ *   5. 后台面板：控件齐全、没有幽灵滚动区
+ *   6. 恢复默认
+ * 测试结束会把 photostack 恢复成默认关闭、并删掉自己上传的素材，保证可重复跑。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -517,8 +522,100 @@ check("窄屏下舞台盒不出视口", narrow.stageRight <= narrow.docW,
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
 await sleep(500);
 
-/* ============================ 4. 后台面板 ============================ */
-console.log("\n[4] 后台面板");
+/* ============================ 4. 素材上传 ============================ */
+console.log("\n[4] 素材上传");
+
+/* 一张 8×8 的真 PNG（base64 内联，不依赖磁盘文件） */
+const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAIAQMAAAD+wSzIAAAABlBMVEX///+/v7+jQ3Y5AAAADklEQVQI12P4AIX8EAgALgAD/aNpbtEAAAAASUVORK5CYII=",
+  "base64");
+
+const up = (key, blob, name) => {
+  const fd = new FormData();
+  fd.append("file", blob, name);
+  return fetch(BASE + "/api/media" + (key == null ? "" : "?key=" + encodeURIComponent(key)),
+    { method: "POST", body: fd });
+};
+
+const upNoKey = await up(null, new Blob([TINY_PNG], { type: "image/png" }), "a.png");
+check("上传无 key → 401", upNoKey.status === 401, "got " + upNoKey.status);
+
+const upBadKey = await up("wrong", new Blob([TINY_PNG], { type: "image/png" }), "a.png");
+check("上传错 key → 401", upBadKey.status === 401, "got " + upBadKey.status);
+
+const upOk = await up(TOKEN, new Blob([TINY_PNG], { type: "image/png" }), "my-photo.png");
+const upOkBody = await upOk.json().catch(() => null);
+check("上传图片 → 200 且返回可用的 url",
+  upOk.status === 200 && upOkBody?.ok && /^\/api\/media\/m\/\d{8}-[0-9a-f]{16}\.png$/.test(upOkBody.files?.[0]?.url || ""),
+  upOk.status + " " + JSON.stringify(upOkBody));
+
+/* 读回来必须**字节一致** —— 只比大小会漏掉「存进去但内容被改了」 */
+let uploadedUrl = upOkBody?.files?.[0]?.url || "";
+if (uploadedUrl) {
+  const got = await fetch(BASE + uploadedUrl);
+  const buf = Buffer.from(await got.arrayBuffer());
+  check("读回来的字节和上传的完全一致", buf.equals(TINY_PNG),
+    buf.length + " vs " + TINY_PNG.length);
+  check("回的是正确的 Content-Type", got.headers.get("content-type") === "image/png",
+    got.headers.get("content-type"));
+  /* key 里带随机段、内容永不变，所以长缓存是安全的 */
+  check("素材可以长缓存（immutable）",
+    /immutable/.test(got.headers.get("cache-control") || ""),
+    got.headers.get("cache-control"));
+  check("原始文件名留在 metadata 里（KV 控制台里认得出是哪张）",
+    decodeURIComponent(got.headers.get("x-media-name") || "") === "my-photo.png",
+    got.headers.get("x-media-name"));
+  check("上传出来的 URL 前台能直接当 <img src> 用（不带鉴权）", got.status === 200);
+}
+
+const miss = await fetch(BASE + "/api/media/m/20260101-0000000000000000.png");
+check("读不存在的素材 → 404", miss.status === 404, "got " + miss.status);
+
+/* 类型白名单：不按扩展名放行，按 Content-Type 判。
+   .svg 不在名单里 —— 它能内嵌脚本，而素材是同源的。 */
+const upSvg = await up(TOKEN, new Blob([Buffer.from("<svg/>")], { type: "image/svg+xml" }), "x.svg");
+check("SVG 被拒（同源脚本风险，不在白名单）", upSvg.status === 415, "got " + upSvg.status);
+
+const upTxt = await up(TOKEN, new Blob([Buffer.from("hi")], { type: "text/plain" }), "x.txt");
+check("txt 被拒 → 415", upTxt.status === 415, "got " + upTxt.status);
+
+const upEmpty = await up(TOKEN, new Blob([], { type: "image/png" }), "empty.png");
+check("空文件被拒 → 400", upEmpty.status === 400, "got " + upEmpty.status);
+
+/* 11MB 的假 PNG：体积上限是 10MB */
+const upHuge = await up(TOKEN, new Blob([Buffer.alloc(11 * 1024 * 1024)], { type: "image/png" }), "huge.png");
+check("超过体积上限 → 413（不是默默存进去）", upHuge.status === 413, "got " + upHuge.status);
+
+const upGetRoot = await fetch(BASE + "/api/media");
+check("GET /api/media 给的是提示不是 404", upGetRoot.status === 405, "got " + upGetRoot.status);
+
+/* 路径穿越：%2e%2e 解码后就是 ..，不能让它构出 m/../ 这种 key */
+const trav = await fetch(BASE + "/api/media/m/%2e%2e%2f%2e%2e%2fsecret.png");
+check("路径里的 .. 被挡住", trav.status === 404, "got " + trav.status);
+
+/* 多选一次传多个 */
+const fdMany = new FormData();
+for (const n of ["1.png", "2.png", "3.png"])
+  fdMany.append("file", new Blob([TINY_PNG], { type: "image/png" }), n);
+const many = await fetch(BASE + "/api/media?key=" + encodeURIComponent(TOKEN), { method: "POST", body: fdMany });
+const manyBody = await many.json().catch(() => null);
+check("一次能传多个（可多选上传）", many.status === 200 && manyBody?.files?.length === 3,
+  many.status + " " + (manyBody?.files?.length ?? "?"));
+
+/* 删掉刚才为测试造出来的文件，别让本地 KV 越跑越大 */
+const toClean = [...(upOkBody?.files || []), ...(manyBody?.files || [])].map((f) => f.url);
+let delOk = 0;
+for (const u of toClean) {
+  const r = await fetch(BASE + u + "?key=" + encodeURIComponent(TOKEN), { method: "DELETE" });
+  if (r.status === 200) delOk++;
+}
+check("DELETE 能删掉素材", delOk === toClean.length, delOk + "/" + toClean.length);
+
+const delNoKey = await fetch(BASE + (uploadedUrl || "/api/media/m/x.png"), { method: "DELETE" });
+check("删除也要口令（无 key → 401）", delNoKey.status === 401, "got " + delNoKey.status);
+
+/* ============================ 5. 后台面板 ============================ */
+console.log("\n[5] 后台面板");
 
 const admin = await browser.newPage();
 await admin.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
@@ -613,6 +710,153 @@ check("规格里给了格式/分辨率/比例/时长/体积/音轨六条",
   spec ? spec.lines.join("  ") : "");
 check("规格块不是可填字段（只读说明）", !!spec && !spec.inField);
 
+/* ---- 上传入口 ---- */
+const upUi = await admin.evaluate(() => {
+  const btn = [...document.querySelectorAll(".list-head button")].find((b) => /上传/.test(b.textContent));
+  const slots = [...document.querySelectorAll(".item .thumb-slot")];
+  return {
+    hasButton: !!btn,
+    btnText: (btn?.textContent || "").trim(),
+    slotsAreButtons: slots.length > 0 && slots.every((s) => s.tagName === "BUTTON"),
+    slotTitle: slots[0]?.getAttribute("title") || "",
+  };
+});
+check("后台有「＋ 上传」按钮", upUi.hasButton, upUi.btnText || "没找到");
+check("缩略图本身就是上传入口（点它换这一项的素材）",
+  upUi.slotsAreButtons && /上传/.test(upUi.slotTitle), upUi.slotTitle);
+
+/* ---- 真拖一张大图进去，验证「上传前压缩」确实跑了 ----
+   图是现场用 canvas 造的：2400×1600 的**噪点** JPEG。
+   用噪点不用纯色是有意的 —— 纯色 jpeg 会压到几 KB，
+   那样「压缩有没有跑」就测不出来了。 */
+const dropInfo = await admin.evaluate(async (kind) => {
+  const cv = document.createElement("canvas");
+  cv.width = 2400; cv.height = 1600;
+  const ctx = cv.getContext("2d");
+  const img = ctx.createImageData(cv.width, cv.height);
+  for (let i = 0; i < img.data.length; i += 4) {
+    img.data[i] = (i * 7) % 255;
+    img.data[i + 1] = (i * 13) % 255;
+    img.data[i + 2] = (i * 29) % 255;
+    img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const blob = await new Promise((r) => cv.toBlob(r, "image/jpeg", 0.95));
+
+  const list = (kind === "gallery"
+    ? [...document.querySelectorAll(".block")].find((x) => x.querySelector(".block-head .kind")?.textContent === "gallery")
+    : [...document.querySelectorAll(".block")].find((x) => x.querySelector(".block-head .kind")?.textContent === "photostack")
+  ).querySelector(".list");
+  const before = list.querySelectorAll(".item").length;
+
+  const dt = new DataTransfer();
+  dt.items.add(new File([blob], "big-photo.jpg", { type: "image/jpeg" }));
+  list.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+
+  return { originalSize: blob.size, originalW: cv.width, before };
+}, "gallery");
+
+check("拖进来的原图确实很大（否则后面压不压都测不出来）",
+  dropInfo.originalSize > 500 * 1024, Math.round(dropInfo.originalSize / 1024) + " KB");
+
+await admin.waitForFunction((n) => {
+  const b = [...document.querySelectorAll(".block")].find(
+    (x) => x.querySelector(".block-head .kind")?.textContent === "gallery");
+  return b && b.querySelectorAll(".item").length > n;
+}, { timeout: 30000 }, dropInfo.before).catch(() => {});
+
+const afterDrop = await admin.evaluate(() => {
+  const b = [...document.querySelectorAll(".block")].find(
+    (x) => x.querySelector(".block-head .kind")?.textContent === "gallery");
+  const items = [...b.querySelectorAll(".item")];
+  const last = items[items.length - 1];
+  const texts = [...last.querySelectorAll('input[type="text"]')];
+  const img = last.querySelector(".thumb-slot img");
+  return {
+    count: items.length,
+    src: texts[0]?.value || "",
+    title: texts[1]?.value || "",
+    thumbOk: !!img && img.naturalWidth > 0,
+  };
+});
+
+check("拖进列表真的上传了（列表多了一项，src 指向 /api/media/）",
+  afterDrop.count === dropInfo.before + 1 && /^\/api\/media\/m\//.test(afterDrop.src),
+  afterDrop.count + " 项，src=" + afterDrop.src);
+check("上传后的缩略图能显示出来（不是破图）", afterDrop.thumbOk);
+check("说明文字自动取了文件名（省得每条手打）",
+  afterDrop.title === "big-photo", "title=" + afterDrop.title);
+
+let storedBytes = 0, storedW = 0, storedH = 0;
+if (afterDrop.src) {
+  const r = await fetch(BASE + afterDrop.src);
+  storedBytes = Buffer.from(await r.arrayBuffer()).length;
+  /* 尺寸在浏览器里量 —— Node 没有内置图片解码器 */
+  const dim = await admin.evaluate(async (url) => {
+    const im = new Image();
+    await new Promise((res, rej) => { im.onload = res; im.onerror = rej; im.src = url; });
+    return { w: im.naturalWidth, h: im.naturalHeight };
+  }, afterDrop.src).catch(() => ({ w: 0, h: 0 }));
+  storedW = dim.w; storedH = dim.h;
+}
+
+check("上传前在浏览器里压过（体积明显变小）",
+  storedBytes > 0 && storedBytes < dropInfo.originalSize / 2,
+  Math.round(dropInfo.originalSize / 1024) + "KB → " + Math.round(storedBytes / 1024) + "KB");
+check("长边被压到 1600px 以内（够 2x 屏，再多是白占体积）",
+  Math.max(storedW, storedH) > 0 && Math.max(storedW, storedH) <= 1600,
+  storedW + "×" + storedH + "（原图宽 " + dropInfo.originalW + "）");
+check("比例没被压变形（2400×1600 → 3:2）",
+  storedW > 0 && Math.abs(storedW / storedH - 1.5) < 0.02,
+  (storedW / storedH).toFixed(3));
+
+/* ---- Photo Stack 的底色要自动取图里的平均色 ----
+   原版每张照片带一个 color 当阴影底色，手填很烦；
+   这里从图里算，纯色图应该能算得很准。 */
+await admin.evaluate(async () => {
+  const cv = document.createElement("canvas");
+  cv.width = 400; cv.height = 600;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "rgb(200, 40, 60)";
+  ctx.fillRect(0, 0, 400, 600);
+  const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+  const block = [...document.querySelectorAll(".block")].find(
+    (x) => x.querySelector(".block-head .kind")?.textContent === "photostack");
+  const list = block.querySelector(".list");
+  const dt = new DataTransfer();
+  dt.items.add(new File([blob], "red.png", { type: "image/png" }));
+  list.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+});
+await sleep(2500);
+
+const psUp = await admin.evaluate(() => {
+  const b = [...document.querySelectorAll(".block")].find(
+    (x) => x.querySelector(".block-head .kind")?.textContent === "photostack");
+  const items = [...b.querySelectorAll(".item")];
+  const last = items[items.length - 1];
+  return {
+    count: items.length,
+    src: last.querySelector('input[type="text"]')?.value || "",
+    color: last.querySelector('input[type="color"]')?.value || "",
+  };
+});
+const rgb = /^#(\w\w)(\w\w)(\w\w)$/.exec(psUp.color);
+const r8 = rgb ? parseInt(rgb[1], 16) : 0;
+const g8 = rgb ? parseInt(rgb[2], 16) : 0;
+const b8 = rgb ? parseInt(rgb[3], 16) : 0;
+check("照片底色自动取了图里的平均色（不用手填）",
+  /^\/api\/media\/m\//.test(psUp.src) && r8 > 150 && g8 < 90 && b8 < 110,
+  psUp.color + "（拖进去的是 rgb(200,40,60)）");
+
+/* 把这两个测试上传的素材删掉，别让本地 KV 越跑越大 */
+let uiCleaned = 0;
+for (const u of [afterDrop.src, psUp.src]) {
+  if (!/^\/api\/media\/m\//.test(u)) continue;
+  const r = await fetch(BASE + u + "?key=" + encodeURIComponent(TOKEN), { method: "DELETE" });
+  if (r.status === 200) uiCleaned++;
+}
+check("UI 上传的素材能删干净", uiCleaned === 2, uiCleaned + "/2");
+
 /* 后台页面不能有「幽灵滚动区」。
    面板内容 5000+px 会溢出到文档层，文档因此能滚 4000+px 的空白；
    鼠标停在左边预览 iframe 上滚滚轮时滚动链会传到父文档，把整个后台拉走。
@@ -649,8 +893,8 @@ check("右侧面板自身仍然能滚", panelScroll.scrollable && panelScroll.af
 await admin.screenshot({ path: path.join(SHOTS, "04-admin-video.png") });
 await admin.close();
 
-/* ============================ 5. 恢复默认 ============================ */
-console.log("\n[5] 恢复默认");
+/* ============================ 6. 恢复默认 ============================ */
+console.log("\n[6] 恢复默认");
 
 const resetRes = await post({ key: TOKEN, reset: "photostack" });
 check("reset 接口成功", resetRes.body?.ok === true);

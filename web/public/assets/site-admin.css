@@ -157,6 +157,14 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
 .list-head b{font-size:12.5px;font-weight:600}
 .list-head .count{color:var(--faint);font-size:11.5px}
 .list-head .sp{flex:1}
+/* 上传进度行。放在计数后面，不占额外一行 ——
+   上传时列表本身禁掉点击，防止重复提交。 */
+.list-head .upstatus{font-size:11.5px;color:var(--accent);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list.busy{pointer-events:none}
+/* 拖文件进来时整块列表高亮。不提示的话用户根本不知道这里能拖。
+   outline-offset 4px 落在 .block 的 18px 内边距里，不会被 .panel 的
+   contain:paint 裁掉。 */
+.list.dropping{outline:2px dashed var(--accent);outline-offset:4px;border-radius:12px}
 .item{
   display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;
   background:var(--raise);border:1px solid var(--line);border-radius:var(--r);
@@ -166,12 +174,25 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
   width:52px;height:40px;border-radius:6px;object-fit:cover;background:#0d1320;
   border:1px solid var(--line);display:block;
 }
-/* 缩略图槽位：右下角挂一个 IMG / VID 角标，
+/* 缩略图槽：既是预览也是上传入口 —— 点它就把这一项换成电脑里的文件。
+   做成 <button> 而不是再塞一个小按钮，是因为 52×40 的格子里加按钮太挤，
+   而「点缩略图换图」本来就是直觉动作。所以下面要手动清掉按钮默认样式。 */
+.item .thumb-slot{
+  position:relative;width:52px;height:40px;padding:0;border:0;background:none;
+  border-radius:6px;cursor:pointer;
+}
+.item .thumb-box{width:52px;height:40px}
+/* 悬停压一层「换」，让「这里能点」变得可发现 */
+.item .thumb-slot:hover::before{
+  content:"换";position:absolute;inset:0;z-index:1;
+  display:grid;place-items:center;border-radius:6px;
+  background:rgba(10,13,20,.68);color:var(--ink);font-size:11px;
+}
+/* 右下角挂一个 IMG / VID 角标，
    一眼看出这一项会被前台当成图片还是视频渲染 */
-.item .thumb-slot{position:relative;width:52px;height:40px}
 .item .thumb-slot::after{
   content:attr(data-kind);
-  position:absolute;right:-2px;bottom:-2px;
+  position:absolute;right:-2px;bottom:-2px;z-index:2;
   font:700 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
   letter-spacing:.06em;text-transform:uppercase;
   padding:2px 3px;border-radius:3px;
