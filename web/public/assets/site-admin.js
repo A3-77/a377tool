@@ -72,7 +72,7 @@
           { key: "_videoSpec", type: "note", title: "视频规格要求", lines: specLines(VIDEO_PROFILE) },
           { key: "_videoAuto", type: "note", title: "不符合要求怎么办", lines: [
             ["不用管", "上传时会在浏览器里自动处理：改尺寸、截片段、压体积、去音轨"],
-            ["在本地", "处理是即时的，8 秒的片段大约 8 秒出结果"],
+            ["要等多久", "处理是实时的，8 秒的片段大约 8 秒出结果"],
             ["处理不了", "浏览器解不开的编码（HEVC / ProRes）会明确告诉你，那种要走命令行"],
           ] },
           { key: "videoAutoplay",   type: "toggle", label: "自动播放",
