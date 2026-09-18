@@ -176,6 +176,11 @@ async function adminPage(env, key){
     <p style="font-size:13px">同名席位只能有一个「使用中」。内置的测试账号会占着席位 ——
        真人注册通过后，在这里把测试号停用，席位就让出来了。</p>
     ${actHtml}
+    <h1 style="margin-top:30px;font-size:16px">其他</h1>
+    <p style="font-size:13px">
+      <a href="/api/site-admin?key=${encodeURIComponent(key)}" style="color:#6f9ad0">首页展示组件 →</a>
+      管理首页那个弧形画廊和 Photo Stack：换图、排序、调参数、开关。
+    </p>
     <p style="margin-top:22px;font-size:12px;color:#5d6779">这个页面需要 ADMIN_TOKEN，链接别外传。</p>`);
 }
 

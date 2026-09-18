@@ -9,6 +9,8 @@
 <script src="/assets/theme.js"></script>
 <link rel="stylesheet" href="/assets/shell.css">
 <script src="/assets/shell.js" defer></script>
+<link rel="stylesheet" href="/assets/showcase.css">
+<script src="/assets/showcase.js" defer></script>
 <title>A377Tool · 个人在线工具箱</title>
 <style>
   /* =====================================================================
@@ -319,7 +321,7 @@
 <body data-nav="home">
 
 <!-- ============================ one 皮肤视图 ============================ -->
-<main class="page">
+<main class="page" data-view="one">
 
   <section class="cell name" id="nameBlock" style="--i:0">
     <h1 class="brand" id="brand" aria-label="A377Tool">A377TOOL</h1>
@@ -351,6 +353,10 @@
       文件在浏览器里处理，不传服务器。生图直连或走代理。见面工具需要登录，地图和 12306 都在。
     </div>
   </section>
+
+  <!-- 展示组件（弧形画廊 / Photo Stack）。内容由 /assets/showcase.js 按 /api/site 渲染；
+       两个组件都关着时这里保持空且隐藏。 -->
+  <div data-showcase hidden></div>
 
   <section class="tools">
     <a class="cell tool" href="/file/" style="--i:3">
@@ -390,7 +396,7 @@
 <!-- ========================== classic 皮肤视图 ==========================
      以下即 v0.2.0 的原始首页结构，未做任何改动。
      ==================================================================== -->
-<div class="wrap classic">
+<div class="wrap classic" data-view="classic">
   <header class="hero">
     <div class="eyebrow">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -406,6 +412,9 @@
       <span class="pill">无账号也能用文件工具箱</span>
     </div>
   </header>
+
+  <!-- 与 one 视图同一份展示组件，内容由 /assets/showcase.js 按当前皮肤挂载到这一个 -->
+  <div data-showcase hidden></div>
 
   <main class="grid">
     <a class="card" href="/file/">

@@ -54,3 +54,14 @@ create table if not exists trip_events (
   created_at integer not null
 );
 create index if not exists idx_events_trip on trip_events(trip_id, created_at desc);
+
+-- ---------- 首页展示组件（弧形画廊 / Photo Stack）----------
+--  kind 是组件标识（gallery | photostack），config 存整块 JSON。
+--  enabled 决定前台是否渲染；默认内容由 _ddl.js 的 DEFAULT_BLOCKS 幂等种下，
+--  真实内容在 /api/site-admin 管理页里改。
+create table if not exists site_blocks (
+  kind       text primary key,
+  enabled    integer not null default 0,
+  config     text not null default '{}',
+  updated_at integer not null
+);

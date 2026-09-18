@@ -1,0 +1,16 @@
+# 复制成 .dev.vars 后填自己的值。.dev.vars 不会被提交。
+#
+#   cp web/.dev.vars.example web/.dev.vars
+#
+# 线上用 wrangler pages secret put <NAME> 设置（改完要重新部署才生效）。
+
+# 会话签名密钥，至少 16 字符。随便生成一串：openssl rand -base64 24
+SESSION_SECRET=
+
+# 管理页口令。/api/approve 和 /api/site-admin 都用它。
+ADMIN_TOKEN=
+
+# 审批邮件（可选，不配就不发信）
+ADMIN_EMAIL=
+RESEND_KEY=
+MAIL_FROM=

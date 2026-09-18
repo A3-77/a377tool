@@ -32,6 +32,16 @@ tests/skin-compare/index.html
 Thumbs.db
 desktop.ini
 
+# ---- 密钥 / 本地开发变量 ----
+# wrangler 的本地环境变量文件，里面是 SESSION_SECRET / ADMIN_TOKEN 明文，绝不能提交
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+web/.d1dev/
+# wrangler 自己的本地缓存（每次 pages dev 都会重建）
+.wrangler/
+web/.wrangler/
+
 # ---- 编辑器 ----
 .vscode/
 .idea/

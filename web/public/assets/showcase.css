@@ -1,0 +1,153 @@
+/* =========================================================================
+   首页展示组件：弧形画廊 + Photo Stack
+   参数全部来自 /api/site（后台管理页里改），这里只管怎么画。
+   这一节自带深色底，不跟随 classic / one 皮肤 —— 它是一块独立的展示带。
+   ========================================================================= */
+
+.a377-showcase{
+  --bg:#000;
+  position:relative;
+  background:var(--bg);
+  padding:56px 0;
+  margin:0;
+}
+.a377-showcase[hidden]{display:none}
+
+/* 出血带（只有画廊用）
+   画廊是一圈 3D 卡片，两侧的卡本来就会飞出容器，所以必须裁掉；
+   再叠一层左右渐隐，让滚动带淡出而不是被硬切。
+   —— Photo Stack 不能套这个类：它的背片要探出正片外侧，
+     被裁掉就等于没有背片（这个坑踩过，截图里背片直接消失了）。 */
+.a377-showcase-bleed{overflow:hidden}
+.a377-showcase-bleed::before,
+.a377-showcase-bleed::after{
+  content:"";position:absolute;top:0;bottom:0;width:min(20vw,260px);
+  pointer-events:none;z-index:3;
+}
+.a377-showcase-bleed::before{left:0;background:linear-gradient(90deg,var(--bg) 8%,transparent)}
+.a377-showcase-bleed::after{right:0;background:linear-gradient(270deg,var(--bg) 8%,transparent)}
+
+/* ---------------- slot ----------------
+   首页两套皮肤视图各有一个空 slot，只有当前皮肤那个会被填内容。
+   两套视图的容器内边距不一样，这里分别抵消掉，让展示带贴到容器边缘。 */
+[data-showcase]{display:block;grid-column:1 / -1}
+[data-showcase][hidden]{display:none!important}
+html[data-skin="one"] [data-showcase]{margin:0}
+html[data-skin="classic"] [data-showcase]{margin:0 -22px}
+
+.a377-showcase-label{
+  position:absolute;left:28px;top:22px;z-index:4;
+  font:11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(255,255,255,.32);pointer-events:none;
+}
+
+/* ---------------- 3D 弧形画廊 ---------------- */
+.a377-gal-viewport{
+  position:relative;
+  height:var(--view-h,430px);
+  perspective:var(--persp,2800px);
+  perspective-origin:50% 50%;
+  touch-action:pan-y;
+  cursor:grab;
+}
+.a377-gal-viewport.is-drag{cursor:grabbing}
+
+.a377-gal-ring{
+  position:absolute;left:50%;top:50%;width:0;height:0;
+  transform-style:preserve-3d;
+  will-change:transform;
+}
+
+.a377-gal-card{
+  position:absolute;left:0;top:0;
+  width:var(--card-w,460px);
+  margin-left:calc(var(--card-w,460px) / -2);
+  margin-top:calc(var(--card-h,306px) / -2);
+  transform-style:preserve-3d;
+  will-change:transform,opacity;
+  backface-visibility:hidden;
+}
+.a377-gal-card img{
+  display:block;width:100%;height:var(--card-h,306px);object-fit:cover;
+  border-radius:12px;background:#141414;
+  box-shadow:0 18px 44px rgba(0,0,0,.55);
+  -webkit-user-drag:none;user-select:none;
+}
+.a377-gal-card figcaption{
+  margin-top:10px;text-align:center;
+  font:12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+  color:rgba(255,255,255,.5);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.a377-gal-card figcaption:empty{display:none}
+
+/* 没后端 / 没图时的占位 */
+.a377-showcase-empty{
+  padding:56px 24px;text-align:center;
+  font:13px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+  color:rgba(255,255,255,.45);
+}
+
+/* ---------------- Photo Stack ---------------- */
+.a377-ps{padding:8px 24px 24px}
+/* 两列都是「有上限的固定宽度」，整组再居中。
+   这样 classic（窄栏，两列刚好填满）和 one（宽屏，两侧留白）
+   里文字与照片的落点完全一致，不用为皮肤写特例。
+   用 1fr 的写法会让 one 皮肤下文案列撑到 660px，
+   「Japan」孤零零贴在左边，中间空出一大片 —— 试过，很难看。
+   --ps-pad-* 是给背片探出预留的空间（由 JS 按 offsetX/offsetY/scale 算出），
+   所以内层要自己加 padding，不能靠外层 overflow 裁。
+
+   已知限制：offsetX 设成很大的负数（背片往左探）时，预留会加在左侧，
+   而 classic 的 900px 窄栏本来就紧，两列可能挤出内容盒几个像素
+   （实测 offsetX=-120 时正片右缘超出展示带约 7px）。
+   展示带不裁切，所以只是轻微压到页面上，不会丢内容。
+   默认 offsetX=+96 不受影响。要彻底解决得把预留改成独立 grid 列，暂不值得。 */
+.a377-ps-inner{
+  max-width:calc(880px + var(--ps-pad-l,0px) + var(--ps-pad-r,0px));
+  margin:0 auto;
+  padding:var(--ps-pad-t,0px) var(--ps-pad-r,0px) var(--ps-pad-b,0px) var(--ps-pad-l,0px);
+  display:grid;
+  grid-template-columns:minmax(0,20rem) minmax(0,var(--ps-w,320px));
+  justify-content:center;
+  gap:56px;align-items:center;
+}
+.a377-ps-meta h3{
+  margin:0 0 8px;
+  font:600 clamp(30px,3.6vw,48px)/1.1 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+  letter-spacing:-.025em;color:#fff;
+}
+.a377-ps-meta p{
+  margin:0;font:400 clamp(14px,1.5vw,17px)/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+  color:rgba(255,255,255,.48);
+}
+.a377-ps-meta .a377-ps-hint{
+  margin-top:22px;font-size:12.5px;color:rgba(255,255,255,.3);
+}
+
+.a377-ps-stack{
+  position:relative;width:100%;
+  aspect-ratio:var(--ps-ratio,3 / 4);
+  cursor:pointer;
+}
+.a377-ps-layer{
+  position:absolute;inset:0;border-radius:16px;overflow:hidden;
+  will-change:transform;
+}
+.a377-ps-layer img{display:block;width:100%;height:100%;object-fit:cover;-webkit-user-drag:none;user-select:none}
+.a377-ps-back{z-index:1}
+.a377-ps-front{z-index:2;box-shadow:0 24px 64px rgba(0,0,0,.5)}
+/* 背片上的压暗层，由 overlayOpacity 控制 */
+.a377-ps-veil{position:absolute;inset:0;pointer-events:none}
+
+.a377-ps.dark .a377-ps-front{box-shadow:0 24px 64px rgba(0,0,0,.75)}
+
+@media(max-width:860px){
+  .a377-ps-inner{grid-template-columns:1fr;gap:34px;justify-content:stretch}
+  .a377-showcase{padding:40px 0}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .a377-gal-viewport{cursor:default}
+}

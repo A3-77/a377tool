@@ -32,6 +32,18 @@
 
 `one` 皮肤自成一套浅色配色，不跟随深浅色主题 —— 那四个工作台页里的深浅色开关在 one 皮肤下会自动隐藏。
 
+首页还挂了两块**后台可控的展示组件**：
+
+| 组件 | 是什么 | 默认 |
+| --- | --- | --- |
+| 弧形画廊 | 一圈卡片绕圆柱面排开，自动旋转、可拖拽 | 开启 |
+| Photo Stack | 一张主照片 + 背后错位的一张，悬停按弹簧展开 | **关闭** |
+
+图片和视觉参数都在后台改（`/api/site-admin?key=<ADMIN_TOKEN>`，管理页有「展示组件」入口），
+左侧是首页实时预览，改完点保存才写库。参数体系借了 [DialKit](https://www.dialkit.dev/) 的
+控件分类（slider / toggle / select / color / image / spring），但没引它的依赖 ——
+它是 React 库，而这里是纯静态页面，没有构建步骤。
+
 版本更新记录见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
 
 ---
@@ -175,6 +187,8 @@ node test_web_pdflib.mjs   # pdf-lib 的合并 / 拆分 / 重排逻辑
 node test_web_pdfjs.mjs    # pdf.js 的解析链路
 node test_web_render.mjs   # 真实 canvas 渲染（依赖见下）
 node test_cloud_flow.mjs   # 线上云端流程（登录 → 拉行程 → 新建 → 登出）
+node test_skins.mjs        # 6 页 × 2 皮肤 × 2 主题（自带静态服务器）
+node test_showcase.mjs http://127.0.0.1:8791 <ADMIN_TOKEN>   # 首页展示组件（需 wrangler pages dev）
 python test_api.py         # 本地版后端接口（需先启动服务）
 ```
 

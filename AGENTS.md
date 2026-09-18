@@ -26,11 +26,19 @@ web/
 │   ├── index.html          门户首页
 │   ├── file/index.html     文件工具箱
 │   ├── assets/             共享 tokens / theme / shell / ZIP
+│   │   ├── showcase.js     首页展示组件（画廊 / Photo Stack），读 /api/site
+│   │   ├── showcase.css    展示组件样式
+│   │   ├── showcase/       占位图（tests/gen_showcase_svg.py 生成）
+│   │   ├── site-admin.js   后台控制面板（控件定义 SCHEMA 在这里）
+│   │   └── site-admin.css
 │   ├── favicon.svg
 │   ├── trips/index.html    周末去哪见面
 │   ├── draw/               生图（index / studio / code0）
 │   └── vendor/             pdf.js、pdf-lib、标准字体（本地副本，不依赖 CDN）
 ├── functions/api/*.js      后端接口，自动映射成 /api/*
+│   ├── _ddl.js             建表 + 展示组件的默认配置（DEFAULT_BLOCKS）
+│   ├── site.js             GET /api/site（公开，只吐启用的组件）
+│   └── site-admin.js       /api/site-admin（ADMIN_TOKEN 鉴权，控制面板 + 保存）
 ├── schema.sql              D1 建表语句
 └── wrangler.toml           D1 绑定配置（database_id 在这里）
 ```
@@ -217,6 +225,78 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 如果 `data-theme` 还是 `dark`，就会出现黑底黑字。所以 skin.js 在 one 皮肤下把生效主题压成
 `light`，并隐藏深浅色开关（one 没有深色变体）。
 
+## 首页展示组件（gallery / photostack）
+
+首页 `/` 上可以挂「后台可控」的展示组件。目前两个：
+
+| kind | 组件 | 默认 |
+| --- | --- | --- |
+| `gallery` | 3D 弧形画廊（一圈卡片绕圆柱面自动旋转，可拖拽） | 开启 |
+| `photostack` | Photo Stack（一张主照片 + 背后错位的一张，悬停按弹簧展开） | **关闭** |
+
+**参数体系照搬 DialKit**（`dialkit.dev`，MIT）。当初评估过直接装它，结论是装不了：
+dialkit 是 React 库，而这个项目是纯静态 HTML + Pages Functions，没有 React、没有构建步骤。
+所以只借它的**控件分类心智模型**（slider / toggle / text / select / color / image / spring / folder），
+自己实现一遍，参数落 D1。
+
+### 数据流
+
+```
+后台 /api/site-admin?key=<ADMIN_TOKEN>
+   │  左侧 iframe 预览首页，右侧按控件渲染表单
+   │  改任何字段 → postMessage('a377:showcase-preview') → iframe 内实时预览（不落库）
+   │  点保存 → POST { key, blocks } → 写 D1
+   ▼
+D1 site_blocks(kind, enabled, config JSON)
+   ▼
+GET /api/site  → 只返回 enabled 的组件，blocks.<kind> 直接就是 config
+   ▼
+assets/showcase.js 读 /api/site → 渲染进当前皮肤视图里的 [data-showcase] 空 slot
+```
+
+- 两套皮肤各有一个 `<div data-showcase hidden>` slot，只有当前皮肤那个被填。
+  切皮肤时 `relocate()` 把已渲染的节点**搬**过去（不重建，避免重新加载图片）。
+- `[data-showcase][hidden]{display:none!important}` 是必须的 —— slot 在 grid 里，
+  不显式 `!important` 会被 `display:block` 顶回来，出现一条空白。
+- **`/api/site` 是扁平的**（`blocks.gallery` = config 本身），
+  **`/api/site-admin` 的 GET 是 `{ enabled, config }`**（要回显开关）。两个接口结构不一样，
+  改的时候别搞混。
+- POST 可以**只传 `{ enabled }`** 来只翻开关、不动配置 —— 否则改个开关要回传整份配置，
+  漏一个字段就把设置冲掉了。
+
+### 控件（`assets/site-admin.js` 的 `SCHEMA`）
+
+`SCHEMA` 是唯一的字段定义处，加一个参数只要在对应 group 里加一行。
+字段类型：`slider`（range + number 双向同步）、`toggle`、`select`、`color`（色板 + hex 输入）、
+`text`、`image`（带缩略图）、`list`（图片增删 + 上下移）。点号路径（`spring.duration`）可写嵌套。
+
+### 几何不能写死 px
+
+画廊和 Photo Stack 都踩过同一个坑：**第一版把半径 / 卡片尺寸写成固定 px，
+换到 classic 的 900px 窄栏就崩了**（只有 ±1 张卡可见，卡片巨大且扁平）。
+现在一律「给比例，从容器宽度反解」：
+
+```
+画廊： r = (W/2)·(CAM + 1 - cos θ)/(CAM · sin θ)     CAM = 2.2
+       卡片宽 = r · θstep（弧长）→ 卡片正好首尾相接
+```
+
+后台里的 `perView` / `angleStep` / `aspect` 是比例参数，不是 px。
+改 `assets/showcase.js` 的 `layout()` 之前先读那段推导注释。
+
+### 出血带 vs 普通块
+
+`.a377-showcase` 是展示带的底（深色背景 + 上下 padding）。**它本身不裁切**。
+画廊额外挂 `.a377-showcase-bleed`（`overflow:hidden` + 左右渐隐），因为一圈 3D 卡片
+两侧本来就会飞出容器，必须裁。
+
+**Photo Stack 绝对不能挂 bleed** —— 它的背片就是要探出正片外侧，
+被裁掉就等于没有背片（这个 bug 真发生过：截图里背片整个消失，
+断言查不出来，因为 transform 和尺寸都对）。
+
+背片探出的空间由 JS 按 `offsetX / offsetY / scale` 算出，写成 `--ps-pad-l/r/t/b`，
+内层 `.a377-ps-inner` 自己加 padding。不留这块空间，背片要么被裁、要么溢到展示带外面。
+
 ## 已知的坑（别重复踩）
 
 - **不要用 `git rebase`** —— 被 SIGTERM 打断会删掉 `.git/refs`，仓库直接报
@@ -233,6 +313,12 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 - **ncm 解密是手写 AES-128** —— Web Crypto 不支持 ECB 模式，别想着替换成原生实现。
 - **`.bat` 文件是 GBK 编码，不要加 `chcp 65001`** —— cmd 按字节偏移读 bat，切代码页
   会让后续行错位，报出看不出根因的错。
+- **展示组件：`overflow:hidden` 不能无脑套** —— 画廊需要它（卡片飞出容器要裁），
+  Photo Stack 需要它**不**生效（背片要探出去）。见上面「出血带 vs 普通块」。
+- **后台预览靠 `postMessage`，必须校验 `e.origin`**，否则任何嵌入页面都能改预览。
+- **`structuredClone` 在 Workers 里别用** —— 可用性不确定，用
+  `JSON.parse(JSON.stringify(x))` 深拷贝。
+- **管理页注入配置时把 `<` 转成 `\u003c`** —— 配置里出现 `</script>` 会把脚本标签截断。
 - **`A377Skin.refresh` 不能写成 `refresh: paint`** —— `shell.js` 建完顶栏会调
   `A377Skin.refresh()`（**不带参数**）。旧版把 `undefined` 当成皮肤值处理，
   结果每个有顶栏的页面加载时都会把皮肤偏好重置掉，`classic` 永远切不过去。
@@ -273,8 +359,9 @@ cd tests && node test_skins.mjs
 需要 `puppeteer-core`（已在 `tests/package.json`）和本机 Chrome；
 Chrome 不在默认路径就设 `CHROME_PATH`。也可以 `node test_skins.mjs https://a377.xyz` 直接打线上。
 
-低对比度扫描目前有 7 处已知历史遗留（`home` 的 `drag the letters` 提示、
-`code0` 页脚小字、`trips` classic 皮肤的 `邀请 TA` 按钮等），都不影响判定。
+低对比度扫描目前有 8 处已知历史遗留（`home` 的 `drag the letters` 提示、
+`code0` 页脚小字、`trips` classic 皮肤的 `邀请 TA` 按钮和 `.delta .d` 等），
+都不影响判定，也不是展示组件引入的。
 
 要**人眼确认视觉效果**（断言查不出来的「看着不对」），跑这个出对照图：
 
@@ -284,4 +371,21 @@ cd tests && node skin-compare/gen.mjs
 
 它把 6 个页面 × 3 种状态（classic 浅色 / classic 深色 / one）截成一张对照页，
 输出 `tests/skin-compare/index.html`。截图和对照页都是生成产物，已在 `.gitignore` 里。
+
+改了**首页展示组件**（画廊 / Photo Stack / 后台管理页）之后跑这个。
+它需要先起本地服务（展示组件依赖 D1，静态服务器不够）：
+
+```bash
+cd web && npx wrangler pages dev public --d1=DB --persist-to .d1dev --port 8791 &
+cd tests && node test_showcase.mjs http://127.0.0.1:8791 <ADMIN_TOKEN>
+```
+
+覆盖 50 项：接口鉴权与结构、画廊渲染与 3D 几何、切皮肤后搬移、
+**响应式回归**（卡片尺寸必须随容器宽度等比变化，防止有人再写死 px）、
+Photo Stack 的弹簧收敛与背片可见性。跑完在 `tests/out_showcase/` 留三张截图。
+
+> 断言查不出「好不好看」。改完视觉**一定要打开截图看**：
+> 画廊背片是否可见、Photo Stack 的背片有没有被裁掉，这两类问题断言全绿也会发生。
+> 截图前记得 `scrollIntoView()` —— Photo Stack 在首屏下方，
+> 不滚过去 `boundingBox()` 给的是视口外坐标，鼠标移上去什么都不会发生（踩过）。
 

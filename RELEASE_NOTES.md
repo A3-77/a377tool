@@ -1,3 +1,78 @@
+# A377Tool v0.6.0
+
+发布日期：2026-09-18
+
+本版给首页加了两块**后台可控**的展示组件，并补上一套不依赖 React 的实时调参后台。
+
+## 新功能
+
+**1. 弧形画廊（默认开启）**
+
+一圈卡片排在一个圆柱面上，自动旋转，可以按住拖动。卡片从容器宽度反解几何，
+所以换屏幕宽度不会跑偏 —— `perView` / `angleStep` / `aspect` 都是比例参数，不是像素。
+
+**2. Photo Stack（默认关闭，后台一键打开）**
+
+一张主照片，后面压一张错位的背片，悬停时背片按弹簧推开、压暗层变淡。
+弹簧是真解微分方程（半隐式欧拉，`bounce` 换算成阻尼比），不是 CSS transition 近似。
+触屏没有 hover，自动退化成点按切换。
+
+**3. 展示组件后台**
+
+`/api/site-admin?key=<ADMIN_TOKEN>`，管理页里新增「展示组件」入口。
+左侧是首页实时预览（`postMessage`，不落库），右侧按控件渲染表单，
+图片内容、视觉参数、显示开关都能改。
+
+控件体系借了 [DialKit](https://www.dialkit.dev/) 的分类（slider / toggle / select /
+color / image / spring / folder），但**没有引入它的依赖** —— DialKit 是 React 库，
+而这里是纯静态 HTML + Pages Functions，没有 React、没有构建步骤。
+照搬的是它的心智模型，实现是自己写的，参数落 D1。
+
+## 数据
+
+新增 `site_blocks` 表（`kind` / `enabled` / `config` JSON / `updated_at`），
+首次请求幂等建表并种下默认值，不需要手工跑 SQL。
+
+- `GET /api/site` —— 公开，只返回启用的组件，前台据此渲染。
+- `GET /api/site-admin` —— 控制面板（`ADMIN_TOKEN` 鉴权）。
+- `POST /api/site-admin` —— 保存；也可以只传 `{ enabled }` 来只翻开关、不动配置。
+
+## 修复
+
+- **画廊第一版把半径和卡片尺寸写死了 px**，换到 `classic` 的 900px 窄栏后
+  只有 ±1 张卡可见，卡片巨大且扁平。改成从容器宽度反解后，两种皮肤下
+  卡片占容器的比例一致。
+- **Photo Stack 的背片被容器裁掉了**，截图里整个消失（断言全绿也查不出来，
+  因为 transform 和尺寸都对）。根因是给画廊做的 `overflow:hidden` + 左右渐隐
+  被无差别套在了展示带上。现在这层拆成 `.a377-showcase-bleed`，只有画廊挂。
+- 背片探出的空间按 `offsetX / offsetY / scale` 算出来并预留，
+  否则要么被裁、要么悬停时溢到展示带外面。
+- 背片默认压暗层从 0.58 降到 0.32 —— 原来那张背片被压得全黑，等于没有背片。
+
+## 验证
+
+新增 `tests/test_showcase.mjs`，50 项断言：
+
+```bash
+cd web && npx wrangler pages dev public --d1=DB --persist-to .d1dev --port 8791 &
+cd tests && node test_showcase.mjs http://127.0.0.1:8791 <ADMIN_TOKEN>
+```
+
+覆盖接口鉴权与返回结构、画廊 3D 几何、切皮肤后组件搬移、
+**响应式回归**（卡片尺寸必须随容器宽度等比变化）、Photo Stack 的弹簧收敛与背片可见性。
+
+> 断言查不出「好不好看」。本版两个真实视觉 bug（背片被裁、背片被压黑）
+> 都是**看截图**发现的，断言当时全绿。改视觉一定要打开 `tests/out_showcase/` 里的图。
+
+## 兼容性
+
+- 新增 D1 表，首次请求自动建，不需要手工迁移。
+- 本地开发要 `web/.dev.vars`（模板见 `web/.dev.vars.example`），
+  里面是 `SESSION_SECRET` 和 `ADMIN_TOKEN`，已在 `.gitignore` 里。
+- 展示组件不依赖 D1 之外的任何新服务；D1 不可用时画廊不渲染，首页其余部分正常。
+
+---
+
 # A377Tool v0.5.0
 
 发布日期：2026-09-18
