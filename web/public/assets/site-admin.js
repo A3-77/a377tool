@@ -409,7 +409,8 @@
     return new Promise(function (resolve) {
       var url = URL.createObjectURL(file);
       var MIN = 0.5;                       /* 再短就没内容了 */
-      var CAP = lim.maxSeconds;
+      /* 档位没写时长上限就按全长算 —— 否则 CAP=0 会选出一段空的 */
+      var CAP = lim.maxSeconds || total;
       var start = 0;
       var end = Math.min(CAP, total);
 
@@ -509,8 +510,13 @@
           el("h3", { text: "挑一段留下" }),
           el("p", {
             class: "clip-sub",
-            text: "这个视频 " + fmtSec(total) + "，超过「" + (lim.label || "该档位") +
-                  "」上限 " + CAP + " 秒。拖选区挑要留下的那一段，然后「用这段」。",
+            /* 上传时是因为超长才弹，主动剪辑则是用户自己要改 ——
+               两种情况下这句话该说的重点不一样 */
+            text: (total > CAP + 0.01
+                    ? "这个视频 " + fmtSec(total) + "，超过「" + (lim.label || "该档位") +
+                      "」上限 " + CAP + " 秒。拖选区挑要留下的那一段，然后「用这段」。"
+                    : "这个视频 " + fmtSec(total) + "，档位上限 " + CAP +
+                      " 秒。拖选区挑要留下的那一段，然后「用这段」；不改就「取消」。"),
           }),
           vid, track, readout,
           el("div", { class: "clip-acts" },
@@ -629,6 +635,66 @@
     });
   }
 
+  /* 把已经处理好的文件传上去。单独抽出来是因为「剪辑已在用的素材」
+     也要上传，但那边的文件不是从磁盘选的，走不了 prepare 那条路。 */
+  function postMedia(files) {
+    var fd = new FormData();
+    files.forEach(function (f) { fd.append("file", f); });
+    return fetch("/api/media?key=" + encodeURIComponent(KEY), { method: "POST", body: fd })
+      .then(function (res) {
+        return res.json().catch(function () { return null; }).then(function (data) {
+          if (!res.ok || !data || !data.ok) {
+            var msg = (data && data.error) || ("HTTP " + res.status);
+            if (res.status === 503) msg = "还没绑定素材存储。" + msg;
+            throw new Error(msg);
+          }
+          return data;
+        });
+      });
+  }
+
+  /* 把已经在用的素材抓回来当 File 用 —— 剪辑要的是文件，不是 URL。
+     跨域的会被 CORS 挡住，那种直接报错给人，别让他对着转圈等。 */
+  function fetchAsFile(url) {
+    return fetch(url, { mode: "cors" }).then(function (res) {
+      if (!res.ok) throw new Error("取不到这个素材（HTTP " + res.status + "）");
+      return res.blob();
+    }).then(function (b) {
+      var name = String(url).split("?")[0].split("/").pop() || "clip.mp4";
+      return new File([b], name, { type: b.type || "video/mp4" });
+    });
+  }
+
+  /* 把已经处理好的文件传上去。单独抽出来是因为「剪辑已在用的素材」
+     那条路也要上传，但它手上是处理完的 blob，不走 prepare。 */
+  function postMedia(files) {
+    var fd = new FormData();
+    files.forEach(function (f) { fd.append("file", f); });
+    return fetch("/api/media?key=" + encodeURIComponent(KEY), { method: "POST", body: fd })
+      .then(function (res) {
+        return res.json().catch(function () { return null; }).then(function (data) {
+          if (!res.ok || !data || !data.ok) {
+            var msg = (data && data.error) || ("HTTP " + res.status);
+            if (res.status === 503) msg = "还没绑定素材存储。" + msg;
+            throw new Error(msg);
+          }
+          return data;
+        });
+      });
+  }
+
+  /* 把已经在用的素材抓回来当 File 用 —— 剪辑要喂文件给管线，不是 URL。
+     跨域的会被 CORS 挡住，那种直接报出来，别让人对着转圈等。 */
+  function fetchAsFile(url, fallbackName) {
+    return fetch(url).then(function (res) {
+      if (!res.ok) throw new Error("取不到这个素材（HTTP " + res.status + "）");
+      return res.blob();
+    }).then(function (b) {
+      var nm = String(url).split(/[?#]/)[0].split("/").pop() || (fallbackName || "clip.mp4");
+      return new File([b], nm, { type: b.type || "video/mp4" });
+    });
+  }
+
   /* 上传。onProgress 是给状态行用的，处理是一张张串行的 ——
      并行压十几张 4000×3000 会把主线程卡住，界面看着像死了；
      视频更甚，浏览器只能实时转码，并行跑会互相抢 CPU。 */
@@ -648,28 +714,19 @@
         });
       });
     }, Promise.resolve()).then(function () {
-      var fd = new FormData();
-      items.forEach(function (it) { fd.append("file", it.file); });
       if (onProgress) onProgress("上传 " + items.length + " 个文件…");
-      return fetch("/api/media?key=" + encodeURIComponent(KEY), { method: "POST", body: fd });
-    }).then(function (res) {
-      return res.json().catch(function () { return null; }).then(function (data) {
-        if (!res.ok || !data || !data.ok) {
-          var msg = (data && data.error) || ("HTTP " + res.status);
-          if (res.status === 503) msg = "还没绑定素材存储。" + msg;
-          throw new Error(msg);
-        }
-        /* 服务端按提交顺序返回，用下标把颜色和处理说明对回来 */
-        data.files = data.files.map(function (f, i) {
-          var it = items[i] || {};
-          f.color = it.color || "";
-          f.original = it.original || f.name;
-          f.note = it.note || "";
-          f.warn = it.warn || "";
-          return f;
-        });
-        return data;
+      return postMedia(items.map(function (it) { return it.file; }));
+    }).then(function (data) {
+      /* 服务端按提交顺序返回，用下标把颜色和处理说明对回来 */
+      data.files = data.files.map(function (f, i) {
+        var it = items[i] || {};
+        f.color = it.color || "";
+        f.original = it.original || f.name;
+        f.note = it.note || "";
+        f.warn = it.warn || "";
+        return f;
       });
+      return data;
     });
   }
 
@@ -747,6 +804,58 @@
       /* 底色跟着新图走，但只在用户没自己挑过的时候 ——
          不然上传一张新照片会把调好的阴影色调冲掉。 */
       if ("color" in it && f.color && (!it.color || it.color === defColor)) it.color = f.color;
+    }
+
+    /* 对已经在用的素材重新截取一段。
+       上传时那次选段是「顺带问一句」，这里是用户主动要改 ——
+       所以不管超不超时长上限都让他选，不选（取消）就什么都不做。 */
+    function reclip(index) {
+      var it = items[index];
+      if (!it || !it.src) return;
+      var VP = window.VideoPrep;
+      if (!VP || !VP.available()) {
+        toast("这个浏览器不能就地处理视频，剪不了", "bad");
+        return;
+      }
+      var VS = window.VideoSpec;
+      var lim = (VS && VS.PROFILES && VS.PROFILES[VIDEO_PROFILE]) ||
+                { maxSeconds: 0, label: "该档位" };
+
+      setStatus("读取素材…", true);
+      fetchAsFile(it.src).then(function (file) {
+        setStatus("探测…", true);
+        return VP.probeFile(file).then(function (meta) {
+          var total = meta && meta.seconds;
+          /* 时长读不出来（比如某些 webm 没写时长元数据）就没法给轨道，
+             比弹一个刻度全错的框强 */
+          if (!total) throw new Error("读不出这个视频的时长，没法选段");
+          setStatus("", false);
+          return pickClip(file, total, lim).then(function (clip) {
+            if (!clip) return null;                 /* 取消，什么都不做 */
+            setStatus("处理中…", true);
+            return VP.process(file, VIDEO_PROFILE, { trim: [clip.start, clip.end] }, {
+              onProgress: function (r, phase) {
+                setStatus(phase + " " + Math.round(r * 100) + "%", true);
+              },
+            }).then(function (out) {
+              setStatus("上传…", true);
+              return postMedia([out.file]).then(function (data) {
+                var f = data.files && data.files[0];
+                if (!f) throw new Error("上传没返回文件地址");
+                replaceAt(index, { url: f.url, color: "" });
+                setStatus("", false);
+                redraw(); preview();
+                toast("已截取 " + fmtSec(clip.start) + " – " + fmtSec(clip.end) +
+                      "：" + (out.note || "处理完成") + "，记得点保存",
+                      out.warn ? "bad" : "ok");
+              });
+            });
+          });
+        });
+      }).catch(function (e) {
+        setStatus("", false);
+        toast("截取失败：" + e.message, "bad");
+      });
     }
 
     function pickFiles(index) {
@@ -902,6 +1011,12 @@
             class: "iconbtn", type: "button", title: "下移", disabled: i === items.length - 1,
             onclick: function () { swap(items, i, i + 1); redraw(); preview(); }
           }, "\u2193"),
+          /* 只有视频能截取，且得真的有素材 —— 图片给这个按钮是误导，
+             空项更没东西可剪 */
+          (itemIsVideo(it) && it.src) ? el("button", {
+            class: "iconbtn", type: "button", title: "截取一段",
+            onclick: function () { reclip(i); }
+          }, "\u2702") : null,
           el("button", {
             class: "iconbtn", type: "button", title: "删除",
             onclick: function () { items.splice(i, 1); redraw(); preview(); }
