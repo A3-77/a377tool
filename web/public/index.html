@@ -140,35 +140,6 @@
   @keyframes move{to{transform:translateX(-50%)}}
 
   /* 03 · 简介 */
-  html[data-skin="one"] .intro{
-    grid-column:1 / -1;
-    padding:clamp(20px,3vw,42px);
-    display:grid;
-    grid-template-columns:1fr minmax(220px,360px);
-    gap:28px;
-    align-items:end;
-  }
-  html[data-skin="one"] .intro .kicker{
-    margin:0 0 10px;
-    font:700 11px/1 var(--pixel);
-    letter-spacing:.15em;
-    text-transform:uppercase;
-    color:var(--copy);
-  }
-  html[data-skin="one"] .intro .bio{
-    margin:0;
-    font:700 clamp(20px,3vw,48px)/1.05 var(--serif);
-    text-transform:uppercase;
-    letter-spacing:-.02em;
-    max-width:16ch;
-  }
-  html[data-skin="one"] .intro .side{
-    font:13px/1.65 var(--pixel);
-    color:var(--ink);
-    text-transform:uppercase;
-  }
-  html[data-skin="one"] .intro .side b{display:block;color:var(--copy);font-size:11px;letter-spacing:.12em;margin-bottom:7px}
-
   /* 04 · 三个工具 */
   html[data-skin="one"] .tools{
     grid-column:1 / -1;
@@ -243,7 +214,6 @@
   @media (max-width:760px){
     html[data-skin="one"] .name{min-height:34vh}
     html[data-skin="one"] .brand{font-size:18vw}
-    html[data-skin="one"] .intro{grid-template-columns:1fr}
     html[data-skin="one"] .tools{grid-template-columns:1fr}
     html[data-skin="one"] .tool{min-height:0}
   }
@@ -342,17 +312,6 @@
       <span>WEEKEND TRIPS</span><i>✦</i><span>NO UPLOADS</span><i>✦</i>
     </div>
   </div>
-
-  <section class="cell intro" style="--i:2">
-    <div>
-      <p class="kicker">A377TOOL / PERSONAL ONLINE TOOLS</p>
-      <p class="bio">MAKE PDFS LESS ANNOYING. MAKE IMAGES. PLAN THE WEEKEND.</p>
-    </div>
-    <div class="side">
-      <b>WHAT IS THIS</b>
-      文件在浏览器里处理，不传服务器。生图直连或走代理。见面工具需要登录，地图和 12306 都在。
-    </div>
-  </section>
 
   <!-- 展示组件（弧形画廊 / Photo Stack）。内容由 /assets/showcase.js 按 /api/site 渲染；
        两个组件都关着时这里保持空且隐藏。 -->
