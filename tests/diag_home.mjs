@@ -23,7 +23,7 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 await page.setViewport({ width: 1280, height: 800 });
 await page.goto(BASE, { waitUntil: "networkidle2", timeout: 60000 });
-/* 强制切到 one 皮肤看（用户截图是 one） */
+/* 默认测 one 皮肤（用户截图用的）。要测 classic 把 "one" 改成 "classic"。 */
 await page.evaluate(() => {
   try { localStorage.setItem("a377skin", "one"); } catch (e) {}
 });
@@ -34,14 +34,13 @@ const layout = await page.evaluate(() => {
   function pos(sel) {
     const el = document.querySelector(sel);
     if (!el) return null;
-    /* offsetTop/offsetHeight 不受 transform 影响，更可靠 */
     const r = el.getBoundingClientRect();
+    /* getBoundingClientRect + scrollY 给绝对位置，不受 offsetParent 影响 */
     return {
       sel,
-      top: Math.round(el.offsetTop),
-      height: Math.round(el.offsetHeight),
-      clientTop: Math.round(r.top),
-      visible: getComputedStyle(el).visibility !== "hidden" && getComputedStyle(el).display !== "none",
+      top: Math.round(r.top + window.scrollY),
+      height: Math.round(r.height),
+      visible: getComputedStyle(el).visibility !== "hidden" && getComputedStyle(el).display !== "none" && r.height > 0,
       text: (el.innerText || "").slice(0, 50).replace(/\s+/g, " ").trim(),
     };
   }
@@ -50,13 +49,13 @@ const layout = await page.evaluate(() => {
     scrollH: document.documentElement.scrollHeight,
     viewH: window.innerHeight,
     sections: [
-      pos(".shell header, .top, header"),
-      pos(".brand, #brand"),
-      pos(".ticker"),
-      pos(".intro, section.cell.intro"),
+      pos("header.hero"),
+      pos(".wrap.classic"),
+      pos("[data-view=\"one\"]"),
       pos("[data-showcase]"),
-      pos(".tools, section.tools, .grid"),
-      pos("footer, .foot"),
+      pos("[data-view=\"classic\"] [data-showcase]"),
+      pos("footer"),
+      pos(".cell.foot"),
     ],
   };
 });
