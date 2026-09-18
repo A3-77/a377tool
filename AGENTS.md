@@ -241,6 +241,13 @@ dialkit 是 React 库，而这个项目是纯静态 HTML + Pages Functions，没
 
 ### 数据流
 
+后台地址 `/api/site-admin?key=<ADMIN_TOKEN>` —— **和 `/api/approve`（账号审批）
+共用同一个 `ADMIN_TOKEN`**，没另开一套口令。审批页底部有「首页展示组件 →」入口。
+两个后台地址都记在 `在线版部署说明.md` 里。
+
+> 只有 D1 里的**配置**是热的（改完刷新即可见）。
+> 改了 `functions/` 或 `public/` 的**代码**必须重新部署才生效。
+
 ```
 后台 /api/site-admin?key=<ADMIN_TOKEN>
    │  左侧 iframe 预览首页，右侧按控件渲染表单
