@@ -2,6 +2,11 @@
 # =========================================================================
 # 一条命令把 web/ 发上线，并当场校验发对了。
 #
+# 凭据二选一：
+#   npx wrangler login                # 开浏览器点一下，之后直接跑下面这条
+#   bash tools/deploy.sh
+#
+#   或者用 API 令牌（不用登录）：
 #   CLOUDFLARE_API_TOKEN=xxx CLOUDFLARE_ACCOUNT_ID=yyy bash tools/deploy.sh
 #
 # 为什么要有这个脚本，而不是三条命令手敲：
@@ -15,9 +20,6 @@
 # =========================================================================
 set -euo pipefail
 
-: "${CLOUDFLARE_API_TOKEN:?先设 CLOUDFLARE_API_TOKEN（Cloudflare 控制台 → My Profile → API Tokens）}"
-: "${CLOUDFLARE_ACCOUNT_ID:?先设 CLOUDFLARE_ACCOUNT_ID（控制台右侧那串 32 位十六进制）}"
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT/web"
 
@@ -27,6 +29,26 @@ PLACEHOLDER="00000000000000000000000000000000"
 TOML="wrangler.toml"
 
 [ -f "$TOML" ] || { echo "找不到 $TOML，确认在项目里跑"; exit 1; }
+
+# ---- 0. 凭据 ----------------------------------------------------------
+if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
+  [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || {
+    echo "设了 CLOUDFLARE_API_TOKEN 但没设 CLOUDFLARE_ACCOUNT_ID。"; exit 1; }
+  echo "==> 用环境变量里的 API 令牌"
+elif ! $WR whoami 2>&1 | grep -qi "not authenticated"; then
+  echo "==> 用 wrangler 已登录的账号"
+else
+  cat <<'MSG'
+没有可用的凭据。二选一：
+
+  1. 登录（开浏览器点一下，之后直接重跑本脚本）：
+       npx wrangler login
+
+  2. 用 API 令牌（Cloudflare 控制台 → My Profile → API Tokens）：
+       CLOUDFLARE_API_TOKEN=xxx CLOUDFLARE_ACCOUNT_ID=yyy bash tools/deploy.sh
+MSG
+  exit 1
+fi
 
 strip_ansi() { sed 's/\x1b\[[0-9;]*m//g'; }
 
@@ -39,12 +61,14 @@ if [ -n "$CUR" ] && [ "$CUR" != "$PLACEHOLDER" ]; then
 else
   echo "==> MEDIA 命名空间还没建，先建（一次性，幂等）"
   OUT="$($WR kv namespace create MEDIA 2>&1)" || {
-    echo "$OUT"; echo; echo "创建失败。如果是「namespace already exists」，"; 
-    echo "去控制台 Workers & Pages → KV 抄 id，手填进 $TOML 的 [[kv_namespaces]] 再重跑。"; exit 1; }
+    echo "$OUT"; echo
+    echo "创建失败。如果是「namespace already exists」，"
+    echo "去控制台 Workers & Pages → KV 抄 id，手填进 $TOML 的 [[kv_namespaces]] 再重跑。"
+    exit 1; }
   NEW="$(printf '%s' "$OUT" | strip_ansi | grep -oE '[0-9a-f]{32}' | head -1 || true)"
   if [ -z "$NEW" ]; then
-    echo "建好了但没从输出里解析出 id。原始输出："; echo "$OUT"
-    echo; echo "手动把 id 填进 $TOML 的 [[kv_namespaces]] 再重跑本脚本。"; exit 1
+    echo "建好了但没从输出里解析出 id。原始输出："; echo "$OUT"; echo
+    echo "手动把 id 填进 $TOML 的 [[kv_namespaces]] 再重跑本脚本。"; exit 1
   fi
   if [ -n "$CUR" ]; then
     sed -i "s/$PLACEHOLDER/$NEW/" "$TOML"

@@ -66,10 +66,11 @@ tests/                      测试脚本
 **只有一条路**：wrangler 直接上传（Direct Upload），没有接 Git 自动部署。
 
 ```bash
-CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='5117ffc876a76ef7302775c45a3b6918' \
-  bash tools/deploy.sh
+npx wrangler login            # 一次性，开浏览器点一下
+bash tools/deploy.sh
 ```
 
+或者用 API 令牌（`CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`）。
 `tools/deploy.sh` 会在部署前补上「KV 命名空间没建」那一步（幂等），
 部署后自动跑校验。想手动来就是：
 
