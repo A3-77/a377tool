@@ -86,8 +86,10 @@ $WR pages deploy public --project-name=a377tool --branch=main --commit-dirty=tru
 echo
 echo "==> 校验线上"
 sleep 8   # 边缘同步要几秒，立刻查会假失败
-"$NODE" "$ROOT/tools/verify-deploy.mjs" || {
+# 注意在子 shell 里 cd 回项目根、用相对路径。
+# Git Bash 的 $ROOT 是 /c/Users/... 形式，直接传给 node 会被当成 C:\c\Users\...
+(cd "$ROOT" && "$NODE" tools/verify-deploy.mjs) || {
   echo
   echo "校验没过。上面的 ✗ 每条都写了原因。"
-  echo "刚部署完可以先等 30 秒重跑一次：$NODE tools/verify-deploy.mjs"
+  echo "刚部署完可以先等 30 秒重跑一次：node tools/verify-deploy.mjs"
   exit 1; }
