@@ -191,6 +191,11 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 
 `SESSION_SECRET`、`ADMIN_TOKEN`、`ADMIN_EMAIL`、`MAIL_FROM`、`RESEND_KEY`、`CODE0_API_KEY`
 
+改完 **必须重新部署**才生效（secrets 在部署时绑定）。
+`ADMIN_TOKEN` 要够强 —— 它护着 `/api/approve`（能批准注册）和 `/api/site-admin`
+（能改首页），两个接口都没有失败次数限制，弱口令等于把站点交出去。
+用户曾在控制台把它改成 `admin`，被拦下来了。生成方式见 `在线版部署说明.md`。
+
 **4. 不要向用户索要 Cloudflare API Token**
 
 这个账户下有 9 个 Pages 项目，token 是账户级的，给出去等于把全部项目交出去。
