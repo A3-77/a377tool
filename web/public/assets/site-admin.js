@@ -390,6 +390,154 @@
     return toBlob(cv, "image/jpeg", 0.86);
   }
 
+  /* 秒 → 0:05。选段框要告诉人「留下第几秒到第几秒」，
+     直接报 3.333 没人读得懂。 */
+  function fmtSec(s) {
+    s = Math.max(0, Number(s) || 0);
+    var m = Math.floor(s / 60);
+    var r = s - m * 60;
+    return m + ":" + (r < 10 ? "0" : "") + r.toFixed(1);
+  }
+
+  /* 视频超过档位时长时，让用户自己挑留下哪一段。
+     默认策略是「从头截 maxSeconds」，但想留的那段经常在中间 ——
+     盲目截开头等于替用户做了决定，用户还没法改。
+     这里给一条全长轨道 + 可拖的选区（两端调长度、中间整体挪、
+     点空白直接跳过去），选完把 trim 交给视频管线。
+     返回 null = 用户不挑，走默认。 */
+  function pickClip(file, total, lim) {
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(file);
+      var MIN = 0.5;                       /* 再短就没内容了 */
+      var CAP = lim.maxSeconds;
+      var start = 0;
+      var end = Math.min(CAP, total);
+
+      var vid = el("video", { class: "clip-video", src: url, controls: true, playsinline: true });
+      var hL = el("div", { class: "clip-handle l" });
+      var hR = el("div", { class: "clip-handle r" });
+      var sel = el("div", { class: "clip-sel" }, hL, hR);
+      var track = el("div", { class: "clip-track" }, sel);
+      var readout = el("div", { class: "clip-meta" });
+
+      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+      function render() {
+        sel.style.left = (start / total * 100) + "%";
+        sel.style.width = ((end - start) / total * 100) + "%";
+        readout.textContent = "";
+        readout.append(
+          el("span", {}, "留下 ", el("b", { text: fmtSec(start) + " – " + fmtSec(end) })),
+          el("span", {}, "共 ", el("b", { text: (end - start).toFixed(1) + " 秒" })),
+          el("span", { style: "color:var(--faint)" },
+            "全长 " + fmtSec(total) + "，档位上限 " + CAP + " 秒")
+        );
+      }
+
+      /* 试看选中这段。光看两个数字判断不了截得对不对 ——
+         尤其想留的是中间某段时，必须能真的看一眼。 */
+      function playSel() {
+        try { vid.currentTime = start; vid.play(); } catch (e) { /* 跳不了就算了 */ }
+      }
+      vid.addEventListener("timeupdate", function () {
+        if (vid.currentTime >= end) vid.pause();
+      });
+
+      var drag = null;
+      function onMove(e) {
+        if (!drag) return;
+        var dt = ((e.clientX - drag.x0) / drag.w) * total;
+        if (drag.mode === "move") {
+          var len = drag.e0 - drag.s0;
+          start = clamp(drag.s0 + dt, 0, total - len);
+          end = start + len;
+        } else if (drag.mode === "l") {
+          start = clamp(drag.s0 + dt, 0, end - MIN);
+          /* 左手柄往右推过头会把长度压过上限，反过来拽终点 */
+          if (end - start > CAP) start = end - CAP;
+        } else {
+          end = clamp(drag.e0 + dt, start + MIN, Math.min(total, start + CAP));
+        }
+        render();
+      }
+      function onUp() {
+        drag = null;
+        sel.classList.remove("grabbing");
+      }
+      /* 手柄是选区的子元素，stopPropagation 免得拖手柄被当成整体挪动 */
+      function onDown(e, mode) {
+        e.preventDefault();
+        e.stopPropagation();
+        drag = {
+          mode: mode, x0: e.clientX,
+          w: track.getBoundingClientRect().width,
+          s0: start, e0: end,
+        };
+        sel.classList.add("grabbing");
+      }
+      hL.addEventListener("pointerdown", function (e) { onDown(e, "l"); });
+      hR.addEventListener("pointerdown", function (e) { onDown(e, "r"); });
+      sel.addEventListener("pointerdown", function (e) { onDown(e, "move"); });
+
+      /* 点轨道空白处 = 选区直接挪过去（居中），比拖快 */
+      track.addEventListener("pointerdown", function (e) {
+        if (e.target !== track) return;
+        var r = track.getBoundingClientRect();
+        var t = ((e.clientX - r.left) / r.width) * total;
+        var len = end - start;
+        start = clamp(t - len / 2, 0, total - len);
+        end = start + len;
+        render();
+      });
+
+      function close(val) {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("keydown", onKey);
+        try { vid.pause(); } catch (e) { /* 已经停了 */ }
+        URL.revokeObjectURL(url);
+        if (mask.parentNode) mask.parentNode.removeChild(mask);
+        resolve(val);
+      }
+      function onKey(e) {
+        if (e.key === "Escape") close(null);
+        else if (e.key === "Enter") close({ start: start, end: end });
+      }
+
+      var mask = el("div", { class: "clip-mask" },
+        el("div", { class: "clip-box" },
+          el("h3", { text: "挑一段留下" }),
+          el("p", {
+            class: "clip-sub",
+            text: "这个视频 " + fmtSec(total) + "，超过「" + (lim.label || "该档位") +
+                  "」上限 " + CAP + " 秒。拖选区挑要留下的那一段，然后「用这段」。",
+          }),
+          vid, track, readout,
+          el("div", { class: "clip-acts" },
+            el("button", { class: "btn", type: "button", onclick: playSel }, "▶ 试看这段"),
+            el("span", { style: "flex:1" }),
+            el("button", {
+              class: "btn", type: "button",
+              onclick: function () { close(null); },
+            }, "取消"),
+            el("button", {
+              class: "btn primary", type: "button",
+              onclick: function () { close({ start: start, end: end }); },
+            }, "用这段")
+          )
+        )
+      );
+      mask.addEventListener("pointerdown", function (e) {
+        if (e.target === mask) close(null);
+      });
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("keydown", onKey);
+      document.body.append(mask);
+      render();
+    });
+  }
+
   /* 视频：交给独立的视频管线处理。
      判什么算不合规、该怎么改，全在 video-spec.js + video-prep.js 里；
      这里只负责把结果接到上传流程上 —— 以后换掉画廊、上别的视频组件，
@@ -403,26 +551,45 @@
               "超过服务端上限的话会被拒",
       });
     }
-    var extra = [];
-    return VP.process(file, VIDEO_PROFILE, {}, {
-      onProgress: function (r, phase) {
-        if (onProgress) onProgress(phase + " " + Math.round(r * 100) + "%");
-      },
-      onNote: function (n) { extra.push(n); },
-    }).then(function (r) {
-      if (r.skipped) return { file: file, color: "", note: "" };
-      return {
-        file: r.file, color: "",
-        note: r.note + (extra.length ? "（" + extra.join("；") + "）" : ""),
-        /* 处理完还是没达标（体积压不下去、或改完仍有违规）必须说出来 ——
-           默默传一个不合规的文件，用户只会以为工具坏了 */
-        warn: r.warn || "",
-      };
-    }).catch(function (e) {
-      /* 处理不了就原样传，让服务端按规则判。但必须把原因说清楚 ——
-         不然用户只看到一句「上传失败」，不知道该干什么。
-         最典型的是浏览器解不开 HEVC / ProRes，那种得走命令行。 */
-      return { file: file, color: "", note: "", warn: e.message };
+
+    /* 超长的先问一句截哪段。只在这个档位有时长上限、且真的超了才弹 ——
+       没超长还弹是打扰。探测失败就当没超，让管线按默认处理。 */
+    function askClip() {
+      var VS = window.VideoSpec;
+      var lim = VS && VS.PROFILES && VS.PROFILES[VIDEO_PROFILE];
+      if (!lim || !lim.maxSeconds) return Promise.resolve(null);
+      return VP.probeFile(file).then(function (meta) {
+        var total = meta && meta.seconds;
+        if (!total) return null;
+        var grace = VS.DURATION_GRACE || 0;
+        if (total <= lim.maxSeconds + grace) return null;
+        return pickClip(file, total, lim);
+      }).catch(function () { return null; });
+    }
+
+    return askClip().then(function (clip) {
+      var extra = [];
+      var override = clip ? { trim: [clip.start, clip.end] } : {};
+      return VP.process(file, VIDEO_PROFILE, override, {
+        onProgress: function (r, phase) {
+          if (onProgress) onProgress(phase + " " + Math.round(r * 100) + "%");
+        },
+        onNote: function (n) { extra.push(n); },
+      }).then(function (r) {
+        if (r.skipped) return { file: file, color: "", note: "" };
+        return {
+          file: r.file, color: "",
+          note: r.note + (extra.length ? "（" + extra.join("；") + "）" : ""),
+          /* 处理完还是没达标（体积压不下去、或改完仍有违规）必须说出来 ——
+             默默传一个不合规的文件，用户只会以为工具坏了 */
+          warn: r.warn || "",
+        };
+      }).catch(function (e) {
+        /* 处理不了就原样传，让服务端按规则判。但必须把原因说清楚 ——
+           不然用户只看到一句「上传失败」，不知道该干什么。
+           最典型的是浏览器解不开 HEVC / ProRes，那种得走命令行。 */
+        return { file: file, color: "", note: "", warn: e.message };
+      });
     });
   }
 

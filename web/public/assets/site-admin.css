@@ -235,6 +235,48 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
 .fatal h1{font-size:19px;margin:0 0 10px}
 .fatal p{color:var(--dim);margin:0 0 18px}
 
+/* ---------- 选段（视频超过档位时长时挑一段） ---------- */
+.clip-mask{
+  position:fixed;inset:0;background:rgba(4,7,12,.76);z-index:60;
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.clip-box{
+  width:min(680px,100%);max-height:90vh;overflow:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:18px 20px 20px;box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+.clip-box h3{margin:0 0 4px;font-size:15px}
+.clip-sub{margin:0 0 14px;font-size:12.5px;color:var(--dim)}
+.clip-video{width:100%;max-height:280px;background:#000;border-radius:8px;display:block}
+
+/* 整条轨道 = 视频全长；里面高亮那块 = 会被留下的一段 */
+.clip-track{
+  position:relative;height:46px;margin:14px 0 8px;
+  background:#0d1320;border:1px solid var(--line);border-radius:8px;
+  overflow:hidden;touch-action:none;
+}
+.clip-sel{
+  position:absolute;top:0;bottom:0;
+  background:rgba(111,154,208,.20);
+  border-left:2px solid var(--accent);border-right:2px solid var(--accent);
+  cursor:grab;
+}
+.clip-sel.grabbing{cursor:grabbing}
+/* 手柄故意伸出选区外一点（负偏移），窄选区时也抓得住 */
+.clip-handle{
+  position:absolute;top:0;bottom:0;width:14px;background:var(--accent);
+  cursor:ew-resize;opacity:.92;
+}
+.clip-handle.l{left:-7px;border-radius:4px 0 0 4px}
+.clip-handle.r{right:-7px;border-radius:0 4px 4px 0}
+
+.clip-meta{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  font-size:12.5px;color:var(--dim);margin-bottom:16px;
+}
+.clip-meta b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.clip-acts{display:flex;gap:10px;justify-content:flex-end}
+
 @media(max-width:1100px){
   .shell{grid-template-columns:1fr;grid-template-rows:46vh 1fr;height:auto}
   .stage{border-right:0;border-bottom:1px solid var(--line)}
