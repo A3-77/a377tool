@@ -30,6 +30,8 @@ web/
 │   │   ├── showcase.css    展示组件样式
 │   │   ├── showcase/       占位素材（图由 tests/gen_showcase_svg.py 生成，
 │   │   │                    视频由 tests/gen_showcase_video.sh 用 ffmpeg 生成）
+│   │   ├── video-spec.js   视频档位规范（独立层，浏览器 / Node / 测试三端共用）
+│   │   ├── video-prep.js   网页端视频处理引擎（浏览器自带编码器）
 │   │   ├── site-admin.js   后台控制面板（控件定义 SCHEMA + 上传/压缩逻辑在这里）
 │   │   └── site-admin.css
 │   ├── favicon.svg
@@ -44,9 +46,15 @@ web/
 │   └── media/[[key]].js    /api/media（上传 / 读取 / 删除，存 KV）
 ├── schema.sql              D1 建表语句
 └── wrangler.toml           D1 + KV 绑定配置（database_id / namespace id 在这里）
-```
 
-`pdf2img/` 是本地版 PDF 工具（Python），`tests/` 是测试脚本。
+tools/video-prep/           视频资产管线（独立命令行工具）
+├── cli.mjs                 probe / judge / fix / profiles
+├── ffmpeg.mjs              ffprobe 探测 + ffmpeg 转码封装
+└── README.md               档位表、参数、两条路径的取舍
+
+pdf2img/                    本地版 PDF 工具（Python）
+tests/                      测试脚本
+```
 
 ---
 
@@ -366,6 +374,56 @@ DELETE /api/media/m/<...>?key=<ADMIN_TOKEN>
 - key 里带**随机段**（`crypto.getRandomValues`，不是 `Math.random`），
   所以「换素材 = 换 key」成立，`immutable` 长缓存才站得住，也不会被人猜出文件名。
 
+### 视频资产管线（`assets/video-spec.js` + `assets/video-prep.js` + `tools/video-prep/`）
+
+**独立层，不依赖任何展示组件。** 组件只声明自己用哪个档位，
+规格说明、判定、处理方案全从档位表推出来。档位按**用途**命名
+（`loop-card` / `inline`），不按组件命名 —— 组件会被换掉，用途不会。
+
+组件侧唯一的接口是 `site-admin.js` 里的 `VIDEO_PROFILE` 那一行。
+换掉画廊、上别的视频组件，改这一行就行，管线代码一个字不用动。
+
+**判定与执行分离**，三条路径消费同一份 `analyze()` 结果：
+
+| 路径 | 何时用 | 代价 |
+| --- | --- | --- |
+| 网页端（后台自动） | 默认，拖进去就处理 | 实时，8 秒片段约 8 秒 |
+| 命令行（`tools/video-prep/cli.mjs`） | 批量、最高画质、精确控体积、浏览器解不开的编码 | 要装 ffmpeg |
+
+判断要是各写一份，迟早不一致 —— 用户会遇到「命令行说合规、后台说超了」。
+
+**为什么网页端不用 ffmpeg.wasm**（这条决定了整个设计）：
+Cloudflare Pages 单个文件上限 **25 MiB**，而 `@ffmpeg/core` 的 wasm 就 30+ MB，
+根本传不进部署产物；改从 jsdelivr / unpkg 拉，国内又不稳。
+所以改用浏览器自带编码器：`<video>` 解码 → canvas 缩放裁剪 → `MediaRecorder` 录制。
+代价是实时，但档位本来就只要 3–8 秒片段，正好可接受。
+
+**服务端硬上限 ≠ 档位**，两件事别混：
+- 硬上限 20MB（`_media.js` 的 `MAX_VIDEO`）—— KV 单值 25MiB 留的余量，超了直接 413，不可协商
+- 档位 ≤1.5MB —— 组件的要求，是「好不好用」的问题
+
+`video-spec.js` 里的 `HARD.bytes` 必须和 `_media.js` 的 `MAX_VIDEO` 一致。
+两处各写一个数迟早漂移，所以 `tests/test_video_prep.mjs` 会解析那个文件来断言。
+
+**判定与执行必须一致**（`ok` ⟺ `!worthFixing`）：
+`judge` 说合规、`fix` 却重编一遍，这种自相矛盾会让人不敢信工具。
+同理 `issues` 的等级和「会不会动手」对齐 —— 会动手的报 `warn`，
+不会动手的（音轨）报 `info`。音轨留在 `info` 是故意的：
+档位一律静音播放，留着不影响功能，只有因为别的原因本来就要重编时才顺手去掉。
+
+**容差是刻意的**，别随手收紧：
+- 时长 ±0.5 秒 —— ffmpeg 能出 8.000，浏览器实测到 8.3。为 0.3 秒判「不合规」没意义
+- 帧率 ×1.15 —— 为把 25fps 降到 24 而重编一整遍，省 4% 的帧却掉一次画质，这笔账是亏的
+
+```bash
+cd tests && node test_video_prep.mjs      # 档位模块 + 命令行真跑 ffmpeg + 无头 Chrome 真转码
+node tools/video-prep/cli.mjs profiles    # 看档位表
+node tools/video-prep/cli.mjs judge <文件> # 判定，不改文件（不合规退出码 1）
+node tools/video-prep/cli.mjs fix   <文件> --upload --base <站点> --token <口令>
+```
+
+细节见 `tools/video-prep/README.md`。
+
 ### 控件（`assets/site-admin.js` 的 `SCHEMA`）
 
 `SCHEMA` 是唯一的字段定义处，加一个参数只要在对应 group 里加一行。
@@ -489,6 +547,33 @@ DELETE /api/media/m/<...>?key=<ADMIN_TOKEN>
   后台列表里视频项就是一块黑（图片没这个问题）。
 - **`<video>` 要自动播放必须 `muted`**，而且 `play()` 返回 Promise 会被策略拒绝，
   一定要 `.catch()` 掉，否则控制台一堆 unhandled rejection。
+
+视频管线相关的坑（见「视频资产管线」）：
+
+- **Cloudflare Pages 单文件上限 25 MiB，所以 ffmpeg.wasm 用不了** ——
+  `@ffmpeg/core` 的 wasm 就 30+ MB，传不进部署产物。这条决定了网页端只能走
+  浏览器自带编码器。别再试着往 `public/` 里塞 wasm。
+- **MediaRecorder 录出来的 webm 没有时长元数据** —— `<video>.duration` 是 `Infinity`，
+  读出来会被当成 0。**不能拿它当录制终点**（第一帧就停，录出 0 字节文件，
+  上传被服务端以「空文件」400 拒掉，用户只看到一句莫名其妙的错）。实测踩过。
+  要么退成「录到档位上限为止」，要么靠 `ended` 事件停。
+- **`canvas.captureStream(24)` 实际出来的约 20fps** —— 它是按刷新率采样 canvas，
+  不一定跟得上。画面速度是对的（时间戳是真的），只是帧少一点，别拿它当精确帧率。
+- **`ffmpeg -f null -` 会误报** —— 它把视频重新复用一遍，于是复用器自己的时间戳告警
+  也混进 stderr。浏览器 MediaRecorder 出的 mp4 会报
+  `non monotonically increasing dts`，但那个文件能完整解码（ffmpeg 退出码是 0）。
+  判断「文件能不能解码」要用 `ffprobe -count_frames`（只解码、不重新复用）。
+- **ffprobe 的旋转标记在 `side_data_list[].rotation`**，老格式在 `tags.rotate`，
+  两个都要读。手机竖拍视频编码尺寸是横的，不换算会把 1080×1920 当横屏，
+  比例判断和裁剪全错。另外 `<video>.videoWidth` 已经是旋转后的显示尺寸，
+  浏览器那条路不用自己算 —— 两条路的语义不一样，别抄。
+- **写旋转标记要用 `-display_rotation`，而且必须放在 `-i` 前面**（输入选项）。
+  放输出侧 ffmpeg 直接报错；`-metadata:s:v:0 rotate=90` 新版已经不写了。
+- **x264 的 `-b:v` 是平均码率，会小幅超出** —— 实测 300KB 的目标按算出来的码率
+  编完是 304KB。所以反推码率要留两个折扣（8KB 容器余量 + 0.90），
+  而且编完必须复核，还超就降 15% 重来。
+- **别为了小优化重编一整遍** —— 从 25fps 降到 24fps 省 4% 的帧却掉一次画质，
+  这笔账是亏的。所以帧率容差是 ×1.15，而且「报问题」和「动手修」用同一个阈值。
 - **后台预览靠 `postMessage`，必须校验 `e.origin`**，否则任何嵌入页面都能改预览。
 - **`structuredClone` 在 Workers 里别用** —— 可用性不确定，用
   `JSON.parse(JSON.stringify(x))` 深拷贝。
@@ -554,10 +639,11 @@ cd web && npx wrangler pages dev public --d1=DB --kv=MEDIA --persist-to .d1dev -
 cd tests && node test_showcase.mjs http://127.0.0.1:8791 <ADMIN_TOKEN>
 ```
 
-覆盖 125 项：接口鉴权与结构、画廊渲染与 3D 几何、视频播放调度、
+覆盖 135 项：接口鉴权与结构、画廊渲染与 3D 几何、视频播放调度、
 切皮肤后搬移、**响应式回归**（卡片尺寸必须随容器宽度等比变化，防止有人再写死 px）、
 Photo Stack 的几何与换片动画、**素材上传**（类型/体积/空文件/路径穿越都挡住、
-读回来字节一致、后台拖图真上传且压缩真跑了、视频真的渲染成 `<video>`）、
+读回来字节一致、后台拖图真上传且压缩真跑了、视频真的渲染成 `<video>`、
+**不合规的视频拖进来会被自动改成 720×480**）、
 后台面板（含「不能有幽灵滚动区」）。
 跑完在 `tests/out_showcase/` 留四张截图（`01`–`04`）。
 调试时手动截的图也放这里（`05` 起），它们不会被测试覆盖，看的时候别搞混。
@@ -565,7 +651,22 @@ Photo Stack 的几何与换片动画、**素材上传**（类型/体积/空文�
 上传那几条断言是**在浏览器里现场造图**再拖进去的（2400×1600 的噪点 JPEG）——
 用噪点不用纯色是有意的：纯色 jpeg 会压到几 KB，「压缩到底跑没跑」就测不出来了。
 视频用仓库里那个真的 `v1.mp4`，不是造的假字节。
+「自动处理」那条用的是**在页面里现场用 canvas + MediaRecorder 录出来的 1920×1080 视频** ——
+不依赖 ffmpeg，也不用往仓库里塞一个 1080p 夹具。
 测试结束会把 photostack 恢复成默认关闭、并删掉自己上传的素材，所以可以反复跑。
+
+改了**视频资产管线**（`video-spec.js` / `video-prep.js` / `tools/video-prep/`）之后跑这个。
+它**不需要起本地服务** —— 自己起一个同源小静态服务器，所以能单独测：
+
+```bash
+cd tests && node test_video_prep.mjs
+```
+
+覆盖 78 项，三段：档位模块纯函数（含和服务端上限的一致性）、
+命令行真跑 ffmpeg（产出物用 ffprobe 复核 faststart / 比例 / 音轨 / 可解码）、
+无头 Chrome 真转码（产出物落盘后再用 ffprobe 独立复核）。
+需要 ffmpeg 在 PATH 上；Chrome 不在默认路径就设 `CHROME_PATH`。
+产物在 `tests/out_videoprep/`（已 gitignore）。
 
 > 断言查不出「好不好看」。改完视觉**一定要打开截图看**：
 > 画廊背片是否可见、Photo Stack 的背片有没有被裁掉，这两类问题断言全绿也会发生。

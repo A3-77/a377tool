@@ -100,6 +100,10 @@ export async function onRequestGet({ request, env }){
 </div>
 <div class="toast" id="toast"></div>
 <script>window.__A377_SITE__ = ${payload};</script>
+<!-- 视频档位规范 + 网页端处理引擎。两者都是独立层，和展示组件无关 ——
+     以后换掉画廊、上别的视频组件，这两个文件照样能用。 -->
+<script src="/assets/video-spec.js"></script>
+<script src="/assets/video-prep.js"></script>
 <script src="/assets/site-admin.js"></script>
 </body></html>`);
 }

@@ -733,9 +733,27 @@ const spec = await admin.evaluate(() => {
 });
 check("后台写明了视频规格要求", !!spec && /视频规格/.test(spec.title || ""),
   spec ? spec.title + " / " + spec.lines.length + " 条" : "没找到 .spec");
-check("规格里给了格式/分辨率/比例/时长/体积/音轨六条",
-  !!spec && ["格式", "分辨率", "比例", "时长", "体积", "音轨"].every((k) => spec.lines.some((l) => l.startsWith(k + "="))),
+check("规格六条齐全（格式/分辨率/时长/体积/帧率/音轨）",
+  !!spec && ["格式", "分辨率", "时长", "体积", "帧率", "音轨"]
+    .every((k) => spec.lines.some((l) => l.startsWith(k + "="))),
   spec ? spec.lines.join("  ") : "");
+
+/* 关键性质：说明是**从档位表生成的**，不是手写。
+   手写的版本和代码是两处事实，迟早会不一致 ——
+   出现「页面上说 720、代码里按 1080 裁」这种事最难查。
+   所以直接断言页面上的文字 === VideoSpec.describe() 的输出。 */
+const specGen = await admin.evaluate(() => {
+  const VS = window.VideoSpec;
+  return VS ? { ok: true, lines: VS.describe("loop-card").map((l) => l[0] + "=" + l[1]) } : { ok: false };
+});
+check("规格说明是从档位表生成的，不是手写（改档位页面自动跟着变）",
+  specGen.ok && !!spec && specGen.lines.length === spec.lines.length &&
+  specGen.lines.every((l, i) => l === spec.lines[i]),
+  specGen.ok ? specGen.lines.join("  ") : "页面上没有 VideoSpec");
+check("档位说明里带着档位表里的实际数值（720 / 1.5 / 1.5 MB）",
+  specGen.ok && /720/.test(specGen.lines[1]) && /1\.5/.test(specGen.lines[1]) &&
+  /1\.5 MB/.test(specGen.lines[3]),
+  specGen.ok ? specGen.lines.slice(1, 4).join("  ") : "");
 check("规格块不是可填字段（只读说明）", !!spec && !spec.inField);
 
 /* ---- 上传入口 ---- */
@@ -920,14 +938,137 @@ try {
 check("前台预览里这个视频渲染成了 <video>（不是破图）",
   previewVideo.found, previewVideo.found ? "" : "预览里没找到该 src 的 video 元素");
 
-/* 把这两个测试上传的素材删掉，别让本地 KV 越跑越大 */
+/* ---- 不合规的视频拖进来，后台要**在浏览器里**把它改成合规的 ----
+   这是「网页端视频处理」这条主线的端到端证明。上面那条用的是 v1.mp4
+   （720×480 / 4 秒 / 无音轨，本来就合规），走不到处理分支 ——
+   这里现造一个 1920×1080 / 30fps / 16:9 的，逼它真的处理。
+
+   视频是在页面里用 canvas + MediaRecorder 现录的：不依赖 ffmpeg，
+   也不用往仓库里塞一个 1080p 夹具。 */
+const galBefore = await admin.evaluate(() => {
+  const b = [...document.querySelectorAll(".block")].find(
+    (x) => x.querySelector(".block-head .kind")?.textContent === "gallery");
+  return b.querySelectorAll(".item").length;
+});
+
+await admin.evaluate(async () => {
+  /* 造一个明显不合规的视频：1920×1080（超 720 长边）、30fps（高于档位 24）、
+     16:9（和档位要的 1.5:1 不符，会被裁）。 */
+  const cv = document.createElement("canvas");
+  cv.width = 1920; cv.height = 1080;
+  const ctx = cv.getContext("2d");
+  const st = cv.captureStream(30);
+  const rec = new MediaRecorder(st, { mimeType: "video/webm" });
+  const chunks = [];
+  rec.addEventListener("dataavailable", (e) => { if (e.data.size) chunks.push(e.data); });
+  rec.start(100);
+  const t0 = performance.now();
+  await new Promise((res) => {
+    (function draw() {
+      const t = (performance.now() - t0) / 1000;
+      ctx.fillStyle = "hsl(" + ((t * 140) % 360) + " 80% 45%)";
+      ctx.fillRect(0, 0, 1920, 1080);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 220px sans-serif";
+      ctx.fillText(t.toFixed(1), 120, 620);
+      if (t > 3.2) return res();
+      requestAnimationFrame(draw);
+    })();
+  });
+  rec.stop();
+  await new Promise((r) => { rec.addEventListener("stop", r); });
+  const blob = new Blob(chunks, { type: "video/webm" });
+
+  const block = [...document.querySelectorAll(".block")].find(
+    (x) => x.querySelector(".block-head .kind")?.textContent === "gallery");
+  const dt = new DataTransfer();
+  dt.items.add(new File([blob], "手机拍的1080p.webm", { type: "video/webm" }));
+  block.querySelector(".list").dispatchEvent(
+    new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+});
+
+/* 处理是实时的（3 秒素材约 3 秒），所以要轮询而不是死等一个固定值。
+   顺便把中间出现的状态文字记下来 —— 那正是「处理进度有没有给用户看」的证据。 */
+let procUi = null;
+const seenStatus = [];
+for (let i = 0; i < 45; i++) {
+  await sleep(700);
+  const st = await admin.evaluate(() => {
+    const b = [...document.querySelectorAll(".block")].find(
+      (x) => x.querySelector(".block-head .kind")?.textContent === "gallery");
+    const list = b.querySelector(".list");
+    const items = [...b.querySelectorAll(".item")];
+    const last = items[items.length - 1];
+    return {
+      busy: list.classList.contains("busy"),
+      status: (list.querySelector(".upstatus") || {}).textContent || "",
+      src: last ? (last.querySelector('input[type="text"]') || {}).value || "" : "",
+      count: items.length,
+    };
+  });
+  if (st.status) seenStatus.push(st.status);
+  if (st.count > galBefore && !st.busy && /^\/api\/media\/m\//.test(st.src)) { procUi = st; break; }
+}
+
+check("不合规的视频拖进后台能上传成功（没被卡住）", !!procUi,
+  procUi ? "" : "45 次轮询都没等到，最后状态：" + (seenStatus.slice(-3).join(" / ") || "无"));
+check("处理过程有进度反馈给用户",
+  seenStatus.some((s) => /转码|处理/.test(s)),
+  seenStatus.slice(0, 3).join(" / ") || "一次状态都没出现");
+
+if (procUi) {
+  /* 存进 KV 的必须**已经是处理过的**，不是原样的 1080p */
+  const stored = await fetch(BASE + procUi.src);
+  const buf = Buffer.from(await stored.arrayBuffer());
+  const ct = stored.headers.get("content-type") || "";
+  check("存进 KV 的是处理过的小文件（不是原样的 1080p）",
+    buf.length < 1.5 * 1024 * 1024,
+    buf.length + " 字节，原素材约 3 秒 1080p");
+  check("存进去的确实是视频（Content-Type 对）", /^video\//.test(ct), ct);
+
+  /* 尺寸用浏览器自己量 —— 播放它的是浏览器，浏览器说 720×480 才算数 */
+  const dims = await admin.evaluate(async (u) => {
+    const b = await (await fetch(u)).blob();
+    const url = URL.createObjectURL(b);
+    const v = document.createElement("video");
+    v.preload = "metadata"; v.muted = true;
+    const ok = await new Promise((res) => {
+      v.addEventListener("loadedmetadata", () => res(true), { once: true });
+      v.addEventListener("error", () => res(false), { once: true });
+      setTimeout(() => res(false), 6000);
+      v.src = url;
+    });
+    const out = { ok, w: v.videoWidth, h: v.videoHeight, d: v.duration };
+    URL.revokeObjectURL(url);
+    return out;
+  }, procUi.src);
+  check("存进去的视频被改成了 720×480（长边压到档位上限）",
+    dims.ok && dims.w === 720 && dims.h === 480, JSON.stringify(dims));
+  check("比例被裁成档位要求的 1.5:1（不是压变形）",
+    dims.ok && Math.abs(dims.w / dims.h - 1.5) < 0.01,
+    dims.ok ? (dims.w / dims.h).toFixed(4) : "读不到尺寸");
+  check("时长还在档位区间内（3–8 秒）",
+    dims.ok && dims.d >= 3 && dims.d <= 8.5, String(dims.d));
+
+  await sleep(1500);
+  const frame = admin.frames().find((x) => x.name() === "preview") || admin.frames()[1];
+  const shown = frame ? await frame.evaluate((u) => {
+    const vs = [...document.querySelectorAll("video")];
+    return vs.some((v) => (v.currentSrc || v.src || "").indexOf(u) >= 0);
+  }, procUi.src) : false;
+  check("处理完的视频在前台预览里真的渲染出来了", shown, "预览里没找到这个 src");
+}
+
+/* 把测试上传的素材删掉，别让本地 KV 越跑越大 */
 let uiCleaned = 0;
-for (const u of [afterDrop.src, psUp.src, vidUi.src]) {
+const uiUploads = [afterDrop.src, psUp.src, vidUi.src, procUi && procUi.src].filter(Boolean);
+for (const u of uiUploads) {
   if (!/^\/api\/media\/m\//.test(u)) continue;
   const r = await fetch(BASE + u + "?key=" + encodeURIComponent(TOKEN), { method: "DELETE" });
   if (r.status === 200) uiCleaned++;
 }
-check("UI 上传的素材能删干净", uiCleaned === 3, uiCleaned + "/3");
+check("UI 上传的素材能删干净", uiCleaned === uiUploads.length,
+  uiCleaned + "/" + uiUploads.length);
 
 /* 后台页面不能有「幽灵滚动区」。
    面板内容 5000+px 会溢出到文档层，文档因此能滚 4000+px 的空白；

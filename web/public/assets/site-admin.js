@@ -14,6 +14,27 @@
   var state = boot.blocks;          // { gallery:{enabled,config}, photostack:{...} }
   var frame = document.getElementById("preview");
 
+  /* ---------------- 视频档位 ----------------
+     这一行是「组件 ↔ 管线」之间**唯一**的接口：组件声明自己要哪个档位，
+     规格说明、判定、处理方案全部由独立的档位表推出来。
+
+     换组件时只改这一行 —— 画廊不要了、换成别的视频组件，
+     把 VIDEO_PROFILE 指到另一个档位就行，视频处理那套代码一个字都不用动。 */
+  var VIDEO_PROFILE = "loop-card";
+
+  /* 规格说明从档位表生成，不再手写。
+     手写的版本和代码是两处事实，迟早不一致 ——
+     出现「页面上说 720、代码里按 1080 裁」这种事最难查。 */
+  function specLines(id) {
+    var VS = window.VideoSpec;
+    if (!VS) return [["提示", "视频档位模块没加载上，规格说明暂时取不到"]];
+    try {
+      return VS.describe(id);
+    } catch (e) {
+      return [["提示", "档位 " + id + " 不存在"]];
+    }
+  }
+
   /* ---------------- 控件定义 ----------------
      分类沿用 DialKit：slider / toggle / text / select / color / image / spring。
      min/max/step 决定滑杆范围，同时也会写进数字输入框。 */
@@ -46,14 +67,13 @@
           { key: "dim",       type: "slider", label: "边缘压暗", min: 0, max: 1, step: 0.01 }
         ] },
         { label: "视频", open: true, fields: [
-          /* 规格写在参数前面 —— 先知道该拿什么素材来，再谈怎么调 */
-          { key: "_videoSpec", type: "note", title: "视频规格要求", lines: [
-            ["格式", "mp4（H.264）最稳，webm 也可以。别用 mov / gif"],
-            ["分辨率", "720×480 就够。默认参数下卡片实测只有约 380×270，再高是白占体积"],
-            ["比例", "跟上面的「卡片宽高比」对齐（当前 1.5 ≈ 3:2）。不一致会被裁掉上下或左右"],
-            ["时长", "3–8 秒，首尾接得上 —— 画廊是循环播放的"],
-            ["体积", "单个 ≤ 1.5 MB，全部加起来 ≤ 10 MB"],
-            ["音轨", "去掉。画廊一律静音自动播，带音轨只是白占体积"]
+          /* 规格写在参数前面 —— 先知道该拿什么素材来，再谈怎么调。
+             内容是从档位表生成的，不是手写：见上面 specLines() 的说明。 */
+          { key: "_videoSpec", type: "note", title: "视频规格要求", lines: specLines(VIDEO_PROFILE) },
+          { key: "_videoAuto", type: "note", title: "不符合要求怎么办", lines: [
+            ["不用管", "上传时会在浏览器里自动处理：改尺寸、截片段、压体积、去音轨"],
+            ["在本地", "处理是即时的，8 秒的片段大约 8 秒出结果"],
+            ["处理不了", "浏览器解不开的编码（HEVC / ProRes）会明确告诉你，那种要走命令行"],
           ] },
           { key: "videoAutoplay",   type: "toggle", label: "自动播放",
             hint: "关掉就只显示视频首帧，当静图用" },
@@ -370,8 +390,46 @@
     return toBlob(cv, "image/jpeg", 0.86);
   }
 
-  /* 返回 { file, color, note }；note 是给用户看的「压了多少」 */
-  function prepare(file) {
+  /* 视频：交给独立的视频管线处理。
+     判什么算不合规、该怎么改，全在 video-spec.js + video-prep.js 里；
+     这里只负责把结果接到上传流程上 —— 以后换掉画廊、上别的视频组件，
+     这一整块不用动，改 VIDEO_PROFILE 那一行就行。 */
+  function prepareVideo(file, onProgress) {
+    var VP = window.VideoPrep;
+    if (!VP || !VP.available()) {
+      return Promise.resolve({
+        file: file, color: "", note: "",
+        warn: "这个浏览器不能就地处理视频，会原样上传 —— " +
+              "超过服务端上限的话会被拒",
+      });
+    }
+    var extra = [];
+    return VP.process(file, VIDEO_PROFILE, {}, {
+      onProgress: function (r, phase) {
+        if (onProgress) onProgress(phase + " " + Math.round(r * 100) + "%");
+      },
+      onNote: function (n) { extra.push(n); },
+    }).then(function (r) {
+      if (r.skipped) return { file: file, color: "", note: "" };
+      return {
+        file: r.file, color: "",
+        note: r.note + (extra.length ? "（" + extra.join("；") + "）" : ""),
+      };
+    }).catch(function (e) {
+      /* 处理不了就原样传，让服务端按规则判。但必须把原因说清楚 ——
+         不然用户只看到一句「上传失败」，不知道该干什么。
+         最典型的是浏览器解不开 HEVC / ProRes，那种得走命令行。 */
+      return { file: file, color: "", note: "", warn: e.message };
+    });
+  }
+
+  /* 返回 { file, color, note, warn }；note 是给用户看的「改了什么」 */
+  function prepare(file, onProgress) {
+    /* 是不是视频要 MIME 和扩展名一起看：从相册拖出来的 HEVC 视频
+       type 经常是空的，只看 MIME 会漏判。 */
+    if (/^video\//.test(file.type) || VIDEO_RE.test(file.name)) {
+      return prepareVideo(file, onProgress);
+    }
     /* gif 是动图，canvas 重编码会把动画压成一张静图 —— 别碰它 */
     if (!/^image\//.test(file.type) || file.type === "image/gif") {
       return Promise.resolve({ file: file, color: "", note: "" });
@@ -401,8 +459,9 @@
     });
   }
 
-  /* 上传。onProgress 是给状态行用的，压缩是一张张串行的 ——
-     并行压十几张 4000×3000 会把主线程卡住，界面看着像死了。 */
+  /* 上传。onProgress 是给状态行用的，处理是一张张串行的 ——
+     并行压十几张 4000×3000 会把主线程卡住，界面看着像死了；
+     视频更甚，浏览器只能实时转码，并行跑会互相抢 CPU。 */
   function uploadFiles(files, onProgress) {
     var list = Array.prototype.slice.call(files);
     if (!list.length) return Promise.resolve({ files: [] });
@@ -411,8 +470,11 @@
     return list.reduce(function (chain, f, i) {
       return chain.then(function () {
         if (onProgress) onProgress("处理 " + (i + 1) + "/" + list.length + "：" + f.name);
-        return prepare(f).then(function (r) {
-          items.push({ file: r.file, color: r.color, note: r.note, original: f.name });
+        return prepare(f, onProgress).then(function (r) {
+          items.push({
+            file: r.file, color: r.color, note: r.note,
+            warn: r.warn, original: f.name,
+          });
         });
       });
     }, Promise.resolve()).then(function () {
@@ -427,12 +489,13 @@
           if (res.status === 503) msg = "还没绑定素材存储。" + msg;
           throw new Error(msg);
         }
-        /* 服务端按提交顺序返回，用下标把颜色和压缩说明对回来 */
+        /* 服务端按提交顺序返回，用下标把颜色和处理说明对回来 */
         data.files = data.files.map(function (f, i) {
           var it = items[i] || {};
           f.color = it.color || "";
           f.original = it.original || f.name;
           f.note = it.note || "";
+          f.warn = it.warn || "";
           return f;
         });
         return data;
@@ -531,18 +594,22 @@
       var replace = index != null;
       setStatus("准备上传…", true);
       uploadFiles(fileList, function (msg) { setStatus(msg, true); }).then(function (data) {
-        var notes = [];
+        var notes = [], warns = [];
         data.files.forEach(function (f, i) {
           if (!replace) items.push(itemFrom(f));
           else if (i === 0) replaceAt(index, f);
           if (f.note) notes.push(f.original + "：" + f.note);
+          if (f.warn) warns.push(f.original + "：" + f.warn);
         });
         setStatus("", false);
         redraw(); preview();
-        /* 压缩结果要说出来 —— 不然用户不知道图被改过，
-           也不知道 4MB 是怎么变成 300KB 的 */
+        /* 改过什么必须说出来 —— 不然用户不知道视频被裁过、截过、压过，
+           也不知道 48MB 是怎么变成 900KB 的 */
         var msg = (replace ? "已替换素材" : "已上传 " + data.files.length + " 个") + "，记得点保存";
-        toast(notes.length ? msg + "（已压缩 " + notes.join("；") + "）" : msg, "ok");
+        if (notes.length) msg += "（已处理 " + notes.join("；") + "）";
+        /* 没能处理的情况单独提示。这类问题（浏览器解不开的编码）
+           用户不盯着状态行的话根本不会知道 */
+        toast(warns.length ? msg + " ⚠ " + warns.join("；") : msg, warns.length ? "bad" : "ok");
       }).catch(function (e) {
         setStatus("", false);
         toast("上传失败：" + e.message, "bad");
