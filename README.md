@@ -14,10 +14,23 @@
 
 另外有两套皮肤，可一键切换：
 
+- `classic`：**v0.2 原版**视觉（默认）
 - `one`：One Page Love / Shawn Golden 风格的黑白网格
-- `classic`：旧版工具站布局
 
-页面左下角的 `SKIN` 按钮用于切换，偏好保存在 `localStorage` 的 `a377skin` 键，默认 `one`。
+顶栏右侧的 `SKIN` 按钮用于切换，偏好保存在 `localStorage` 的 `a377skin` 键，跨页面同步。
+没有顶栏的页面会自动改用左下角悬浮按钮。
+
+两套皮肤的机制是**并列的两套完整样式**，不是覆盖层：
+
+- `/` 和 `/draw/` 各写两份完整视图（`<main class="page">` / `<div class="wrap classic">`），
+  所有规则都带 `html[data-skin="..."]` 前缀，互不干扰。
+- `/file/`、`/trips/`、`/draw/studio/`、`/draw/code0/` 的基础样式就是 v0.2 的，即 `classic` 皮肤；
+  `one` 皮肤由 `assets/onepage.css` 这层覆盖提供。这四页在 `<head>` 末尾挂一个
+  `<link id="a377-onepage" … media="not all">`，由 `assets/skin.js` 按皮肤把 `media`
+  切成 `all` / `not all` —— **classic 下覆盖层完全不参与匹配**，所以不存在泄漏到 classic 的可能。
+  `/` 和 `/draw/` 自带两套样式，不挂这个 link。
+
+`one` 皮肤自成一套浅色配色，不跟随深浅色主题 —— 那四个工作台页里的深浅色开关在 one 皮肤下会自动隐藏。
 
 版本更新记录见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
 

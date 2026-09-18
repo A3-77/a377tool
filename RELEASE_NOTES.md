@@ -1,3 +1,76 @@
+# A377Tool v0.5.0（待发布）
+
+发布日期：待定
+
+本版重做双皮肤机制。v0.3 / v0.4 的皮肤切换是坏的 —— 既没有把 v0.2 的原版还回来，
+切过去也没反应。根因是当时把皮肤实现成了「一层全局覆盖」，而不是「两套并列样式」。
+
+## 修复
+
+**1. `classic` 现在真的等于 v0.2**
+
+- `/` 和 `/draw/` 的 `classic` 视图换回 v0.2.0 的原始结构和样式，逐行还原。
+- 之前 `assets/classic.css` 里的那套 `.classic-card` / `.classic-eyebrow` 布局是新写的近似版，
+  跟 v0.2 不是一回事，已删除。
+- `/` 和 `/draw/` 补回 `tokens.css` / `theme.js` / `shell.css` / `shell.js`，
+  顶栏和浅色 / 深色主题回来了（v0.3 重写这两个页面时把它们一起删掉了）。
+
+**2. 切到 `classic` 没反应 —— 两个原因都修了**
+
+- `shell.js` 建完顶栏会调 `A377Skin.refresh()`（不带参数）。旧代码把 `undefined`
+  当成皮肤值处理，于是**每个有顶栏的页面加载时都会把皮肤偏好重置掉**，
+  `classic` 永远切不过去。现在非法值会保持当前皮肤不动。
+- 顶栏里的 `SKIN` 按钮从来就没绑过点击事件（`shell.js` 用 `innerHTML` 造按钮，
+  `skin.js` 只给自己创建的悬浮按钮加了监听）。改用事件委托。
+
+**3. 覆盖层不再泄漏到 classic**
+
+- `onepage.css` 里有两条规则漏了 `html[data-skin="one"]` 前缀却带 `!important`，
+  切到 `classic` 后仍然生效，把卡片强制成白底黑边方角 —— 深色主题下就是一块块白板。已补前缀。
+- 更彻底的一层：`onepage.css` 现在只在那四个工作台页挂
+  `<link id="a377-onepage" … media="not all">`，`skin.js` 按皮肤切 `media`。
+  `classic` 下覆盖层完全不参与匹配。顺带 `classic` 下不会去请求这个文件。
+
+**4. `classic` 覆盖面从 2 个页面变成 6 个**
+
+- `classic.css` 之前只在 `/` 和 `/draw/` 被引用，`/file/`、`/trips/`、`/draw/studio/`、
+  `/draw/code0/` 切过去没有任何对应样式。这四页的基础样式本来就是 v0.2 的，
+  去掉 `one` 的覆盖层即回到原样。
+
+**5. `one` 皮肤的黑底黑字**
+
+- `onepage.css` 把 `--s2` 强制成 `#000`，而 `/trips/` 有 34 处引用它
+  （`.vibe` 玩法标签、`.prop` 城市卡片、`.delta`、`.hswitch` …），
+  这些元素的文字色是 `--text`(#000) / `--dim`(#333) → 直接看不见。改成浅灰。
+- `one` 皮肤现在强制按浅色渲染：这几个页面是深色优先写的，浅色靠
+  `html[data-theme="light"]` 覆盖；`one` 皮肤把 `--text` 压成黑色后，
+  只要 `data-theme` 还是 `dark` 就会出现黑底黑字（例如 `/trips/` 的「示意图」分段按钮）。
+- `one` 皮肤没有深色变体，深浅色开关在该皮肤下自动隐藏。
+- 补了几处按深色调的硬编码强调色（`.delta .d`、`.tag.ok/worn/rain`、`.iconbtn.accent`）。
+
+## 行为变化
+
+1. **默认皮肤从 `one` 改成 `classic`。** 老用户打开站点回到 v0.2 的样子。
+   想默认走新版，改 `assets/skin.js` 里的 `DEFAULT_SKIN`。
+2. 皮肤按钮统一在顶栏右侧。`/` 和 `/draw/` 现在也有顶栏了，不再需要左下角悬浮按钮
+   （没有顶栏的页面仍会自动回落到悬浮按钮）。
+3. `one` 皮肤下不显示深浅色开关。
+
+## 验证
+
+新增 `tests/test_skins.mjs`：自带静态服务器 + 无头 Chrome，覆盖 6 个页面 ×
+2 套皮肤 × 2 个主题，检查皮肤是否生效、`onepage.css` 是否只在 `one` 皮肤加载、
+顶栏 SKIN 按钮是否真能切换，并自动扫「深底深字」。
+
+```bash
+cd tests && node test_skins.mjs
+```
+
+低对比度扫描剩 7 处历史遗留（`home` 的 `drag the letters` 提示、`code0` 页脚小字、
+`trips` classic 皮肤的「邀请 TA」按钮 `#9dc0e4` 等），都不是本次改动引入的，未动。
+
+---
+
 # A377Tool v0.4.0
 
 发布日期：2026-09-17

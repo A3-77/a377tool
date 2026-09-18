@@ -49,6 +49,10 @@
   /* ---------- 对外 API ---------- */
   window.A377Theme = {
     get: current,
+    /* 按用户偏好重新生效，但不写 localStorage。
+       皮肤切换要用：one 皮肤下需要临时把生效主题压成浅色，
+       切回 classic 时再调这个把用户自己的偏好恢复回来。 */
+    repaint: function () { paint(stored() || systemTheme()); },
     set: function (t) {
       if (t !== "light" && t !== "dark") return;
       try { localStorage.setItem(KEY, t); } catch (e) {}

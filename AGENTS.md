@@ -98,6 +98,33 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 
 ---
 
+## 皮肤（skin）机制
+
+两套皮肤 `classic`（v0.2 原版）/ `one`（黑白网格），由 `assets/skin.js` 写在
+`<html data-skin="...">` 上，偏好存 `localStorage.a377skin`。
+
+**核心原则：皮肤是「两套并列的完整样式」，不是「一层覆盖」。**
+
+| 页面 | classic 怎么来 | one 怎么来 |
+| --- | --- | --- |
+| `/`、`/draw/` | 页面内联 `<style>` 里的 `html[data-skin="classic"]` 段 | 同一份 `<style>` 里的 `html[data-skin="one"]` 段 |
+| `/file/`、`/trips/`、`/draw/studio/`、`/draw/code0/` | 页面自己的基础样式（就是 v0.2 的，没动过） | `assets/onepage.css` 覆盖层 |
+
+`assets/skin.js` 必须在 `<head>` **末尾**（页面自身 `<style>` 之后）：它要在解析 body 前
+就把 `data-skin` 定下来（否则闪皮肤），同时决定覆盖层的 `media`。
+
+覆盖层用的是 **`<link id="a377-onepage" … media="not all">`**，skin.js 按皮肤把 `media`
+切成 `all` / `not all`。`classic` 下规则完全不参与匹配 —— 这是防覆盖层泄漏的根本手段，
+比「给每条规则加前缀」更彻底（前缀还是要加，当保险）。
+**`/` 和 `/draw/` 不放这个 link**：它们自带两套样式，而 `onepage.css` 里
+`html[data-skin="one"] .tool{background:#fff!important}` 会把那两页的 hover 反色压死。
+`test_skins.mjs` 里有一条 hover 检查专门盯这个。
+
+`one` 皮肤自成浅色配色，不跟随 `data-theme`：`/file/` `/trips/` 这些页面是深色优先写的，
+浅色靠 `html[data-theme="light"]` 覆盖；`onepage.css` 又把 `--text` 强制成黑色，
+如果 `data-theme` 还是 `dark`，就会出现黑底黑字。所以 skin.js 在 one 皮肤下把生效主题压成
+`light`，并隐藏深浅色开关（one 没有深色变体）。
+
 ## 已知的坑（别重复踩）
 
 - **`Cloud.pull()` 不能再先清空本地**：先拉完云端详情再合并，本地独有的行程会补传；接口按 `created_by` 归属校验。
@@ -111,6 +138,18 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 - **ncm 解密是手写 AES-128** —— Web Crypto 不支持 ECB 模式，别想着替换成原生实现。
 - **`.bat` 文件是 GBK 编码，不要加 `chcp 65001`** —— cmd 按字节偏移读 bat，切代码页
   会让后续行错位，报出看不出根因的错。
+- **`A377Skin.refresh` 不能写成 `refresh: paint`** —— `shell.js` 建完顶栏会调
+  `A377Skin.refresh()`（**不带参数**）。旧版把 `undefined` 当成皮肤值处理，
+  结果每个有顶栏的页面加载时都会把皮肤偏好重置掉，`classic` 永远切不过去。
+  现在 `paint()` 收到非法值会保持当前皮肤不动。
+- **顶栏里的动态按钮必须用事件委托绑** —— `shell.js` 用 `innerHTML` 造按钮，
+  在 `skin.js` 里 `addEventListener` 到具体元素上是绑不到的（v0.4 的 SKIN 按钮就是这样点不动的）。
+  参照 `theme.js` 的 `document.addEventListener("click", ...)` 写法。
+- **`onepage.css` 里每条规则都要带 `html[data-skin="one"]` 前缀** —— 漏了前缀又带
+  `!important` 的规则会穿透到 classic 皮肤和深色主题。虽然现在 classic 下覆盖层的
+  `media` 是 `not all`（不参与匹配），但别把这道保险拆了。
+- **别把 `onepage.css` 挂到 `/` 和 `/draw/` 上** —— 这两页的 one 视图是内联样式自带的，
+  覆盖层里 `html[data-skin="one"] .tool{background:#fff!important}` 会把 hover 反色压死。
 - **密集 curl 测试会触发 Cloudflare 429**（免费套餐频率限制），不是代码问题。
 - `tests/` 下 `npm install` 前**确认 `tests/package.json` 存在**，否则 npm 会一路向上
   找到别的 package.json，把包装到主目录去。
@@ -127,3 +166,18 @@ cd tests && node test_cloud_flow.mjs               # 线上真实流程（会建
 ```
 
 `test_cloud_flow.mjs` 打的是**线上真实站点**，用真实 cookie 模拟浏览器行为。
+
+改了皮肤 / 主题 / 配色之后，跑这个（自带静态服务器 + 无头 Chrome，不用手动开服务）：
+
+```bash
+cd tests && node test_skins.mjs
+```
+
+它覆盖 6 个页面 × 2 套皮肤 × 2 个主题，检查皮肤是否生效、`onepage.css` 是否只在 one
+皮肤加载、顶栏 SKIN 按钮是否真能切换，并自动扫「深底深字」（对比度 < 2.6 会列出来）。
+需要 `puppeteer-core`（已在 `tests/package.json`）和本机 Chrome；
+Chrome 不在默认路径就设 `CHROME_PATH`。也可以 `node test_skins.mjs https://a377.xyz` 直接打线上。
+
+低对比度扫描目前有 7 处已知历史遗留（`home` 的 `drag the letters` 提示、
+`code0` 页脚小字、`trips` classic 皮肤的 `邀请 TA` 按钮等），都不影响判定。
+

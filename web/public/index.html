@@ -3,12 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#faf9f5">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<title>A377Tool</title>
-<script src="/assets/skin.js"></script>
+<link rel="stylesheet" href="/assets/tokens.css">
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/shell.css">
+<script src="/assets/shell.js" defer></script>
+<title>A377Tool · 个人在线工具箱</title>
 <style>
-  :root{
+  /* =====================================================================
+     两套皮肤各写一份完整样式，全部带 html[data-skin="..."] 前缀。
+     本页不加载 /assets/onepage.css（那个覆盖层是给工作台页用的），
+     所以顶栏在 one 皮肤下的黑白化也在这里自带一份。
+     ===================================================================== */
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+
+  /* ============================ 皮肤 one ============================ */
+  html[data-skin="one"]{
     --ink:#000;
     --paper:#fff;
     --copy:#836953;
@@ -17,18 +30,31 @@
     --serif:"Times New Roman",Times,"Songti SC","SimSun",serif;
     --pixel:"Courier New","MS Gothic",Consolas,monospace;
   }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0;min-height:100%}
-  body{
+  html[data-skin="one"] body{
     background:var(--ink);
     color:var(--ink);
     font-family:var(--serif);
     cursor:crosshair;
   }
-  a{color:inherit;text-decoration:none}
-  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-  .page{
-    min-height:100dvh;
+  html[data-skin="one"] a{color:inherit;text-decoration:none}
+  html[data-skin="one"] button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+  /* 顶栏黑白化（与 onepage.css 里那份保持一致） */
+  html[data-skin="one"] .a377bar{
+    background:#000!important;
+    color:#fff!important;
+    border-bottom:1px solid #fff!important;
+    font-family:var(--pixel)!important;
+  }
+  html[data-skin="one"] .a377bar-brand,
+  html[data-skin="one"] .a377bar-nav a,
+  html[data-skin="one"] .a377bar-crumb{color:#fff!important}
+  html[data-skin="one"] .a377bar-nav a[aria-current="page"]{background:#fff!important;color:#000!important}
+  html[data-skin="one"] .a377bar-theme{background:#000!important;color:#fff!important;border-color:#fff!important}
+  html[data-skin="one"] .a377-skip{background:#fff!important;color:#000!important}
+
+  html[data-skin="one"] .page{
+    min-height:calc(100dvh - var(--shell-h, 0px));
     display:grid;
     grid-template-columns:repeat(12,minmax(0,1fr));
     grid-auto-rows:auto;
@@ -36,7 +62,7 @@
     padding:var(--hair);
     background:var(--ink);
   }
-  .cell{
+  html[data-skin="one"] .cell{
     background:var(--paper);
     min-width:0;
     position:relative;
@@ -49,7 +75,7 @@
   }
 
   /* 01 · 巨大名字 */
-  .name{
+  html[data-skin="one"] .name{
     grid-column:1 / -1;
     min-height:42vh;
     overflow:hidden;
@@ -58,7 +84,7 @@
     padding:0;
     user-select:none;
   }
-  .brand{
+  html[data-skin="one"] .brand{
     margin:0;
     font-family:var(--pixel);
     font-weight:700;
@@ -72,14 +98,14 @@
                 -1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;
     -webkit-font-smoothing:none;
   }
-  .brand .l{
+  html[data-skin="one"] .brand .l{
     display:inline-block;
     cursor:grab;
     touch-action:none;
     will-change:transform;
   }
-  .brand .l:active{cursor:grabbing}
-  .name-hint{
+  html[data-skin="one"] .brand .l:active{cursor:grabbing}
+  html[data-skin="one"] .name-hint{
     position:absolute;right:10px;bottom:8px;
     font:10px/1 var(--pixel);
     color:var(--grey);
@@ -88,7 +114,7 @@
   }
 
   /* 02 · 跑马灯 */
-  .ticker{
+  html[data-skin="one"] .ticker{
     grid-column:1 / -1;
     overflow:hidden;
     padding:0;
@@ -97,7 +123,7 @@
     min-height:46px;
     background:var(--paper);
   }
-  .track{
+  html[data-skin="one"] .track{
     display:flex;
     align-items:center;
     gap:0;
@@ -107,12 +133,12 @@
     letter-spacing:.02em;
     animation:move 24s linear infinite;
   }
-  .track span{padding:0 18px}
-  .track i{font-style:normal;color:var(--copy)}
+  html[data-skin="one"] .track span{padding:0 18px}
+  html[data-skin="one"] .track i{font-style:normal;color:var(--copy)}
   @keyframes move{to{transform:translateX(-50%)}}
 
   /* 03 · 简介 */
-  .intro{
+  html[data-skin="one"] .intro{
     grid-column:1 / -1;
     padding:clamp(20px,3vw,42px);
     display:grid;
@@ -120,29 +146,29 @@
     gap:28px;
     align-items:end;
   }
-  .intro .kicker{
+  html[data-skin="one"] .intro .kicker{
     margin:0 0 10px;
     font:700 11px/1 var(--pixel);
     letter-spacing:.15em;
     text-transform:uppercase;
     color:var(--copy);
   }
-  .intro .bio{
+  html[data-skin="one"] .intro .bio{
     margin:0;
     font:700 clamp(20px,3vw,48px)/1.05 var(--serif);
     text-transform:uppercase;
     letter-spacing:-.02em;
     max-width:16ch;
   }
-  .intro .side{
+  html[data-skin="one"] .intro .side{
     font:13px/1.65 var(--pixel);
     color:var(--ink);
     text-transform:uppercase;
   }
-  .intro .side b{display:block;color:var(--copy);font-size:11px;letter-spacing:.12em;margin-bottom:7px}
+  html[data-skin="one"] .intro .side b{display:block;color:var(--copy);font-size:11px;letter-spacing:.12em;margin-bottom:7px}
 
   /* 04 · 三个工具 */
-  .tools{
+  html[data-skin="one"] .tools{
     grid-column:1 / -1;
     display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));
@@ -150,7 +176,7 @@
     padding:0;
     background:var(--ink);
   }
-  .tool{
+  html[data-skin="one"] .tool{
     min-height:32vh;
     display:flex;
     flex-direction:column;
@@ -160,39 +186,43 @@
     background:var(--paper);
     transition:background .16s ease,color .16s ease;
   }
-  .tool .no{
+  html[data-skin="one"] .tool .no{
     font:700 11px/1 var(--pixel);
     letter-spacing:.14em;
     color:var(--copy);
   }
-  .tool h2{
+  html[data-skin="one"] .tool h2{
     margin:0;
     font:700 clamp(25px,3vw,52px)/.95 var(--serif);
     text-transform:uppercase;
     letter-spacing:-.04em;
   }
-  .tool p{
+  html[data-skin="one"] .tool p{
     margin:0;
     font:12.5px/1.6 var(--pixel);
     text-transform:uppercase;
     color:#444;
   }
-  .tool .go{
+  html[data-skin="one"] .tool .go{
     font:700 12px/1 var(--pixel);
     text-transform:uppercase;
     letter-spacing:.08em;
   }
-  .tool:hover,.tool:focus-visible{
+  html[data-skin="one"] .tool:hover,
+  html[data-skin="one"] .tool:focus-visible{
     background:var(--ink);
     color:var(--paper);
     outline:none;
   }
-  .tool:hover .no,.tool:focus-visible .no{color:var(--copy)}
-  .tool:hover p,.tool:focus-visible p{color:var(--grey)}
-  .tool:hover .go,.tool:focus-visible .go{color:var(--copy)}
+  html[data-skin="one"] .tool:hover .no,
+  html[data-skin="one"] .tool:focus-visible .no{color:var(--copy)}
+  html[data-skin="one"] .tool:hover p,
+  html[data-skin="one"] .tool:focus-visible p{color:var(--grey)}
+  html[data-skin="one"] .tool:hover .go,
+  html[data-skin="one"] .tool:focus-visible .go{color:var(--copy)}
 
   /* 05 · 底部 */
-  .foot{
+  html[data-skin="one"] .foot{
     grid-column:1 / -1;
     display:flex;
     align-items:center;
@@ -204,24 +234,91 @@
     letter-spacing:.08em;
     color:#333;
   }
-  .foot .spacer{flex:1}
-  .foot a{border-bottom:1px dotted #333;padding-bottom:2px}
-  .foot a:hover{color:var(--copy);border-color:var(--copy)}
+  html[data-skin="one"] .foot .spacer{flex:1}
+  html[data-skin="one"] .foot a{border-bottom:1px dotted #333;padding-bottom:2px}
+  html[data-skin="one"] .foot a:hover{color:var(--copy);border-color:var(--copy)}
 
   @media (max-width:760px){
-    .name{min-height:34vh}
-    .brand{font-size:18vw}
-    .intro{grid-template-columns:1fr}
-    .tools{grid-template-columns:1fr}
-    .tool{min-height:0}
+    html[data-skin="one"] .name{min-height:34vh}
+    html[data-skin="one"] .brand{font-size:18vw}
+    html[data-skin="one"] .intro{grid-template-columns:1fr}
+    html[data-skin="one"] .tools{grid-template-columns:1fr}
+    html[data-skin="one"] .tool{min-height:0}
   }
   @media (prefers-reduced-motion:reduce){
-    *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+    html[data-skin="one"] *{
+      animation-duration:.01ms!important;
+      animation-iteration-count:1!important;
+      transition-duration:.01ms!important;
+    }
   }
+
+  /* ========================== 皮肤 classic ==========================
+     以下即 v0.2.0 的原始首页样式，只加了 html[data-skin="classic"] 前缀。
+     ================================================================== */
+  html[data-skin="classic"] body{
+    background:var(--ui-bg);color:var(--ui-ink);
+    font:15px/1.65 var(--ui-font);
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
+  }
+  html[data-skin="classic"] .wrap{max-width:900px;margin:0 auto;padding:54px 22px 96px}
+  html[data-skin="classic"] .eyebrow{
+    display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--ui-accent-ink);
+    background:var(--ui-accent-soft);padding:4px 10px;border-radius:var(--ui-r-full);margin-bottom:14px
+  }
+  html[data-skin="classic"] .eyebrow svg{width:12px;height:12px;flex:none}
+  html[data-skin="classic"] .hero h1{margin:0 0 10px;font-size:34px;line-height:1.15;letter-spacing:-.035em;font-weight:650}
+  html[data-skin="classic"] .hero p{margin:0;color:var(--ui-ink-2);font-size:14.5px;max-width:62ch}
+  html[data-skin="classic"] .hero .meta{margin-top:13px;display:flex;flex-wrap:wrap;gap:7px}
+  html[data-skin="classic"] .pill{
+    font-size:11.5px;padding:4px 10px;border-radius:var(--ui-r-full);
+    background:var(--ui-sunken);border:1px solid var(--ui-line);color:var(--ui-ink-2)
+  }
+
+  html[data-skin="classic"] .grid{display:grid;gap:14px;margin-top:30px;grid-template-columns:repeat(auto-fit,minmax(245px,1fr))}
+  html[data-skin="classic"] .card{
+    display:flex;flex-direction:column;min-height:210px;padding:20px 19px;
+    border-radius:var(--ui-r-lg);background:var(--ui-surface);border:1px solid var(--ui-line);
+    text-decoration:none;color:var(--ui-ink);box-shadow:var(--ui-shadow-1);
+    transition:border-color .18s var(--ui-ease),background .18s var(--ui-ease),transform .18s var(--ui-ease)
+  }
+  html[data-skin="classic"] .card:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+  html[data-skin="classic"] .card .ico{
+    width:42px;height:42px;display:grid;place-items:center;flex:none;
+    border-radius:12px;background:var(--ui-accent-soft);color:var(--ui-accent)
+  }
+  html[data-skin="classic"] .card .ico svg{width:21px;height:21px}
+  html[data-skin="classic"] .card h2{margin:15px 0 6px;font-size:17px;font-weight:650;letter-spacing:-.015em}
+  html[data-skin="classic"] .card p{margin:0;color:var(--ui-ink-3);font-size:13px;line-height:1.65}
+  html[data-skin="classic"] .card .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px}
+  html[data-skin="classic"] .card .tag{font-size:11px;padding:3px 8px;border-radius:var(--ui-r-full);background:var(--ui-sunken);color:var(--ui-ink-2)}
+  html[data-skin="classic"] .card .go{margin-top:auto;padding-top:16px;font-size:13px;color:var(--ui-ink-3);display:flex;align-items:center;gap:5px}
+  @media (hover:hover){
+    html[data-skin="classic"] .card:hover{border-color:var(--ui-accent);background:var(--ui-accent-soft);transform:translateY(-2px)}
+    html[data-skin="classic"] .card:hover .go{color:var(--ui-accent);transform:translateX(3px)}
+  }
+
+  html[data-skin="classic"] .note{
+    margin-top:22px;padding:15px 17px;border-radius:var(--ui-r-md);
+    background:var(--ui-sunken);border:1px solid var(--ui-line);color:var(--ui-ink-2);
+    font-size:12.5px;line-height:1.7
+  }
+  html[data-skin="classic"] .note b{color:var(--ui-ink);font-weight:650}
+  html[data-skin="classic"] footer{
+    margin-top:48px;padding-top:20px;border-top:1px solid var(--ui-line);
+    color:var(--ui-ink-3);font-size:12.5px
+  }
+
+  /* ========================== 视图切换 ========================== */
+  html[data-skin="one"] .classic{display:none!important}
+  html[data-skin="classic"] .page{display:none!important}
 </style>
-<link rel="stylesheet" href="/assets/classic.css">
+<script src="/assets/skin.js"></script>
 </head>
-<body>
+<body data-nav="home">
+
+<!-- ============================ one 皮肤视图 ============================ -->
 <main class="page">
 
   <section class="cell name" id="nameBlock" style="--i:0">
@@ -290,19 +387,76 @@
 
 </main>
 
-<main class="classic" id="classicHome">
-  <div class="classic-inner">
-    <div class="classic-eyebrow">A377TOOL / CLASSIC</div>
-    <h1>文件工具箱、生图、见面</h1>
-    <p class="classic-sub">旧版布局入口。文件在浏览器里处理，不上传服务器；生图有在线工作台；见面工具需要登录。</p>
-    <div class="classic-grid">
-      <a class="classic-card" href="/file/"><span class="n">01 / FILE</span><h2>文件工具箱</h2><p>PDF 转图片、重排、合并、拆分、ncm 转音频。</p><span class="go">打开 →</span></a>
-      <a class="classic-card" href="/draw/"><span class="n">02 / DRAW</span><h2>生图工作台</h2><p>Right Code、Code0、文生图、图生图、批量生成。</p><span class="go">打开 →</span></a>
-      <a class="classic-card" href="/trips/"><span class="n">03 / TRIPS</span><h2>周末去哪见面</h2><p>选中间城市、看高铁时长、地图和双人讨论。</p><span class="go">打开 →</span></a>
+<!-- ========================== classic 皮肤视图 ==========================
+     以下即 v0.2.0 的原始首页结构，未做任何改动。
+     ==================================================================== -->
+<div class="wrap classic">
+  <header class="hero">
+    <div class="eyebrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      个人在线工具集合
     </div>
-    <div class="classic-foot"><span>NO UPLOADS</span><span class="sp"></span><span>SKIN: CLASSIC</span></div>
+    <h1>A377Tool</h1>
+    <p>文件处理、AI 生图、周末见面。尽量在浏览器里完成，能不上传的就不上传。</p>
+    <div class="meta">
+      <span class="pill">浅色 / 深色主题全站同步</span>
+      <span class="pill">移动端可用</span>
+      <span class="pill">无账号也能用文件工具箱</span>
+    </div>
+  </header>
+
+  <main class="grid">
+    <a class="card" href="/file/">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/>
+          <path d="M14 2v5h5"/><path d="M9 13h6M9 17h4"/>
+        </svg>
+      </span>
+      <h2>文件工具箱</h2>
+      <p>PDF 转图片、重排页面、合并、拆分，以及 ncm 转音频。文件不上传服务器。</p>
+      <div class="tags"><span class="tag">离线可用</span><span class="tag">PDF</span><span class="tag">ncm</span></div>
+      <span class="go">打开工具箱 <span aria-hidden="true">→</span></span>
+    </a>
+
+    <a class="card" href="/draw/">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/>
+        </svg>
+      </span>
+      <h2>生图工作台</h2>
+      <p>Right Code 与 Code0 两个绘图工作台，支持文生图、图生图、批量与 4K。</p>
+      <div class="tags"><span class="tag">在线图片生成</span><span class="tag">批量</span></div>
+      <span class="go">进入生图 <span aria-hidden="true">→</span></span>
+    </a>
+
+    <a class="card" href="/trips/">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/>
+          <path d="M2 19h20M8 7h8M8 11h5"/>
+        </svg>
+      </span>
+      <h2>周末去哪见面</h2>
+      <p>两个人各自表态，算出对双方都合适的中间城市，附带高铁时长和地图。</p>
+      <div class="tags"><span class="tag">需要登录</span><span class="tag">邀请制</span><span class="tag">地图</span></div>
+      <span class="go">打开见面计划 <span aria-hidden="true">→</span></span>
+    </a>
+  </main>
+
+  <div class="note">
+    <b>一点说明：</b>文件工具箱和生图都尽量在浏览器里跑；见面工具需要登录，并且完全独立于文件数据。
+    浏览器会记住你的浅色 / 深色偏好，切换页面后保持一致。
   </div>
-</main>
+
+  <footer>
+    A377Tool · 个人项目，按需使用。
+  </footer>
+</div>
 
 <script>
 (function(){

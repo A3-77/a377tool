@@ -37,7 +37,10 @@ html[data-skin="one"][data-theme="dark"]{
 
   --bg:#000!important;
   --s1:#fff!important;
-  --s2:#000!important;
+  /* --s2 是「下沉面」色，/trips/ 有 34 处引用（.vibe / .prop / .delta / .hswitch …）。
+     原来是 #000，而这些元素的文字色是 --text(#000) / --dim(#333)，等于黑底黑字看不见。
+     改成浅灰，与 --s3 / --s4 同向。 */
+  --s2:#f5f5f5!important;
   --s3:#f2f2f2!important;
   --s4:#e6e6e6!important;
   --text:#000!important;
@@ -126,16 +129,65 @@ html[data-skin="one"] .a377bar-brand, html[data-skin="one"] .a377bar-nav a, html
 html[data-skin="one"] .a377bar-nav a[aria-current="page"]{background:#fff!important;color:#000!important}
 html[data-skin="one"] .a377bar-theme{background:#000!important;color:#fff!important;border-color:#fff!important}
 
-/* 通用块：方形、黑边、无阴影 */
-.card,.panel,.res,.opts,.drop,.fitem,.hcard,.tripbar,.lockzone,.wbox,.guide,.fold,
-.mbox,.drawer,.cmpbar,.sidebar,.sidebar-inner,.inset-header,.sidebar-container,
-html[data-skin="one"] .syncbar, html[data-skin="one"] .toast, html[data-skin="one"] .tool, html[data-skin="one"] .hubsec, html[data-skin="one"] .hubhead, html[data-skin="one"] .trip, html[data-skin="one"] .foldbody, html[data-skin="one"] .foldinner{
+/* 通用块：方形、黑边、无阴影
+   注意：下面每一条都必须带 html[data-skin="one"] 前缀。
+   漏了前缀又带 !important 的规则会穿透到 classic 皮肤和深色主题，
+   把卡片强制成白底黑边 —— 这是 v0.3/v0.4 皮肤失效的直接原因。 */
+html[data-skin="one"] .card,
+html[data-skin="one"] .panel,
+html[data-skin="one"] .res,
+html[data-skin="one"] .opts,
+html[data-skin="one"] .drop,
+html[data-skin="one"] .fitem,
+html[data-skin="one"] .hcard,
+html[data-skin="one"] .tripbar,
+html[data-skin="one"] .lockzone,
+html[data-skin="one"] .wbox,
+html[data-skin="one"] .guide,
+html[data-skin="one"] .fold,
+html[data-skin="one"] .mbox,
+html[data-skin="one"] .drawer,
+html[data-skin="one"] .cmpbar,
+html[data-skin="one"] .sidebar,
+html[data-skin="one"] .sidebar-inner,
+html[data-skin="one"] .inset-header,
+html[data-skin="one"] .sidebar-container,
+html[data-skin="one"] .syncbar,
+html[data-skin="one"] .toast,
+html[data-skin="one"] .tool,
+html[data-skin="one"] .hubsec,
+html[data-skin="one"] .hubhead,
+html[data-skin="one"] .trip,
+html[data-skin="one"] .foldbody,
+html[data-skin="one"] .foldinner{
   border-radius:0!important;
   box-shadow:none!important;
 }
-.card,.panel,.res,.opts,.drop,.fitem,.hcard,.tripbar,.lockzone,.wbox,.guide,.fold,
-.mbox,.drawer,.cmpbar,.sidebar,.sidebar-inner,.inset-header,.sidebar-container,
-html[data-skin="one"] .syncbar, html[data-skin="one"] .toast, html[data-skin="one"] .tool, html[data-skin="one"] .hubsec, html[data-skin="one"] .hubhead, html[data-skin="one"] .trip{
+html[data-skin="one"] .card,
+html[data-skin="one"] .panel,
+html[data-skin="one"] .res,
+html[data-skin="one"] .opts,
+html[data-skin="one"] .drop,
+html[data-skin="one"] .fitem,
+html[data-skin="one"] .hcard,
+html[data-skin="one"] .tripbar,
+html[data-skin="one"] .lockzone,
+html[data-skin="one"] .wbox,
+html[data-skin="one"] .guide,
+html[data-skin="one"] .fold,
+html[data-skin="one"] .mbox,
+html[data-skin="one"] .drawer,
+html[data-skin="one"] .cmpbar,
+html[data-skin="one"] .sidebar,
+html[data-skin="one"] .sidebar-inner,
+html[data-skin="one"] .inset-header,
+html[data-skin="one"] .sidebar-container,
+html[data-skin="one"] .syncbar,
+html[data-skin="one"] .toast,
+html[data-skin="one"] .tool,
+html[data-skin="one"] .hubsec,
+html[data-skin="one"] .hubhead,
+html[data-skin="one"] .trip{
   border:1px solid #000!important;
   background:#fff!important;
   color:#000!important;
@@ -144,6 +196,8 @@ html[data-skin="one"] header{background:#fff!important;border-bottom:1px solid #
 html[data-skin="one"] header .logo, html[data-skin="one"] header .who, html[data-skin="one"] header .chip, html[data-skin="one"] header .iconbtn{color:#000!important}
 html[data-skin="one"] .gatebox{background:#fff!important;border:1px solid #000!important;border-radius:0!important;box-shadow:none!important}
 html[data-skin="one"] .gate{background:rgba(0,0,0,.82)!important}
+/* 无障碍跳转链接：shell.css 用的是 --ui-ink 底 + --ui-bg 字，one 皮肤下两者都是黑 */
+html[data-skin="one"] .a377-skip{background:#000!important;color:#fff!important;border-radius:0!important}
 
 /* 按钮 */
 html[data-skin="one"] .btn, html[data-skin="one"] .ui-btn, html[data-skin="one"] .miniBtn, html[data-skin="one"] .gsubmit, html[data-skin="one"] .newtrip, html[data-skin="one"] .act, html[data-skin="one"] .iconbtn, html[data-skin="one"] .gx, html[data-skin="one"] .foldhead, html[data-skin="one"] .hswitch, html[data-skin="one"] .hlink, html[data-skin="one"] .rail2{
@@ -159,7 +213,8 @@ html[data-skin="one"] .btn.primary, html[data-skin="one"] .ui-btn.primary, html[
   background:#000!important;
   color:#fff!important;
 }
-.btn.primary:hover:not(:disabled),.ui-btn.primary:hover:not(:disabled),
+html[data-skin="one"] .btn.primary:hover:not(:disabled),
+html[data-skin="one"] .ui-btn.primary:hover:not(:disabled),
 html[data-skin="one"] .gsubmit:hover, html[data-skin="one"] .newtrip:hover, html[data-skin="one"] .go:hover{background:var(--op-copy)!important;color:#fff!important}
 html[data-skin="one"] .btn.ghost, html[data-skin="one"] .ui-btn.ghost{background:#fff!important;color:#000!important}
 html[data-skin="one"] button:focus-visible, html[data-skin="one"] a:focus-visible, html[data-skin="one"] input:focus-visible, html[data-skin="one"] select:focus-visible, html[data-skin="one"] textarea:focus-visible{
@@ -192,6 +247,14 @@ html[data-skin="one"] .bar, html[data-skin="one"] .pbar{
 html[data-skin="one"] .bar i, html[data-skin="one"] .pbar>div{background:var(--op-copy)!important}
 html[data-skin="one"] .dot, html[data-skin="one"] .sw, html[data-skin="one"] .av, html[data-skin="one"] .no, html[data-skin="one"] .hnum, html[data-skin="one"] .bnum{border-radius:0!important}
 html[data-skin="one"] svg{rx:0}
+
+/* /trips/ 里这几个强调色是写死的，按深色底调过。one 皮肤是浅色面，
+   原色对比度不够（粉 #e08aa4 压在白底上只有 2.3），换成同色相的深色版。 */
+html[data-skin="one"] .delta .d{color:#b03060!important}
+html[data-skin="one"] .tag.ok{color:#1f6b48!important}
+html[data-skin="one"] .tag.worn{color:#9a5570!important}
+html[data-skin="one"] .tag.rain{color:#2f6ea8!important}
+html[data-skin="one"] .iconbtn.accent{color:#836953!important}
 
 /* 滚动条 */
 html[data-skin="one"] *{scrollbar-color:#000 #fff}
