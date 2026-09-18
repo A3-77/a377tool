@@ -191,10 +191,22 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 
 `SESSION_SECRET`、`ADMIN_TOKEN`、`ADMIN_EMAIL`、`MAIL_FROM`、`RESEND_KEY`、`CODE0_API_KEY`
 
-改完 **必须重新部署**才生效（secrets 在部署时绑定）。
-`ADMIN_TOKEN` 要够强 —— 它护着 `/api/approve`（能批准注册）和 `/api/site-admin`
-（能改首页），两个接口都没有失败次数限制，弱口令等于把站点交出去。
-用户曾在控制台把它改成 `admin`，被拦下来了。生成方式见 `在线版部署说明.md`。
+改完 **必须重新部署**才生效（secrets 在部署时绑定）。验证方法：拿新值 curl 一下，
+`/api/site-admin?key=<值>` 返回 200 就是生效了。
+
+`ADMIN_TOKEN` 护着 `/api/approve`（能**批准注册**，等于发放 `/trips` 访问权）
+和 `/api/site-admin`（能**改首页**），两个接口都没有失败次数限制。
+
+> **2026-09-18：用户知情后选择使用弱口令。**
+> 已把风险、影响范围、生成强口令的命令都说明过，用户回复「就用 admin」。
+> 这是用户的站点、用户的选择 —— 不再重复劝阻。
+>
+> 但要记住两件事：
+> 1. **本仓库是公开的**，`README.md` / `AGENTS.md` 写明了这两个后台的路径。
+>    路径 + 弱口令 = 任何人可进。所以**绝不要把这个口令的值写进仓库**，
+>    也别写进 commit message（git 历史删不掉）。
+> 2. 用户以后改主意的话，`wrangler pages secret put ADMIN_TOKEN` 重设 + 重新部署即可，
+>    命令见 `在线版部署说明.md`。
 
 **4. 不要向用户索要 Cloudflare API Token**
 
