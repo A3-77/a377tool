@@ -23,6 +23,9 @@ tests/web_*.zip
 tests/thumbs_*.zip
 tests/merged_*.pdf
 tests/out_*
+# 皮肤对照图的生成产物（跑 tests/skin-compare/gen.mjs 得到）
+tests/skin-compare/shots/
+tests/skin-compare/index.html
 
 # ---- 系统 ----
 .DS_Store

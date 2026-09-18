@@ -63,6 +63,98 @@ npx wrangler pages dev public --d1=DB --persist-to .d1dev --port 8789
 
 ---
 
+## Git 与仓库操作
+
+仓库没配 git 身份，提交时用 `-c` 临时传，**身份要和历史提交一致**：
+
+```bash
+git -c user.name="A377" -c user.email="1357390150@qq.com" commit -m "..."
+```
+
+### 不要用 `git rebase`
+
+**实测踩过**：rebase 被 SIGTERM 打断后，`.git/refs/` 整个目录被删、`.git/logs/` 消失、
+新提交的 tree 对象丢失，git 直接报 `fatal: not a git repository`。
+
+push 被拒（`non-fast-forward`）时**不要 `git pull --rebase`**，用 plumbing 在远端提交之上重建：
+
+```bash
+git fetch origin main
+git log --oneline HEAD..FETCH_HEAD              # 远端多了什么
+git show --stat FETCH_HEAD
+git diff HEAD FETCH_HEAD -- README.md           # 具体差异
+
+# 远端改动和本地不重叠时，直接套补丁到工作区
+git diff <基线提交> FETCH_HEAD -- README.md | git apply -v
+
+git add -A
+TREE=$(git write-tree)
+NEW=$(git -c user.name="A377" -c user.email="1357390150@qq.com" \
+        commit-tree "$TREE" -p "$(git rev-parse FETCH_HEAD)" -F .git/COMMIT_EDITMSG)
+git update-ref refs/heads/main "$NEW"
+git reset --mixed HEAD
+git push origin main
+```
+
+`commit-tree -p` 显式指定 parent，新提交就是远端提交的直接子提交 → push 是 fast-forward。
+全程无中间状态，哪一步失败都不会破坏仓库。
+
+### 改 `README.md` 前先 `git fetch`
+
+用户在 GitHub 网页上手动编辑过它（删掉了内置测试账号和「API Key 内置在前端」那两行）。
+不先 fetch 就改，会把用户删掉的敏感信息又提交回去。
+
+### `update-ref` 写 `refs/remotes/origin/*` 不生效
+
+`git fetch` 会打印 `abc..def  main -> origin/main`，看着成功了，但 `git rev-parse origin/main`
+读到的还是旧值，`git status` 一直显示 `ahead N`。真实值在 `.git/packed-refs` 里，松散 ref 没写进去。
+直接写文件绕过（松散 ref 优先于 `packed-refs`）：
+
+```bash
+mkdir -p .git/refs/remotes/origin
+printf '<sha>\n' > .git/refs/remotes/origin/main
+```
+
+### 仓库损坏怎么恢复
+
+**先确认工作区文件是否完好** —— 只要文件在，代码就没丢，`.git` 怎么坏都能重建。
+
+| 症状 | 病因 |
+| --- | --- |
+| `fatal: not a git repository`（`.git` 明明在） | `.git/refs/` 目录没了 |
+| `bad tree object HEAD` | HEAD 的 commit 在，它的 tree 丢了 |
+| `unable to read <sha>` | `.git/index` 的 cache-tree 引用了已丢失的对象 |
+| `invalid reflog entry <sha>`（fsck） | `.git/logs/` 里的 reflog 指向已删对象 |
+
+```bash
+mkdir -p .git/refs/heads .git/refs/tags
+printf '<good-sha>\n' > .git/refs/heads/main   # 先指回一个对象完整的提交
+cp .git/index .git/index.bak && rm -f .git/index
+git read-tree HEAD                              # 重建索引
+git status --short                              # 改动全部重新浮现，逐条核对
+# 再用上面的 commit-tree 流程重新提交
+
+rm -rf .git/logs                                # 清掉指向已删对象的 reflog
+git fsck --no-progress                          # 无输出 = 干净
+```
+
+### 发布 release
+
+先对齐历史约定：`gh release list` 看标题风格，`git cat-file -p v0.4.0 | head -8` 看 tag 是
+轻量还是 annotated（**历史都是 annotated**）。
+
+```bash
+git tag -a v1.0.0 -m "A377Tool v1.0.0" <sha> && git push origin v1.0.0
+gh release create v1.0.0 --title "A377Tool v1.0.0" --notes-file "C:/path/notes.md"
+```
+
+发之前把 `RELEASE_NOTES.md` 里的「待发布 / 发布日期：待定」落定成实际日期，单独提交一次。
+
+> **`gh` 的路径参数要用 Windows 形式** —— Git Bash 的 `/c/Users/...` 传给 `gh` 会报
+> `The system cannot find the path specified.`，要写成 `C:/Users/...`。
+
+---
+
 ## 安全红线
 
 **1. 不要把任何密钥写进代码**
@@ -127,6 +219,9 @@ npx wrangler d1 export meet-db --remote --output=./backup.sql
 
 ## 已知的坑（别重复踩）
 
+- **不要用 `git rebase`** —— 被 SIGTERM 打断会删掉 `.git/refs`，仓库直接报
+  `not a git repository`。push 被拒时改用 `commit-tree` 在远端提交之上重建，
+  见上面「Git 与仓库操作」。改 `README.md` 前也要先 `git fetch`（用户在网页上手动改过）。
 - **`Cloud.pull()` 不能再先清空本地**：先拉完云端详情再合并，本地独有的行程会补传；接口按 `created_by` 归属校验。
 - **邀请链接是前端状态编码**：`#s=...` 在线上登录后也会导入，不依赖后端。
 
@@ -180,4 +275,13 @@ Chrome 不在默认路径就设 `CHROME_PATH`。也可以 `node test_skins.mjs h
 
 低对比度扫描目前有 7 处已知历史遗留（`home` 的 `drag the letters` 提示、
 `code0` 页脚小字、`trips` classic 皮肤的 `邀请 TA` 按钮等），都不影响判定。
+
+要**人眼确认视觉效果**（断言查不出来的「看着不对」），跑这个出对照图：
+
+```bash
+cd tests && node skin-compare/gen.mjs
+```
+
+它把 6 个页面 × 3 种状态（classic 浅色 / classic 深色 / one）截成一张对照页，
+输出 `tests/skin-compare/index.html`。截图和对照页都是生成产物，已在 `.gitignore` 里。
 
