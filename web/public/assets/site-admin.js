@@ -414,6 +414,9 @@
       return {
         file: r.file, color: "",
         note: r.note + (extra.length ? "（" + extra.join("；") + "）" : ""),
+        /* 处理完还是没达标（体积压不下去、或改完仍有违规）必须说出来 ——
+           默默传一个不合规的文件，用户只会以为工具坏了 */
+        warn: r.warn || "",
       };
     }).catch(function (e) {
       /* 处理不了就原样传，让服务端按规则判。但必须把原因说清楚 ——

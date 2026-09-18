@@ -381,9 +381,15 @@
      探测 → 判定 → （需要就）转码 → 复核体积。
      返回的 file 可以直接丢给上传流程。
 
-     体积复核是必要的：MediaRecorder 的码率是目标值不是保证值，
-     复杂画面可能超出去。超了就降码率重来一次，最多一次 ——
-     再来第二次用户等不起，不如把实情告诉他。 */
+     体积复核要做，但**故意不做「超了就降码率重试」**。原本有一段，实测后删了：
+     MediaRecorder 的码率是目标值不是保证值，可它是**往低了偏**，不是往高了偏 ——
+     1920×1080 / 20 秒的复杂素材压到 720×480 / 8 秒，目标 1.5MB 时实际只出 783KB，
+     一半预算都没用掉。而它另有一个质量下限：同一素材请求 150kbps 和 32kbps
+     都出 ~170KB，再降也不会更小。所以「超标」只在目标被压到 170KB 以下时才可能出现，
+     那个量级下重试同样救不回来（已经坐在下限上了）；
+     更糟的是原来的 Math.max(120, kbps*0.6) 会把码率**调高**，
+     实测重试出来比第一次更大（166KB → 171KB）。
+     结论：把实情报出来，别重编一遍骗自己。 */
   async function process(file, profileId, override, hooks) {
     hooks = hooks || {};
     var p = await plan(file, profileId, override);
@@ -406,18 +412,19 @@
     afterMeta.bytes = out.bytes;
     var after = V.analyze(afterMeta, profileId, override);
 
+    /* 压不到目标就说出来，别默默传上去一个不合规的文件。
+       两种可能：① 体积没压到目标（浏览器编码器有质量下限）
+                 ② 改完还是不合规（时长读不出来、编码器到顶了） */
     var overshoot = out.bytes > p.analysis.ops.targetBytes;
-    if (overshoot && p.analysis.ops.fallbackKbps && !hooks.noRetry) {
-      if (hooks.onProgress) hooks.onProgress(0, "体积超了，降码率重来");
-      if (hooks.onNote) hooks.onNote("第一次出来 " + fmtSize(out.bytes) +
-        " 超过 " + fmtSize(p.analysis.ops.targetBytes) + "，降码率重来一遍");
-      var retryOps = JSON.parse(JSON.stringify(p.analysis.ops));
-      retryOps.fallbackKbps = Math.max(120, Math.round(retryOps.fallbackKbps * 0.6));
-      var retryAnalysis = Object.assign({}, p.analysis, { ops: retryOps });
-      out = await transcode(file, retryAnalysis, hooks);
-      afterMeta = await probeFile(out.file);
-      afterMeta.bytes = out.bytes;
-      after = V.analyze(afterMeta, profileId, override);
+    var warn = "";
+    if (overshoot) {
+      warn = "压到 " + fmtSize(out.bytes) + " 就到头了（目标 " +
+        fmtSize(p.analysis.ops.targetBytes) + "），浏览器编码器有质量下限，" +
+        "要更小得走命令行";
+    } else if (after && !after.ok) {
+      warn = "处理完还有不达标的地方：" + after.issues
+        .filter(function (i) { return i.level !== "info"; })
+        .map(function (i) { return i.msg; }).join("；");
     }
 
     return {
@@ -427,6 +434,8 @@
       meta: p.meta,
       outMeta: afterMeta,
       skipped: false,
+      overshoot: overshoot,
+      warn: warn,
       bytes: out.bytes,
       note: fmtSize(p.meta.bytes) + " " + fmtSeconds(p.meta.seconds) + " " +
             p.meta.width + "×" + p.meta.height +

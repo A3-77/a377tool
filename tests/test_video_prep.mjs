@@ -560,6 +560,7 @@ async function testBrowser() {
         seconds: out.outMeta.seconds, ok: out.after ? out.after.ok : null,
         issues: out.after ? out.after.issues.map((i) => i.level + ":" + i.field) : [],
         skipped: !!out.skipped, notes,
+        overshoot: out.overshoot, warn: out.warn || "",
       };
     }, base + "/fixture/big-1080p-16x9.mp4");
     const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
@@ -575,6 +576,11 @@ async function testBrowser() {
     check("产出格式是服务端收的（mp4 或 webm）",
       /\.(mp4|webm)$/.test(res.name), res.name);
     check("转码后重新判定为合规", res.ok === true, JSON.stringify(res.issues));
+    /* 编码器是往低了偏的（1.5MB 目标只出 ~780KB），所以正常档位下绝不该报超标。
+       报了就是判定的阈值算错了 —— 那种误报会让用户白等一轮重编。 */
+    check("正常档位下不误报超标、也不带告警",
+      res.overshoot === false && res.warn === "",
+      JSON.stringify({ overshoot: res.overshoot, warn: res.warn }));
 
     /* 落盘的产出物用 ffprobe 独立复核 —— 不能只信浏览器自己的说法 */
     const savedFile = path.join(BROWSER_OUT, res.name);
@@ -616,6 +622,32 @@ async function testBrowser() {
     }, base + "/fixture/already-ok.mp4");
     check("已经合规的素材直接跳过、不白等一轮实时转码", skip.skipped === true,
       JSON.stringify(skip));
+
+    /* ---- 压不到目标时必须如实报告 ----
+       浏览器编码器有质量下限：实测 720×480 / 8 秒的复杂画面，
+       请求 150kbps 和 32kbps 都出 ~170KB，再降码率也不会更小。
+       把目标压到这个下限以下，引擎必须明说「压不下去了」，
+       而不是默默返回一个超标的文件、让用户以为处理好了。
+       这条同时钉住「不做降码率重试」这个决定 —— 在下限面前重试是无效动作，
+       而且原来那版还会把码率调高，重试出来比第一次更大。 */
+    console.log("    " + "把目标压到编码器下限以下，看它说不说…");
+    const tiny = await page.evaluate(async (url) => {
+      const r = await fetch(url);
+      const f = new File([await r.blob()], "big-1080p-16x9.mp4", { type: "video/mp4" });
+      const target = 60 * 1024;
+      const out = await VideoPrep.process(f, "loop-card", { targetBytes: target }, {});
+      return {
+        bytes: out.bytes, target, overshoot: out.overshoot,
+        warn: out.warn || "", skipped: !!out.skipped,
+        ok: out.after ? out.after.ok : null,
+      };
+    }, base + "/fixture/big-1080p-16x9.mp4");
+    console.log("    目标 " + V.fmtSize(tiny.target) + "，实际压到 " + V.fmtSize(tiny.bytes));
+    check("压不到目标时把实情报出来（overshoot 标志 + 一句人话）",
+      tiny.overshoot === true && tiny.warn.length > 0 && tiny.bytes > tiny.target,
+      JSON.stringify(tiny));
+    check("报的是「压不下去」的原因，不是假装成功",
+      /质量下限/.test(tiny.warn) && tiny.ok === false, tiny.warn);
 
     /* ---- 时长读不出来的素材 ----
        MediaRecorder 录出来的 webm 没有时长元数据，<video>.duration 是 Infinity，

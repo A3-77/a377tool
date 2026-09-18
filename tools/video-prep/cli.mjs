@@ -306,7 +306,10 @@ async function cmdFix(files, opts) {
       let encErr = null;
       for (let attempt = 0; attempt < 3 && bytes > r.ops.targetBytes; attempt++) {
         if (attempt) {
-          kbps = Math.max(80, Math.round(kbps * 0.85));
+          /* 必须**严格变小**：原来的 Math.max(80, kbps * 0.85) 在目标很小时
+             （50KB 反推 38kbps）反而把码率抬到 80，重试出来比上一次更大。
+             下限 8kbps 只是防呆，正常到不了那儿。 */
+          kbps = Math.max(8, Math.min(Math.round(kbps * 0.85), kbps - 1));
           say("  " + dim(`还是 ${V.fmtSize(bytes)}，降到 ${kbps} kbps 再编一遍…`));
         }
         try {

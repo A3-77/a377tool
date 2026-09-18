@@ -52,6 +52,9 @@ tools/video-prep/           视频资产管线（独立命令行工具）
 ├── ffmpeg.mjs              ffprobe 探测 + ffmpeg 转码封装
 └── README.md               档位表、参数、两条路径的取舍
 
+tools/deploy.sh             部署（自动补 KV 命名空间那步，发完跑校验）
+tools/verify-deploy.mjs     部署校验：线上跑的是不是当前这份代码
+
 pdf2img/                    本地版 PDF 工具（Python）
 tests/                      测试脚本
 ```
@@ -63,6 +66,14 @@ tests/                      测试脚本
 **只有一条路**：wrangler 直接上传（Direct Upload），没有接 Git 自动部署。
 
 ```bash
+CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='5117ffc876a76ef7302775c45a3b6918' \
+  bash tools/deploy.sh
+```
+
+`tools/deploy.sh` 会在部署前补上「KV 命名空间没建」那一步（幂等），
+部署后自动跑校验。想手动来就是：
+
+```bash
 cd web
 CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='5117ffc876a76ef7302775c45a3b6918' \
   npx --yes wrangler@latest pages deploy public \
@@ -70,6 +81,21 @@ CLOUDFLARE_API_TOKEN='<令牌>' CLOUDFLARE_ACCOUNT_ID='5117ffc876a76ef7302775c45
 ```
 
 > **不要用 curl 直接调 Pages 上传 API** —— 那是两段式的，会返回 success 但访问 500。
+
+### 部署后必须跑校验：`tools/verify-deploy.mjs`
+
+```bash
+node tools/verify-deploy.mjs                  # 默认 https://a377.xyz
+```
+
+**为什么不能只看状态码**：Pages 对不存在的路径会**回落到 `index.html` 并返回 200**。
+所以「某个文件 / 接口根本没部署上去」在 `curl -w "%{http_code}"` 眼里和正常一模一样 ——
+200、页面能开、不报错，只是内容是一整页 HTML。必须查 **Content-Type 和内容特征**。
+
+> **真实教训（2026-09-18）**：线上停在 `633fcbe`，上传功能是 `eb496d1` 才加的 ——
+> 后面 4 个提交（含整个视频管线）**从没部署过**。症状是「后台点上传没反应」，
+> 但首页、`/file/`、`/api/me` 全正常，看状态码一切健康。
+> 根因不是代码，是**没部署**。查这类问题第一步就是跑这个脚本。
 
 本地预览要跑 Functions、D1 和 KV，**必须用 wrangler**：
 
@@ -84,6 +110,8 @@ npx wrangler pages dev public --d1=DB --kv=MEDIA --persist-to .d1dev --port 8789
 
 KV 命名空间只建一次（`npx wrangler kv namespace create MEDIA`），
 把 id 填进 `wrangler.toml`，然后重新部署才在线上生效。
+`tools/deploy.sh` 会自动做这两步；漏了的后果是部署成功、站点正常、
+但上传返回 503「没有绑定素材存储」—— 看起来像「传不上去」，实际是绑定没生效。
 
 只看工具箱静态页面的话 `python -m http.server` 也行。
 
@@ -507,6 +535,13 @@ node tools/video-prep/cli.mjs fix   <文件> --upload --base <站点> --token <�
 
 - **改完 secret 必须重新部署才生效** —— Pages 的 secrets 是部署时绑定的。第一次配
   `CODE0_API_KEY` 后忘了重新部署，`/api/code0/status` 一直返回 `key: false`，查了半天。
+- **「功能没部署上去」看状态码发现不了** —— Pages 对不存在的路径会**回落到
+  `index.html` 并返回 200**。线上停在 `633fcbe`（上传功能是 `eb496d1` 才加的），
+  后面 4 个提交含整个视频管线都没部署过；表现是「后台点上传没反应」，
+  但首页、`/file/`、`/api/me` 全正常，`curl -w "%{http_code}"` 一切健康，
+  `/api/media` 返回的是首页 HTML、`/assets/video-prep.js` 也不存在。
+  **改完 `public/` 或 `functions/` 就重新部署，然后用 `node tools/verify-deploy.mjs`
+  验**（查 Content-Type 和内容特征，不查状态码）。
 - **PDF 渲染必须配 `standardFontDataUrl`** —— 用标准字体又没嵌入的 PDF，不给这个
   参数**文字会静默消失**（图形正常，只有字不见）。
 - **Resend 免费版只能发给注册邮箱** —— 要发给别人得先在 Resend 验证 `a377.xyz` 域名。
@@ -662,11 +697,16 @@ Photo Stack 的几何与换片动画、**素材上传**（类型/体积/空文�
 cd tests && node test_video_prep.mjs
 ```
 
-覆盖 78 项，三段：档位模块纯函数（含和服务端上限的一致性）、
+覆盖 81 项，三段：档位模块纯函数（含和服务端上限的一致性）、
 命令行真跑 ffmpeg（产出物用 ffprobe 复核 faststart / 比例 / 音轨 / 可解码）、
 无头 Chrome 真转码（产出物落盘后再用 ffprobe 独立复核）。
 需要 ffmpeg 在 PATH 上；Chrome 不在默认路径就设 `CHROME_PATH`。
 产物在 `tests/out_videoprep/`（已 gitignore）。
+
+> 其中「压不到目标时如实报告」那条把**浏览器编码器的质量下限**钉住了：
+> 720×480 / 8 秒的复杂画面，请求 150kbps 和 32kbps 都出 ~174KB，再降也不会更小。
+> 所以**不要给网页端加「超了降码率重试」** —— 在下限面前重试是无效动作，
+> 而且很容易写成把码率调高的反向 bug（踩过）。详见 `video-prep.js` 的 `process()` 注释。
 
 > 断言查不出「好不好看」。改完视觉**一定要打开截图看**：
 > 画廊背片是否可见、Photo Stack 的背片有没有被裁掉，这两类问题断言全绿也会发生。
