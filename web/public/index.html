@@ -313,10 +313,6 @@
     </div>
   </div>
 
-  <!-- 展示组件（弧形画廊 / Photo Stack）。内容由 /assets/showcase.js 按 /api/site 渲染；
-       两个组件都关着时这里保持空且隐藏。 -->
-  <div data-showcase hidden></div>
-
   <section class="tools">
     <a class="cell tool" href="/file/" style="--i:3">
       <span class="no">01 / FILE</span>
@@ -350,6 +346,11 @@
     <a href="/trips/">TRIPS</a>
   </footer>
 
+  <!-- 展示组件（弧形画廊 / Photo Stack）。内容由 /assets/showcase.js 按 /api/site 渲染；
+       两个组件都关着时这里保持空且隐藏。放到 footer 后面是产品要求：
+       「先让用户看完主内容（品牌 + 工具），再在最底端给一段视频演示」。 -->
+  <div data-showcase hidden></div>
+
 </main>
 
 <!-- ========================== classic 皮肤视图 ==========================
@@ -371,9 +372,6 @@
       <span class="pill">无账号也能用文件工具箱</span>
     </div>
   </header>
-
-  <!-- 与 one 视图同一份展示组件，内容由 /assets/showcase.js 按当前皮肤挂载到这一个 -->
-  <div data-showcase hidden></div>
 
   <main class="grid">
     <a class="card" href="/file/">
@@ -424,6 +422,9 @@
   <footer>
     A377Tool · 个人项目，按需使用。
   </footer>
+
+  <!-- 展示组件（与 one 视图同一份，按当前皮肤挂载）。同样放在 footer 后面。 -->
+  <div data-showcase hidden></div>
 </div>
 
 <script>
