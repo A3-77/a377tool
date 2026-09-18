@@ -13,8 +13,8 @@
  *   1. 接口：/api/site 只吐启用的组件；/api/site-admin 的鉴权、保存、恢复默认
  *   2. 渲染：画廊真的建出来了、卡片按角度分布、边缘压暗生效、切皮肤后还在
  *   3. 交互：Photo Stack 点最上面那张真的换片（弹簧解算在跑），不是静态的
- *   4. 素材上传：类型/体积/空文件/路径穿越都被挡住；读回来字节一致；
- *      后台拖图真的上传、上传前压缩真的跑了
+ *   4. 素材上传：类型/体积/空文件/路径穿越都被挡住；图片和视频读回来都字节一致；
+ *      后台拖图/拖视频真的上传、上传前压缩真的跑了、视频前台真的渲染成 <video>
  *   5. 后台面板：控件齐全、没有幽灵滚动区
  *   6. 恢复默认
  * 测试结束会把 photostack 恢复成默认关闭、并删掉自己上传的素材，保证可重复跑。
@@ -602,8 +602,36 @@ const manyBody = await many.json().catch(() => null);
 check("一次能传多个（可多选上传）", many.status === 200 && manyBody?.files?.length === 3,
   many.status + " " + (manyBody?.files?.length ?? "?"));
 
+/* ---- 视频 ---- 用户问的是「图片或者视频」，图片验完必须验视频。
+   用仓库里那个真的 mp4（画廊的占位视频），不是造出来的假字节。 */
+const MP4 = fs.readFileSync(path.join(__dirname, "..", "web", "public", "assets", "showcase", "v1.mp4"));
+const upVid = await up(TOKEN, new Blob([MP4], { type: "video/mp4" }), "我的视频.mp4");
+const upVidBody = await upVid.json().catch(() => null);
+check("上传视频 → 200 且落到 .mp4",
+  upVid.status === 200 && /\.mp4$/.test(upVidBody?.files?.[0]?.url || ""),
+  upVid.status + " " + JSON.stringify(upVidBody));
+
+if (upVidBody?.files?.[0]?.url) {
+  const gv = await fetch(BASE + upVidBody.files[0].url);
+  const gvBuf = Buffer.from(await gv.arrayBuffer());
+  check("视频读回来字节一致（二进制没被文本处理坏）", gvBuf.equals(MP4),
+    gvBuf.length + " vs " + MP4.length);
+  check("视频回的是 video/mp4", gv.headers.get("content-type") === "video/mp4",
+    gv.headers.get("content-type"));
+}
+
+/* 视频体积上限比图片大（20MB vs 10MB），别把两个上限写成一个 */
+const upVidHuge = await up(TOKEN, new Blob([Buffer.alloc(11 * 1024 * 1024)], { type: "video/mp4" }), "big.mp4");
+check("11MB 的视频放行（视频上限比图片宽）", upVidHuge.status === 200, "got " + upVidHuge.status);
+
+const upVidHugeBody = await upVidHuge.json().catch(() => null);
+const upVidOver = await up(TOKEN, new Blob([Buffer.alloc(21 * 1024 * 1024)], { type: "video/mp4" }), "huge.mp4");
+check("21MB 的视频被拒 → 413（KV 单值 25MiB 要留余量）",
+  upVidOver.status === 413, "got " + upVidOver.status);
+
 /* 删掉刚才为测试造出来的文件，别让本地 KV 越跑越大 */
-const toClean = [...(upOkBody?.files || []), ...(manyBody?.files || [])].map((f) => f.url);
+const toClean = [...(upOkBody?.files || []), ...(manyBody?.files || []),
+                 ...(upVidBody?.files || []), ...(upVidHugeBody?.files || [])].map((f) => f.url);
 let delOk = 0;
 for (const u of toClean) {
   const r = await fetch(BASE + u + "?key=" + encodeURIComponent(TOKEN), { method: "DELETE" });
@@ -848,14 +876,58 @@ check("照片底色自动取了图里的平均色（不用手填）",
   /^\/api\/media\/m\//.test(psUp.src) && r8 > 150 && g8 < 90 && b8 < 110,
   psUp.color + "（拖进去的是 rgb(200,40,60)）");
 
+/* ---- 视频也要能拖进来，并且前台真的当视频渲染 ----
+   只验接口不够：素材传上去了、后台标成视频了，但前台渲染成 <img> 就是一块破图。 */
+await admin.evaluate(async () => {
+  const blob = await (await fetch("/assets/showcase/v1.mp4")).blob();
+  const block = [...document.querySelectorAll(".block")].find(
+    (x) => x.querySelector(".block-head .kind")?.textContent === "gallery");
+  const dt = new DataTransfer();
+  dt.items.add(new File([blob], "我的视频.mp4", { type: "video/mp4" }));
+  block.querySelector(".list").dispatchEvent(
+    new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+});
+await sleep(3500);
+
+const vidUi = await admin.evaluate(() => {
+  const b = [...document.querySelectorAll(".block")].find(
+    (x) => x.querySelector(".block-head .kind")?.textContent === "gallery");
+  const items = [...b.querySelectorAll(".item")];
+  const last = items[items.length - 1];
+  return {
+    src: last.querySelector('input[type="text"]')?.value || "",
+    kind: last.querySelector(".thumb-slot")?.getAttribute("data-kind"),
+    thumbIsVideo: !!last.querySelector(".thumb-slot video"),
+    title: [...last.querySelectorAll('input[type="text"]')][1]?.value || "",
+  };
+});
+check("视频拖进列表也能上传", /^\/api\/media\/m\/.*\.mp4$/.test(vidUi.src), vidUi.src);
+check("后台把它标成视频（VID 角标），不是图片",
+  vidUi.kind === "video" && vidUi.thumbIsVideo, vidUi.kind + " / thumb video=" + vidUi.thumbIsVideo);
+check("视频的说明文字取文件名（去掉扩展名）", vidUi.title === "我的视频", "title=" + vidUi.title);
+
+/* 前台预览 iframe 里必须真的出现 <video> —— 这是「能不能用」的分界线 */
+await sleep(1200);
+let previewVideo = { found: false, src: "" };
+try {
+  const frame = admin.frames().find((f) => f.name() === "preview") || admin.frames()[1];
+  previewVideo = await frame.evaluate((u) => {
+    const vs = [...document.querySelectorAll("video")];
+    const hit = vs.find((v) => (v.currentSrc || v.src || "").indexOf(u) >= 0);
+    return { found: !!hit, src: hit ? (hit.currentSrc || hit.src) : "", total: vs.length };
+  }, vidUi.src);
+} catch (e) { /* 预览 iframe 拿不到就下面断言失败，不吞掉 */ }
+check("前台预览里这个视频渲染成了 <video>（不是破图）",
+  previewVideo.found, previewVideo.found ? "" : "预览里没找到该 src 的 video 元素");
+
 /* 把这两个测试上传的素材删掉，别让本地 KV 越跑越大 */
 let uiCleaned = 0;
-for (const u of [afterDrop.src, psUp.src]) {
+for (const u of [afterDrop.src, psUp.src, vidUi.src]) {
   if (!/^\/api\/media\/m\//.test(u)) continue;
   const r = await fetch(BASE + u + "?key=" + encodeURIComponent(TOKEN), { method: "DELETE" });
   if (r.status === 200) uiCleaned++;
 }
-check("UI 上传的素材能删干净", uiCleaned === 2, uiCleaned + "/2");
+check("UI 上传的素材能删干净", uiCleaned === 3, uiCleaned + "/3");
 
 /* 后台页面不能有「幽灵滚动区」。
    面板内容 5000+px 会溢出到文档层，文档因此能滚 4000+px 的空白；
